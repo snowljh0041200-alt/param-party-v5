@@ -216,7 +216,7 @@ def render_posts(posts):
                 <a class="owner-action btn" href="/edit/{pid}">수정</a>
                 <button class="owner-action" onclick="closePost('{pid}')">마감</button>
                 <button class="owner-action danger" onclick="deletePost('{pid}')">삭제</button>
-                <button class="admin danger" onclick="adminDeletePost('{pid}')">관리자 삭제</button>
+                <button class="admin danger" onclick="adminDeletePost('{pid}')">관리 삭제</button>
             </div>
         </div>
         ''')
@@ -228,44 +228,44 @@ PAGE = r'''
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>월하 · 연가 · 연희 파티모집 v6.1</title>
+<title>월하 · 연가 · 연희 파티모집 v7 FINAL</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:radial-gradient(circle at top,#202847 0,#10121a 42%,#090b10 100%);color:#f2f3f7;font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",Arial,sans-serif}
-.wrap{max-width:820px;margin:0 auto;padding:14px 14px 90px}
+.wrap{max-width:860px;margin:0 auto;padding:14px 14px 96px}
 .header{position:sticky;top:0;background:rgba(16,18,26,.92);backdrop-filter:blur(10px);padding:12px 0 10px;border-bottom:1px solid rgba(255,255,255,.08);z-index:5}
 h1{font-size:22px;margin:0}.sub{color:#a8acba;font-size:13px}
-.card{background:linear-gradient(180deg,#202437,#171a26);border:1px solid #39415b;border-radius:20px;padding:15px;margin:12px 0;box-shadow:0 10px 28px rgba(0,0,0,.28)}
+.card{background:linear-gradient(180deg,rgba(34,39,59,.96),rgba(22,25,37,.96));border:1px solid #3d4662;border-radius:22px;padding:16px;margin:12px 0;box-shadow:0 12px 34px rgba(0,0,0,.30)}
 .empty{background:#1b1e2b;border:1px dashed #48506b;border-radius:18px;padding:40px;text-align:center;color:#a8acba}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 button,.btn{border:0;border-radius:14px;background:linear-gradient(180deg,#5876ff,#3e5dea);color:white;font-weight:900;padding:11px 13px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:42px;box-shadow:0 5px 14px rgba(0,0,0,.22)}
 button.gray,.btn.gray{background:linear-gradient(180deg,#464d67,#34394e)}button.danger,.danger{background:linear-gradient(180deg,#e45a5a,#c94141)}button.ok{background:linear-gradient(180deg,#2dc76b,#1d9a51)}button.small{font-size:13px;padding:8px 10px;min-height:34px}
-input,select,textarea{width:100%;background:#11131b;color:#f2f3f7;border:1px solid #444b63;border-radius:13px;padding:12px;margin:6px 0 12px;font-size:16px}
+input,select,textarea{width:100%;background:#10131d;color:#f2f3f7;border:1px solid #48516d;border-radius:14px;padding:13px;margin:6px 0 13px;font-size:16px;outline:none}input:focus,select:focus,textarea:focus{border-color:#6f86ff;box-shadow:0 0 0 3px rgba(90,115,255,.18)}
 label{font-size:13px;color:#a8acba;font-weight:900}
-.tabs{display:flex;gap:7px;overflow-x:auto;padding:10px 0}.tabs a{white-space:nowrap;color:#dce1ff;background:#171a25;border:1px solid #32384d;text-decoration:none;border-radius:999px;padding:8px 12px;font-weight:900;font-size:14px}.tabs a.on{background:#4b6bff;color:white}
-.summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}.box{background:#11131b;border:1px solid #30364b;border-radius:14px;text-align:center;padding:10px}.box b{font-size:22px;display:block}
+.tabs{display:flex;gap:7px;overflow-x:auto;padding:11px 0 2px}.tabs a{white-space:nowrap;color:#dce1ff;background:#171a25;border:1px solid #32384d;text-decoration:none;border-radius:999px;padding:9px 13px;font-weight:900;font-size:14px}.tabs a.on{background:linear-gradient(180deg,#647dff,#4462ef);color:white;border-color:#7088ff}
+.summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}.box{background:linear-gradient(180deg,#131724,#0f121b);border:1px solid #343c55;border-radius:16px;text-align:center;padding:11px}.box b{font-size:23px;display:block;line-height:1.05}.box span{font-size:12px;color:#aeb4c7}
 .top{display:flex;justify-content:space-between;align-items:center}.badge{padding:5px 10px;border-radius:999px;font-size:13px;font-weight:900}.badge.open{background:#123f28;color:#a9ffc8}.badge.done{background:#4b1d1d;color:#ffd0d0}.count{background:#11131b;border:1px solid #30364b;border-radius:999px;padding:5px 10px;font-weight:900}
 h2{margin:10px 0 5px;font-size:22px}.meta{color:#a8acba;font-size:14px;line-height:1.5}.memo{color:#ffd36b;font-size:14px;margin-top:4px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}
 .slot{display:flex;justify-content:space-between;align-items:center;background:#121522;border:1px solid #38405a;border-radius:15px;padding:11px;margin:8px 0}.slot.filled{background:#152218;border-color:#285637}
-.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:10px}
+.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:11px}
 .owner-action,.participant-action,.party-action{display:none!important}.owner-action.show,.participant-action.show,.party-action.show{display:inline-flex!important}
 .hidden{display:none!important}.time-row{display:grid;grid-template-columns:82px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}
 .fab{position:fixed;right:18px;bottom:18px;border-radius:50%;width:58px;height:58px;font-size:30px}.alarm{position:fixed;left:14px;bottom:22px;z-index:40;background:#31364a}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#252b3d;border:1px solid #56607d;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}
 .my-only .post:not(.mine){display:none}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.panel{width:100%;max-width:820px;margin:0 auto;background:#161925;border:1px solid #30364b;border-radius:20px 20px 0 0;padding:14px}
 .chat-list{background:#10121a;border:1px solid #30364b;border-radius:14px;height:330px;overflow-y:auto;padding:10px}.msg{background:#222638;border-radius:12px;padding:8px 10px;margin:6px 0}.msg.mine{background:#173822;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8acba}.chat-form{display:grid;grid-template-columns:90px 1fr 70px;gap:7px;margin-top:8px}.chat-form input{margin:0}
-@media(max-width:560px){.actions{grid-template-columns:1fr 1fr}.chat-form{grid-template-columns:1fr}.row>*{flex:1}.summary{grid-template-columns:1fr 1fr 1fr}.box{padding:8px 5px}.box b{font-size:20px}}
+@media(max-width:560px){.wrap{padding:10px 10px 90px}h1{font-size:21px}.actions{grid-template-columns:1fr 1fr}.chat-form{grid-template-columns:1fr}.row>*{flex:1}.summary{grid-template-columns:1fr 1fr 1fr}.box{padding:8px 5px}.box b{font-size:20px}button,.btn{padding:10px 11px;font-size:14px}.card{border-radius:18px;padding:13px}}
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="header"><h1>🏹 월하 · 연가 · 연희 파티모집 v6.1</h1><div class="sub">파티모집 v6.1 · 현재 접속인원 표시</div></div>
+<div class="header"><h1>🏹 월하 · 연가 · 연희 파티모집 v7 FINAL</h1><div class="sub">파티모집 v7 FINAL · 실시간 모집 현황</div></div>
 {% if page == "home" %}
-<div class="card"><div class="row"><a class="btn" href="/new">+ 구인글</a><a class="btn gray" href="/profile">내 캐릭터</a><button class="gray" onclick="toggleMy()">내 참여/내 글</button></div><div class="summary"><div class="box"><b>{{ open_count }}</b><span>모집중</span></div><div class="box"><b id="onlineCount">1</b><span>접속중</span></div><div class="box"><b id="myCount">0</b><span>내 글/참여</span></div></div><div class="tabs">{% for f in filters %}<a class="{% if filter_value == f %}on{% endif %}" href="/?filter={{ f }}">{{ f }}</a>{% endfor %}</div></div>
+<div class="card"><div class="row"><a class="btn" href="/new">+ 모집글</a><a class="btn gray" href="/profile">내 캐릭터</a><button class="gray" onclick="toggleMy()">내 참여/내 글</button></div><div class="summary"><div class="box"><b>{{ open_count }}</b><span>모집중</span></div><div class="box"><b id="onlineCount">1</b><span>접속중</span></div><div class="box"><b id="myCount">0</b><span>내 글/참여</span></div></div><div class="tabs">{% for f in filters %}<a class="{% if filter_value == f %}on{% endif %}" href="/?filter={{ f }}">{{ f }}</a>{% endfor %}</div></div>
 <div id="postList">{{ post_list|safe }}</div><a class="btn fab" href="/new">+</a>
 {% endif %}
 {% if page in ["new","edit"] %}
-<div class="card"><h2>{% if page == "edit" %}모집글 수정{% else %}구인글 올리기{% endif %}</h2>
+<div class="card"><h2>{% if page == "edit" %}모집글 수정{% else %}파티 모집글 올리기{% endif %}</h2>
 <form method="post" action="{% if page == 'edit' %}/edit/{{ post.id }}{% else %}/create{% endif %}" onsubmit="return prepareSubmit()">
 <input type="hidden" name="owner_id" id="ownerIdInput"><label>작성자 닉네임</label><input name="owner" required placeholder="예: 역인" value="{{ post.owner if post else '' }}">
 <label>종류</label><select name="type" id="typeSelect" onchange="updatePlaces()">{% for t in ["사냥","파밍","600퀘"] %}<option {% if post and post.type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
@@ -275,7 +275,7 @@ h2{margin:10px 0 5px;font-size:22px}.meta{color:#a8acba;font-size:14px;line-heig
 <label>종료시간</label><div class="time-row"><select name="end_period"><option {% if post and post.end_period == "오전" %}selected{% endif %}>오전</option><option {% if not post or post.end_period == "오후" %}selected{% endif %}>오후</option></select><input name="end_time" placeholder="예: 11:00" value="{{ post.end_time if post else '' }}"></div>
 <label>메모</label><textarea name="memo" rows="2">{{ post.memo if post else '' }}</textarea>
 <div class="card"><label>모집 자리 추가</label><div class="quick"><select id="slotJob">{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button type="button" class="ok" onclick="addSlot()">추가</button></div><div id="slotsBox">{% if post %}{% for s in post.slots %}<div class="slot"><div><b>{{ s.job }}</b><br><span>{{ s.char }}</span></div><button type="button" class="small danger" onclick="this.parentElement.remove()">삭제</button><input type="hidden" name="slots" value="{{ s.job }}"><input type="hidden" name="slot_chars" value="{{ s.char }}"><input type="hidden" name="slot_participant_ids" value="{{ s.participant_id }}"></div>{% endfor %}{% endif %}</div></div>
-<button style="width:100%" type="submit">저장하기</button><a class="btn gray" style="width:100%;margin-top:8px" href="/">취소</a>
+<button style="width:100%" type="submit">모집글 저장</button><a class="btn gray" style="width:100%;margin-top:8px" href="/">취소</a>
 </form></div>
 {% endif %}
 {% if page == "profile" %}
@@ -500,7 +500,7 @@ def online():
 
 @app.route("/manifest.json")
 def manifest():
-    return jsonify({"name": "월하 · 연가 · 연희 파티모집 v6.1", "short_name": "파티모집", "start_url": "/", "display": "standalone", "background_color": "#10121a", "theme_color": "#10121a", "icons": []})
+    return jsonify({"name": "월하 · 연가 · 연희 파티모집 v7 FINAL", "short_name": "파티모집", "start_url": "/", "display": "standalone", "background_color": "#10121a", "theme_color": "#10121a", "icons": []})
 
 @app.route("/sw.js")
 def sw():

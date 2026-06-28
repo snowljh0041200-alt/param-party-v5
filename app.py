@@ -9,7 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v17.4"
+APP_VERSION = "v18.0"
 SITE_TITLE = "월하 · 연가 · 연희 파티모집"
 SITE_DESC = "월하 · 연가 · 연희 문파 파티모집, 파밍일정, 실시간 채팅"
 LOCK = threading.Lock()
@@ -548,64 +548,6 @@ def member_summary_html(d):
 
 
 
-
-def normalize_time_input(value):
-    raw = (value or "").strip().replace("：", ":")
-    s = re.sub(r"[^0-9:]", "", raw)
-    if not s:
-        return ""
-    try:
-        if ":" in s:
-            hh, mm = s.split(":", 1)
-            h = int(hh)
-            m = int((mm + "00")[:2])
-        elif len(s) <= 2:
-            h = int(s); m = 0
-        elif len(s) == 3:
-            h = int(s[0]); m = int(s[1:3])
-        else:
-            h = int(s[:2]); m = int(s[2:4])
-        if not (0 <= h <= 23 and 0 <= m <= 59):
-            return ""
-        return f"{h:02d}:{m:02d}"
-    except Exception:
-        return ""
-
-def period_time_to_24(period, value):
-    t = normalize_time_input(value)
-    if not t:
-        return ""
-    h, m = map(int, t.split(":"))
-    p = (period or "").strip()
-    if p == "오후" and h < 12:
-        h += 12
-    elif p == "오전" and h == 12:
-        h = 0
-    return f"{h:02d}:{m:02d}"
-
-def split_time12_from_24(value):
-    t = normalize_time_input(value)
-    if not t:
-        return ("오전", "")
-    h, m = map(int, t.split(":"))
-    period = "오후" if h >= 12 else "오전"
-    h12 = h % 12
-    if h12 == 0:
-        h12 = 12
-    return (period, f"{h12:02d}:{m:02d}")
-
-def display_period_time(value):
-    period, t = split_time12_from_24(value)
-    return f"{period} {t}" if t else ""
-
-def today_date():
-    return kst_now().strftime("%Y-%m-%d")
-
-def display_date(value):
-    v = (value or "").strip()
-    return v if v else today_date()
-
-
 def post_start_dt(p):
     time_text = (p.get("start_time") or "").strip()
     if not time_text:
@@ -645,7 +587,7 @@ def today_schedule_html(d):
     for dt, p, title in items[:8]:
         rows.append(f"""
         <div class='schedule-row post-schedule' data-post-id='{e(p.get('id'))}' data-post-title='{e(title)}' data-start-at='{e(dt.isoformat(timespec='seconds'))}'>
-          <div><b>{e(title)}</b><span>{e(p.get('category'))} · {dt.strftime('%m/%d ') + display_period_time(dt.strftime('%H:%M'))}</span></div>
+          <div><b>{e(title)}</b><span>{e(p.get('category'))} · {dt.strftime('%H:%M')}</span></div>
           <strong class='schedule-left'>{schedule_time_left_text(dt)}</strong>
         </div>
         """)
@@ -713,12 +655,73 @@ def chat_rows(rows, uid, allow_delete=True):
 def chat_html(d):
     return chat_rows(d.get("chat", []), current_uid(), allow_delete=True)
 
+
+def normalize_time_input(value):
+    raw = (value or "").strip().replace("：", ":")
+    s = re.sub(r"[^0-9:]", "", raw)
+    if not s:
+        return ""
+    try:
+        if ":" in s:
+            hh, mm = s.split(":", 1)
+            h = int(hh)
+            m = int((mm + "00")[:2])
+        elif len(s) <= 2:
+            h = int(s); m = 0
+        elif len(s) == 3:
+            h = int(s[0]); m = int(s[1:3])
+        else:
+            h = int(s[:2]); m = int(s[2:4])
+        if not (0 <= h <= 23 and 0 <= m <= 59):
+            return ""
+        return f"{h:02d}:{m:02d}"
+    except Exception:
+        return ""
+
+def period_time_to_24(period, value):
+    t = normalize_time_input(value)
+    if not t:
+        return ""
+    h, m = map(int, t.split(":"))
+    p = (period or "").strip()
+    if p == "오후" and h < 12:
+        h += 12
+    elif p == "오전" and h == 12:
+        h = 0
+    return f"{h:02d}:{m:02d}"
+
+def split_time12_from_24(value):
+    t = normalize_time_input(value)
+    if not t:
+        return ("오전", "")
+    h, m = map(int, t.split(":"))
+    period = "오후" if h >= 12 else "오전"
+    h12 = h % 12
+    if h12 == 0:
+        h12 = 12
+    return (period, f"{h12:02d}:{m:02d}")
+
+def display_period_time(value):
+    period, t = split_time12_from_24(value)
+    return f"{period} {t}" if t else ""
+
+def today_date():
+    return kst_now().strftime("%Y-%m-%d")
+
+def display_date(value):
+    v = (value or "").strip()
+    return v if v else today_date()
+
+
 def post_time(p):
-    s = (p.get("start_period","") + " " + p.get("start_time","")).strip()
-    t = (p.get("end_period","") + " " + p.get("end_time","")).strip()
+    d = display_date(p.get("start_date"))
+    s = display_period_time(p.get("start_time"))
+    t = display_period_time(p.get("end_time"))
     if s and t:
-        return f"{s} ~ {t}"
-    return s or t or "시간 미정"
+        return f"{d} · {s} ~ {t}"
+    if s:
+        return f"{d} · {s}"
+    return f"{d} · 시간 미정"
 
 
 def match_post_query(p, q):
@@ -948,142 +951,26 @@ CSS = """
 
 GATE = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔐 문파 전용</h1><div class='sub'>월하 · 연가 · 연희 파티모집</div></header><section class='panel'><h2>입장 비밀번호</h2><form method='post'><input name='password' type='password' placeholder='문파 비밀번호'><button style='width:100%'>입장</button></form>{% if error %}<div class='notice'>비밀번호가 맞지 않습니다.</div>{% endif %}</section></div>
 
-
-<script id="v17_4_edit_time_fix">
-(function(){
-  function to12(v){
-    v=(v||'').replace(/[^0-9:]/g,'');
-    if(!v)return ['오전',''];
-    let h=0,m='00';
-    if(v.includes(':')){let a=v.split(':');h=parseInt(a[0]||'0');m=(a[1]||'00').slice(0,2);}
-    else {h=parseInt(v.slice(0,2)||'0');m=(v.slice(2,4)||'00');}
-    const p=h>=12?'오후':'오전';
-    let h12=h%12;if(h12===0)h12=12;
-    return [p,String(h12).padStart(2,'0')+':'+m.padStart(2,'0')];
-  }
-  function fmt(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);return v;}
-  function init(){
-    const form=document.querySelector("form");
-    if(!form)return;
-    const start=document.querySelector("input[name='start_time']");
-    const end=document.querySelector("input[name='end_time']");
-    [[start,'start_period'],[end,'end_period']].forEach(pair=>{
-      const inp=pair[0]; if(!inp)return;
-      const sel=document.querySelector("select[name='"+pair[1]+"']");
-      if(inp.value && parseInt((inp.value.split(':')[0]||'0'),10)>12){
-        const r=to12(inp.value); if(sel)sel.value=r[0]; inp.value=r[1];
-      }
-      if(!inp.dataset.v174){
-        inp.dataset.v174='1';
-        inp.addEventListener('input',()=>{inp.value=fmt(inp.value)});
-      }
-    });
-    if(!document.querySelector("input[name='start_date']")){
-      const label=[...document.querySelectorAll('label')].find(l=>(l.innerText||'').includes('시작시간'));
-      if(label){
-        const d=document.createElement('label');
-        d.innerHTML="날짜 <input name='start_date' type='date' value='{{ p.get('start_date','') or today }}'>";
-        label.parentNode.insertBefore(d,label);
-      }
-    }
-  }
-  document.addEventListener('DOMContentLoaded',init);setTimeout(init,200);
-})();
-</script>
-
 </body></html>"""
 
-REGISTER = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>👤 문파원 등록</h1><div class='sub'>처음 한 번만 등록하면 됩니다.</div></header><section class='panel'><form method='post'><label>계정명</label><input name='account' value='{{ form.account }}' placeholder='예: 역인' required><label>대표 캐릭터명</label><input name='char_name' value='{{ form.char_name }}' placeholder='예: 역인' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option {% if form.job==job %}selected{% endif %}>{{ job }}</option>{% endfor %}</select><button style='width:100%'>승인 요청</button></form>{% if error %}<div class='notice'>{{ error }}</div>{% endif %}<p class='meta'>관리자 승인 후 이용 가능합니다.</p></section></div>
 
+REGISTER = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><style>{{ css }}</style></head><body>
+<div class='wrap'>
+<header class='header'><h1>👤 문파원 등록</h1><div class='sub'>처음 한 번만 등록하면 됩니다.</div></header>
+<section class='panel'>
+<form method='post'>
+<label>계정명</label><input name='account' value='{{ form.get("account","") }}' placeholder='예: 역인' required>
+<label>대표 캐릭터명</label><input name='char_name' value='{{ form.get("char_name","") }}' placeholder='예: 역인' required>
+<label>직업/차수</label><select name='job'>{% for job in jobs %}<option value='{{ job }}' {% if form.get("job","검성")==job %}selected{% endif %}>{{ job }}</option>{% endfor %}</select>
+<button style='width:100%'>승인 요청</button>
+</form>
+{% if error %}<div class='notice'>{{ error }}</div>{% endif %}
+<p class='meta'>관리자 승인 후 이용 가능합니다.</p>
+</section></div></body></html>"""
 
-<script id="v17_4_edit_time_fix">
-(function(){
-  function to12(v){
-    v=(v||'').replace(/[^0-9:]/g,'');
-    if(!v)return ['오전',''];
-    let h=0,m='00';
-    if(v.includes(':')){let a=v.split(':');h=parseInt(a[0]||'0');m=(a[1]||'00').slice(0,2);}
-    else {h=parseInt(v.slice(0,2)||'0');m=(v.slice(2,4)||'00');}
-    const p=h>=12?'오후':'오전';
-    let h12=h%12;if(h12===0)h12=12;
-    return [p,String(h12).padStart(2,'0')+':'+m.padStart(2,'0')];
-  }
-  function fmt(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);return v;}
-  function init(){
-    const form=document.querySelector("form");
-    if(!form)return;
-    const start=document.querySelector("input[name='start_time']");
-    const end=document.querySelector("input[name='end_time']");
-    [[start,'start_period'],[end,'end_period']].forEach(pair=>{
-      const inp=pair[0]; if(!inp)return;
-      const sel=document.querySelector("select[name='"+pair[1]+"']");
-      if(inp.value && parseInt((inp.value.split(':')[0]||'0'),10)>12){
-        const r=to12(inp.value); if(sel)sel.value=r[0]; inp.value=r[1];
-      }
-      if(!inp.dataset.v174){
-        inp.dataset.v174='1';
-        inp.addEventListener('input',()=>{inp.value=fmt(inp.value)});
-      }
-    });
-    if(!document.querySelector("input[name='start_date']")){
-      const label=[...document.querySelectorAll('label')].find(l=>(l.innerText||'').includes('시작시간'));
-      if(label){
-        const d=document.createElement('label');
-        d.innerHTML="날짜 <input name='start_date' type='date' value='{{ p.get('start_date','') or today }}'>";
-        label.parentNode.insertBefore(d,label);
-      }
-    }
-  }
-  document.addEventListener('DOMContentLoaded',init);setTimeout(init,200);
-})();
-</script>
-
-</body></html>"""
 
 WAIT = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>⏳ 승인 대기중</h1></header><section class='panel'><p>{{ user.account if user else "승인 대기중" }} 계정이 승인 대기중입니다.</p><div class='top-actions'><a class='btn' href='/admin'>관리자 페이지</a><form method='post' action='/logout'><button class='gray'>로그아웃</button></form></div><p class='meta'>최초 세팅이면 관리자 페이지에서 기존 관리자 비밀번호로 임시 관리자 모드에 들어가 승인할 수 있습니다.</p></section></div>
-
-
-<script id="v17_4_edit_time_fix">
-(function(){
-  function to12(v){
-    v=(v||'').replace(/[^0-9:]/g,'');
-    if(!v)return ['오전',''];
-    let h=0,m='00';
-    if(v.includes(':')){let a=v.split(':');h=parseInt(a[0]||'0');m=(a[1]||'00').slice(0,2);}
-    else {h=parseInt(v.slice(0,2)||'0');m=(v.slice(2,4)||'00');}
-    const p=h>=12?'오후':'오전';
-    let h12=h%12;if(h12===0)h12=12;
-    return [p,String(h12).padStart(2,'0')+':'+m.padStart(2,'0')];
-  }
-  function fmt(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);return v;}
-  function init(){
-    const form=document.querySelector("form");
-    if(!form)return;
-    const start=document.querySelector("input[name='start_time']");
-    const end=document.querySelector("input[name='end_time']");
-    [[start,'start_period'],[end,'end_period']].forEach(pair=>{
-      const inp=pair[0]; if(!inp)return;
-      const sel=document.querySelector("select[name='"+pair[1]+"']");
-      if(inp.value && parseInt((inp.value.split(':')[0]||'0'),10)>12){
-        const r=to12(inp.value); if(sel)sel.value=r[0]; inp.value=r[1];
-      }
-      if(!inp.dataset.v174){
-        inp.dataset.v174='1';
-        inp.addEventListener('input',()=>{inp.value=fmt(inp.value)});
-      }
-    });
-    if(!document.querySelector("input[name='start_date']")){
-      const label=[...document.querySelectorAll('label')].find(l=>(l.innerText||'').includes('시작시간'));
-      if(label){
-        const d=document.createElement('label');
-        d.innerHTML="날짜 <input name='start_date' type='date' value='{{ p.get('start_date','') or today }}'>";
-        label.parentNode.insertBefore(d,label);
-      }
-    }
-  }
-  document.addEventListener('DOMContentLoaded',init);setTimeout(init,200);
-})();
-</script>
 
 </body></html>"""
 
@@ -1106,9 +993,29 @@ MAIN = """
   </aside>
 </section>
 {% endif %}
+
 {% if page=='new' or page=='edit' %}
-<section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();bindCreateMode();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 1107 또는 11:07' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' placeholder='예: 2314 또는 23:14' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘는 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
+<section class='panel'>
+<a class='btn gray' href='/'>← 메인</a>
+<h2>수정</h2>
+<form method='post' action='/edit/{{ post.id }}'>
+<label>작성 캐릭터</label><select disabled><option>{{ post.owner_label }}</option></select>
+<label>종류</label><select name='category' id='categorySelect' disabled><option>{{ post.category }}</option></select>
+<label>장소</label><input value='{{ post.place }}' disabled>
+<label>채널 4자리</label><input name='channel' maxlength='4' inputmode='numeric' value='{{ post.channel }}'>
+<label>날짜</label><input name='start_date' type='date' value='{{ post.get("start_date","") or today }}'>
+<label>시작시간</label><div class='time-row'><select name='start_period'><option {% if start_period=="오전" %}selected{% endif %}>오전</option><option {% if start_period=="오후" %}selected{% endif %}>오후</option></select><input name='start_time' value='{{ start_time }}' inputmode='numeric' maxlength='5'></div>
+<label>종료시간</label><div class='time-row'><select name='end_period'><option {% if end_period=="오전" %}selected{% endif %}>오전</option><option {% if end_period=="오후" %}selected{% endif %}>오후</option></select><input name='end_time' value='{{ end_time }}' inputmode='numeric' maxlength='5'></div>
+<label>메모</label><textarea name='memo'>{{ post.memo }}</textarea>
+<button style='width:100%'>저장</button>
+</form>
+</section>
+<script>
+function formatTimeInput(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);return v}
+document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{i.addEventListener('input',()=>{i.value=formatTimeInput(i.value)})})});
+</script>
 {% endif %}
+
 {% if page=='chars' %}
 <section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>내 캐릭터</h2><form method='post' action='/chars/add'><label>캐릭터명</label><input name='name' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button style='width:100%'>캐릭터 추가 요청</button></form></section><section class='panel'><h2>등록 캐릭터</h2>{% for c in user.chars %}<div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>{% endfor %}</section>
 {% endif %}
@@ -1402,96 +1309,10 @@ document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox()
 setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);setInterval(updateBossTimers,1000);setInterval(updatePostSchedules,1000);setInterval(pollEvents,2500);
 </script>
 
-
-<script id="v17_4_edit_time_fix">
-(function(){
-  function to12(v){
-    v=(v||'').replace(/[^0-9:]/g,'');
-    if(!v)return ['오전',''];
-    let h=0,m='00';
-    if(v.includes(':')){let a=v.split(':');h=parseInt(a[0]||'0');m=(a[1]||'00').slice(0,2);}
-    else {h=parseInt(v.slice(0,2)||'0');m=(v.slice(2,4)||'00');}
-    const p=h>=12?'오후':'오전';
-    let h12=h%12;if(h12===0)h12=12;
-    return [p,String(h12).padStart(2,'0')+':'+m.padStart(2,'0')];
-  }
-  function fmt(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);return v;}
-  function init(){
-    const form=document.querySelector("form");
-    if(!form)return;
-    const start=document.querySelector("input[name='start_time']");
-    const end=document.querySelector("input[name='end_time']");
-    [[start,'start_period'],[end,'end_period']].forEach(pair=>{
-      const inp=pair[0]; if(!inp)return;
-      const sel=document.querySelector("select[name='"+pair[1]+"']");
-      if(inp.value && parseInt((inp.value.split(':')[0]||'0'),10)>12){
-        const r=to12(inp.value); if(sel)sel.value=r[0]; inp.value=r[1];
-      }
-      if(!inp.dataset.v174){
-        inp.dataset.v174='1';
-        inp.addEventListener('input',()=>{inp.value=fmt(inp.value)});
-      }
-    });
-    if(!document.querySelector("input[name='start_date']")){
-      const label=[...document.querySelectorAll('label')].find(l=>(l.innerText||'').includes('시작시간'));
-      if(label){
-        const d=document.createElement('label');
-        d.innerHTML="날짜 <input name='start_date' type='date' value='{{ p.get('start_date','') or today }}'>";
-        label.parentNode.insertBefore(d,label);
-      }
-    }
-  }
-  document.addEventListener('DOMContentLoaded',init);setTimeout(init,200);
-})();
-</script>
-
 </body></html>
 """
 
 ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if admin_msg %}<div class='notice'>{{ admin_msg }}</div>{% endif %}<section class='panel'><b>현재 로그인</b><br>{{ current_label }}</section>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>현재 계정을 임시 관리자 접속 / 최고관리자 등록</button></form><p class='meta'>먼저 메인 사이트에서 본인 문파원 계정으로 로그인되어 있어야 합니다. 로그인 계정이 없으면 최고관리자로 지정할 대상이 없습니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form><a class='btn ok' href='/admin/backup'>데이터 백업</a></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ {'member':'일반','admin':'관리자/부문파장','super':'최고관리자'}.get(u.role|default('member'), u.role|default('member')) }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form>{% if super_ok %}<form method='post' action='/admin/delete_user/{{ u.id }}' style='display:inline' onsubmit="return confirm('정말 이 회원을 삭제할까요?')"><button class='mini danger'>회원삭제</button></form>{% endif %}</div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div>
-
-
-<script id="v17_4_edit_time_fix">
-(function(){
-  function to12(v){
-    v=(v||'').replace(/[^0-9:]/g,'');
-    if(!v)return ['오전',''];
-    let h=0,m='00';
-    if(v.includes(':')){let a=v.split(':');h=parseInt(a[0]||'0');m=(a[1]||'00').slice(0,2);}
-    else {h=parseInt(v.slice(0,2)||'0');m=(v.slice(2,4)||'00');}
-    const p=h>=12?'오후':'오전';
-    let h12=h%12;if(h12===0)h12=12;
-    return [p,String(h12).padStart(2,'0')+':'+m.padStart(2,'0')];
-  }
-  function fmt(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);return v;}
-  function init(){
-    const form=document.querySelector("form");
-    if(!form)return;
-    const start=document.querySelector("input[name='start_time']");
-    const end=document.querySelector("input[name='end_time']");
-    [[start,'start_period'],[end,'end_period']].forEach(pair=>{
-      const inp=pair[0]; if(!inp)return;
-      const sel=document.querySelector("select[name='"+pair[1]+"']");
-      if(inp.value && parseInt((inp.value.split(':')[0]||'0'),10)>12){
-        const r=to12(inp.value); if(sel)sel.value=r[0]; inp.value=r[1];
-      }
-      if(!inp.dataset.v174){
-        inp.dataset.v174='1';
-        inp.addEventListener('input',()=>{inp.value=fmt(inp.value)});
-      }
-    });
-    if(!document.querySelector("input[name='start_date']")){
-      const label=[...document.querySelectorAll('label')].find(l=>(l.innerText||'').includes('시작시간'));
-      if(label){
-        const d=document.createElement('label');
-        d.innerHTML="날짜 <input name='start_date' type='date' value='{{ p.get('start_date','') or today }}'>";
-        label.parentNode.insertBefore(d,label);
-      }
-    }
-  }
-  document.addEventListener('DOMContentLoaded',init);setTimeout(init,200);
-})();
-</script>
 
 </body></html>"""
 
@@ -1513,8 +1334,7 @@ def gate_guard():
 
 NEW = """
 <!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title>
-<style>{{ css }}</style></head><body>
+<title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><style>{{ css }}</style></head><body>
 <div class='wrap'>
   <section class='panel'>
     <a class='btn gray' href='/'>← 메인</a>
@@ -1523,7 +1343,7 @@ NEW = """
       <label>작성 캐릭터
         <select name='char_id'>
           {% for ch in user.chars if ch.status == 'approved' %}
-          <option value='{{ ch.id }}' {% if user.active_char_id==ch.id %}selected{% endif %}>{{ ch.name }}({{ ch.job }})</option>
+          <option value='{{ ch.id }}' {% if user.selected_char_id==ch.id %}selected{% endif %}>{{ ch.name }}({{ ch.job }})</option>
           {% endfor %}
         </select>
       </label>
@@ -1546,37 +1366,14 @@ NEW = """
         </label>
       </div>
       {% endfor %}
-      <label>채널 4자리
-        <input name='channel' maxlength='4' inputmode='numeric' placeholder='예: 3385'>
-      </label>
-      <label>날짜
-        <input name='start_date' type='date' value='{{ today }}'>
-      </label>
-      <label>시작시간
-        <div class='time-row'>
-          <select name='start_period'><option>오전</option><option>오후</option></select>
-          <input name='start_time' placeholder='예: 1107 또는 11:07' inputmode='numeric' maxlength='5'>
-        </div>
-      </label>
-      <label>종료시간
-        <div class='time-row'>
-          <select name='end_period'><option>오전</option><option>오후</option></select>
-          <input name='end_time' placeholder='예: 1120 또는 11:20' inputmode='numeric' maxlength='5'>
-        </div>
-      </label>
-      <label>메모
-        <textarea name='memo' rows='3'></textarea>
-      </label>
+      <label>채널 4자리 <input name='channel' maxlength='4' inputmode='numeric' placeholder='예: 3385'></label>
+      <label>날짜 <input name='start_date' type='date' value='{{ today }}'></label>
+      <label>시작시간 <div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 1107 또는 11:07' inputmode='numeric' maxlength='5'></div></label>
+      <label>종료시간 <div class='time-row'><select name='end_period'><option>오전</option><option>오후</option></select><input name='end_time' placeholder='예: 1120 또는 11:20' inputmode='numeric' maxlength='5'></div></label>
+      <label>메모 <textarea name='memo' rows='3'></textarea></label>
       <section class='panel slot-area' id='slotArea'>
         <h2>사냥 직업 자리 추가</h2>
-        <div class='quick'>
-          <select id='slotJob'>
-            {% for j in jobs %}
-              <option value='{{ j }}'>{{ j }}</option>
-            {% endfor %}
-          </select>
-          <button type='button' class='ok' onclick='addSlot()'>추가</button>
-        </div>
+        <div class='quick'><select id='slotJob'>{% for j in jobs %}<option value='{{ j }}'>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div>
         <div id='slots'></div>
       </section>
       <div class='notice'>600퀘/파밍은 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div>
@@ -1594,85 +1391,14 @@ function addSlot(){
   const box=document.createElement('div');
   box.className='slot';
   box.innerHTML=`<b>${job}</b><input type="hidden" name="slot_job_${slotN}" value="${job}"><button type="button" class="mini danger" onclick="this.parentElement.remove()">삭제</button>`;
-  qs('#slots').appendChild(box);
-  slotN++;
+  qs('#slots').appendChild(box); slotN++;
 }
-function updatePlaces(){
-  const cat=qs('#categorySelect').value;
-  document.querySelectorAll('.place-box').forEach(x=>x.style.display=(x.dataset.cat===cat)?'':'none');
-}
-function updateMode(){
-  const cat=qs('#categorySelect').value;
-  qs('#slotArea').style.display=(cat==='사냥')?'':'none';
-  const help=qs('#modeHelp');
-  if(cat==='파밍')help.textContent='파밍은 생성 후 참여하기 버튼으로 참여합니다. 직업 자리는 사용하지 않습니다.';
-  else if(cat==='600퀘')help.textContent='600퀘는 참여하기 버튼 방식입니다.';
-  else help.textContent='사냥은 직업 자리를 추가해서 모집합니다.';
-}
-function formatTimeInput(v){
-  v=(v||'').replace(/[^0-9]/g,'').slice(0,4);
-  if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);
-  return v;
-}
-function bindTimeAutoColon(){
-  document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{
-    i.addEventListener('input',()=>{i.value=formatTimeInput(i.value)});
-    i.addEventListener('blur',()=>{
-      let v=i.value.replace(/[^0-9]/g,'');
-      if(v.length===3)v='0'+v;
-      if(v.length===4)i.value=v.slice(0,2)+':'+v.slice(2);
-    });
-  });
-}
-document.addEventListener('DOMContentLoaded',()=>{
-  qs('#categorySelect').addEventListener('change',()=>{updatePlaces();updateMode();});
-  updatePlaces();updateMode();bindTimeAutoColon();
-});
-</script>
-
-<script id="v17_4_edit_time_fix">
-(function(){
-  function to12(v){
-    v=(v||'').replace(/[^0-9:]/g,'');
-    if(!v)return ['오전',''];
-    let h=0,m='00';
-    if(v.includes(':')){let a=v.split(':');h=parseInt(a[0]||'0');m=(a[1]||'00').slice(0,2);}
-    else {h=parseInt(v.slice(0,2)||'0');m=(v.slice(2,4)||'00');}
-    const p=h>=12?'오후':'오전';
-    let h12=h%12;if(h12===0)h12=12;
-    return [p,String(h12).padStart(2,'0')+':'+m.padStart(2,'0')];
-  }
-  function fmt(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);return v;}
-  function init(){
-    const form=document.querySelector("form");
-    if(!form)return;
-    const start=document.querySelector("input[name='start_time']");
-    const end=document.querySelector("input[name='end_time']");
-    [[start,'start_period'],[end,'end_period']].forEach(pair=>{
-      const inp=pair[0]; if(!inp)return;
-      const sel=document.querySelector("select[name='"+pair[1]+"']");
-      if(inp.value && parseInt((inp.value.split(':')[0]||'0'),10)>12){
-        const r=to12(inp.value); if(sel)sel.value=r[0]; inp.value=r[1];
-      }
-      if(!inp.dataset.v174){
-        inp.dataset.v174='1';
-        inp.addEventListener('input',()=>{inp.value=fmt(inp.value)});
-      }
-    });
-    if(!document.querySelector("input[name='start_date']")){
-      const label=[...document.querySelectorAll('label')].find(l=>(l.innerText||'').includes('시작시간'));
-      if(label){
-        const d=document.createElement('label');
-        d.innerHTML="날짜 <input name='start_date' type='date' value='{{ p.get('start_date','') or today }}'>";
-        label.parentNode.insertBefore(d,label);
-      }
-    }
-  }
-  document.addEventListener('DOMContentLoaded',init);setTimeout(init,200);
-})();
-</script>
-
-</body></html>
+function updatePlaces(){const cat=qs('#categorySelect').value;document.querySelectorAll('.place-box').forEach(x=>x.style.display=(x.dataset.cat===cat)?'':'none')}
+function updateMode(){const cat=qs('#categorySelect').value;qs('#slotArea').style.display=(cat==='사냥')?'':'none';const h=qs('#modeHelp');if(cat==='파밍')h.textContent='파밍은 생성 후 참여하기 버튼으로 참여합니다. 직업 자리는 사용하지 않습니다.';else if(cat==='600퀘')h.textContent='600퀘는 참여하기 버튼 방식입니다.';else h.textContent='사냥은 직업 자리를 추가해서 모집합니다.'}
+function formatTimeInput(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);return v}
+function bindTimeAutoColon(){document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{i.addEventListener('input',()=>{i.value=formatTimeInput(i.value)});i.addEventListener('blur',()=>{let v=i.value.replace(/[^0-9]/g,'');if(v.length===3)v='0'+v;if(v.length===4)i.value=v.slice(0,2)+':'+v.slice(2)})})}
+document.addEventListener('DOMContentLoaded',()=>{qs('#categorySelect').addEventListener('change',()=>{updatePlaces();updateMode()});updatePlaces();updateMode();bindTimeAutoColon()});
+</script></body></html>
 """
 
 
@@ -1702,12 +1428,12 @@ def register():
             return redirect("/")
         if u and u.get("status") == "pending":
             return redirect("/wait")
-        return render_template_string(REGISTER, css=CSS, jobs=JOBS, form={"account":"","char_name":"","job":"검성"}, error="")
+        return render_template_string(REGISTER, css=CSS, jobs=JOBS, form={"account":"","char_name":"","job":"검성"}, error="", site_title=SITE_TITLE, site_desc=SITE_DESC)
     form = {"account": request.form.get("account","").strip(), "char_name": request.form.get("char_name","").strip(), "job": request.form.get("job","검성")}
     if not form["account"] or not form["char_name"]:
-        return render_template_string(REGISTER, css=CSS, jobs=JOBS, form=form, error="계정명과 캐릭터명을 입력해주세요.")
+        return render_template_string(REGISTER, css=CSS, jobs=JOBS, form=form, error="계정명과 캐릭터명을 입력해주세요.", site_title=SITE_TITLE, site_desc=SITE_DESC)
     if form["char_name"].lower() in all_char_names(d):
-        return render_template_string(REGISTER, css=CSS, jobs=JOBS, form=form, error="이미 등록된 캐릭터명입니다.")
+        return render_template_string(REGISTER, css=CSS, jobs=JOBS, form=form, error="이미 등록된 캐릭터명입니다.", site_title=SITE_TITLE, site_desc=SITE_DESC)
     uid, cid = new_id(), new_id()
     nu = {"id":uid,"account":form["account"],"status":"pending","role":"member","blocked":False,"selected_char_id":cid,"created":text_now(),"chars":[{"id":cid,"name":form["char_name"],"job":form["job"],"status":"pending"}]}
     save(lambda x: x["users"].append(nu))
@@ -1740,8 +1466,7 @@ def home():
         posts = [p for p in posts if p.get("category") == filt]
     posts = sort_posts_for_view(posts)
     open_count = sum(1 for p in posts if status_text(p) in ["모집중","진행중"])
-    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:],
-        today=today_date(), filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), global_chat=chat_html(d), open_count=open_count, member_html=member_html(d), member_job_html=member_job_html(d), member_summary=member_summary_html(d), schedule_html=today_schedule_html(d), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
+    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), global_chat=chat_html(d), open_count=open_count, member_html=member_html(d), member_job_html=member_job_html(d), member_summary=member_summary_html(d), schedule_html=today_schedule_html(d), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
 
 @app.route("/api/posts")
 def api_posts():
@@ -1770,8 +1495,8 @@ def new():
         cats_no_all=CATEGORIES[1:],
         today=today_date(),
         app_version=APP_VERSION,
-        site_title=SITE_TITLE if "SITE_TITLE" in globals() else "월하 · 연가 · 연희 파티모집",
-        site_desc=SITE_DESC if "SITE_DESC" in globals() else "월하 · 연가 · 연희 문파 파티모집"
+        site_title=SITE_TITLE,
+        site_desc=SITE_DESC
     )
 
 @app.route("/create", methods=["POST"])
@@ -1836,14 +1561,36 @@ def edit(pid):
     if not p or p.get("owner_uid") != u.get("id"):
         return redirect("/")
     if request.method == "GET":
-        allowed_categories = ["사냥", "600퀘", "파밍"] if is_admin_user(u) else ["사냥", "600퀘"]
-        return render_template_string(MAIN, css=CSS, page="edit", post=p, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="", app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
+        sp, st = split_time12_from_24(p.get("start_time"))
+        ep, et = split_time12_from_24(p.get("end_time"))
+        return render_template_string(
+            MAIN,
+            css=CSS,
+            page="edit",
+            post=p,
+            user=u,
+            chars=chars(u),
+            cats_no_all=["사냥","600퀘","파밍"] if is_admin_user(u) else ["사냥","600퀘"],
+            jobs=JOBS,
+            places=PLACES,
+            notice="",
+            start_period=sp,
+            start_time=st,
+            end_period=ep,
+            end_time=et,
+            today=today_date(),
+            app_version=APP_VERSION,
+            site_title=SITE_TITLE,
+            site_desc=SITE_DESC
+        )
     def fn(x):
         pp = find_post(x, pid)
         if pp and pp.get("owner_uid") == u.get("id"):
             pp["channel"] = digits(request.form.get("channel"),4)
             pp["start_date"] = request.form.get("start_date","").strip() or today_date()
+            pp["start_period"] = request.form.get("start_period","")
             pp["start_time"] = period_time_to_24(request.form.get("start_period",""), request.form.get("start_time",""))
+            pp["end_period"] = request.form.get("end_period","")
             pp["end_time"] = period_time_to_24(request.form.get("end_period",""), request.form.get("end_time",""))
             pp["memo"] = request.form.get("memo","").strip()
     save(fn)
@@ -1852,8 +1599,7 @@ def edit(pid):
 @app.route("/chars")
 def chars_page():
     d=load(); u=current_user(d)
-    return render_template_string(MAIN, css=CSS, page="chars", user=u, jobs=JOBS, places=PLACES, cats_no_all=CATEGORIES[1:],
-        today=today_date(), notice="", app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
+    return render_template_string(MAIN, css=CSS, page="chars", user=u, jobs=JOBS, places=PLACES, cats_no_all=CATEGORIES[1:], notice="", app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
 
 @app.route("/chars/add", methods=["POST"])
 def char_add():

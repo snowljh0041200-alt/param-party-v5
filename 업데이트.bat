@@ -2,8 +2,8 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 echo.
-echo ===== v17.4 날짜/시간 최종 수정 =====
+echo ===== v18.0 안정화 리빌드 =====
 git add .
-git commit -m "v17.4 date time final fix"
+git commit -m "v18.0 stable rebuild"
 git push
 pause

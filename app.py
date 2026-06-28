@@ -144,7 +144,7 @@ def render_chat_rows(chats,uid):
         msg_id = esc(c.get("id", ""))
         created_at = parse_iso(c.get("created_at", ""))
         delete_btn = ""
-        if c.get("uid") == uid and created_at and created_at >= delete_deadline:
+        if msg_id and c.get("uid") == uid and created_at and created_at >= delete_deadline:
             delete_btn = f"<button class='mini danger' onclick=\"deleteGlobalChat('{msg_id}')\">삭제</button>"
         rows.append(f"<div class='msg{mine}'><div class='msg-meta'>{esc(c.get('label'))} · {esc(c.get('time'))} {delete_btn}</div><div>{esc(c.get('text'))}</div></div>")
     return "\n".join(rows)
@@ -355,6 +355,7 @@ def global_chat():
 def global_chat_delete():
     req=request.get_json(force=True)
     msg_id=req.get("id","")
+    if not msg_id: return jsonify(ok=False,reason="메시지 정보 없음")
     data=load_data(); user=current_user(data)
     if not approved_user(user): return jsonify(ok=False,reason="권한 없음")
     result={"ok":False,"reason":"삭제 가능 시간이 지났습니다."}
@@ -435,6 +436,13 @@ def admin_char_action(uid,cid,action):
 def admin_delete_post(pid):
     if not session.get("admin_ok"): return redirect("/admin")
     mutate(lambda d:d.update({"posts":[p for p in d.get("posts",[]) if p.get("id")!=pid]})); return redirect("/admin")
+
+@app.route("/admin/clear_global_chat",methods=["POST"])
+def admin_clear_global_chat():
+    if not session.get("admin_ok"): return redirect("/admin")
+    mutate(lambda d:d.update({"global_chat":[]}))
+    return redirect("/admin")
+
 @app.route("/admin/clear_closed",methods=["POST"])
 def admin_clear_closed():
     if not session.get("admin_ok"): return redirect("/admin")

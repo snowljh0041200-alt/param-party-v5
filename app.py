@@ -1,9 +1,10 @@
 
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, redirect, session
 from datetime import datetime, timedelta
 import json, os, uuid, tempfile, threading, html
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "baram-party-local-secret")
 
 DATA_FILE = "data.json"
 LOCK = threading.Lock()
@@ -15,12 +16,7 @@ HUNTING = ["도삭산 900층", "흉노족", "선비족"]
 FARMING = ["해골왕", "어금니"]
 QUEST600 = ["800층 600퀘", "900층 600퀘", "선비족 600퀘"]
 FILTERS = ["전체", "사냥", "파밍", "600퀘", "도삭산 900층", "흉노족", "선비족", "해골왕", "어금니"]
-JOBS = [
-    "전사","검객","검제","검황","검성",
-    "도적","자객","진검","귀검","태성",
-    "주술사","술사","현사","현인","현자",
-    "도사","도인","명인","진인","진선"
-]
+JOBS = ["전사","검객","검제","검황","검성","도적","자객","진검","귀검","태성","주술사","술사","현사","현인","현자","도사","도인","명인","진인","진선"]
 
 def esc(v):
     return html.escape(str(v or ""), quote=True)
@@ -37,16 +33,20 @@ def parse_iso(v):
     except Exception:
         return None
 
+def clean_channel(v):
+    return "".join([c for c in str(v or "") if c.isdigit()])[:4]
+
 def load_raw():
     if not os.path.exists(DATA_FILE):
-        return {"posts": []}
+        return {"posts": [], "notice": ""}
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             data.setdefault("posts", [])
+            data.setdefault("notice", "")
             return data
     except Exception:
-        return {"posts": []}
+        return {"posts": [], "notice": ""}
 
 def save_raw(data):
     fd, tmp = tempfile.mkstemp(prefix="baram_", suffix=".json", dir=".")
@@ -61,7 +61,7 @@ def cleanup(data):
         closed_at = parse_iso(post.get("closed_at", ""))
         if post.get("closed") and closed_at and closed_at <= cutoff:
             continue
-        post["chats"] = post.get("chats", [])[-100:]
+        post["chats"] = post.get("chats", [])[-120:]
         kept.append(post)
     data["posts"] = kept
     return data
@@ -100,7 +100,7 @@ def ensure_closed(post):
         post["closed_at"] = now_iso()
 
 def post_status(post):
-    return "모집완료" if post.get("closed") or is_full(post) else "모집중"
+    return "마감" if post.get("closed") or is_full(post) else "모집중"
 
 def post_time(post):
     start = (post.get("start_period", "") + " " + post.get("start_time", "")).strip()
@@ -119,18 +119,17 @@ def closed_left(post):
     return "곧 삭제" if left <= 0 else f"{left}분 뒤 자동삭제"
 
 def can_chat(post, client_id):
-    if not client_id:
-        return False
-    if post.get("owner_id") == client_id:
-        return True
-    return any(s.get("participant_id") == client_id for s in post.get("slots", []))
-
-def can_manage(post, client_id, admin_pw=""):
-    if post.get("owner_id") == client_id:
-        return True
-    if admin_pw and admin_pw == ADMIN_PASSWORD:
-        return True
+    if not client_id == "":
+        if post.get("owner_id") == client_id:
+            return True
+        return any(s.get("participant_id") == client_id for s in post.get("slots", []))
     return False
+
+def can_manage(post, client_id):
+    return post.get("owner_id") == client_id
+
+def is_admin():
+    return bool(session.get("admin_ok"))
 
 def place_select(post_type, form):
     if post_type == "사냥":
@@ -146,7 +145,7 @@ def update_post_from_form(post, form):
         "owner_id": form.get("owner_id", "").strip() or post.get("owner_id", ""),
         "type": post_type,
         "place": place_select(post_type, form),
-        "channel": "".join([c for c in form.get("channel", "") if c.isdigit()])[:4],
+        "channel": clean_channel(form.get("channel", "")),
         "start_period": form.get("start_period", ""),
         "start_time": form.get("start_time", "").strip(),
         "end_period": form.get("end_period", ""),
@@ -171,6 +170,13 @@ def update_post_from_form(post, form):
         post["closed"] = False
         post["closed_at"] = ""
 
+def online_count():
+    cutoff = datetime.now() - timedelta(seconds=70)
+    for key, last_seen in list(ONLINE_USERS.items()):
+        if last_seen < cutoff:
+            ONLINE_USERS.pop(key, None)
+    return max(1, len(ONLINE_USERS))
+
 def render_posts(posts):
     if not posts:
         return '<div class="empty">현재 모집글이 없습니다.</div>'
@@ -191,34 +197,31 @@ def render_posts(posts):
             part_id = esc(slot.get("participant_id"))
             copy_lines.append(f"{slot.get('job')} - {slot.get('char') or '모집중'}")
             if char:
-                slot_rows.append(f'''<div class="slot filled" data-participant-id="{part_id}"><div><b>{job}</b><br><span>✅ {char}</span></div><button class="small danger participant-action" onclick="leaveSlot('{pid}','{sid}')">비우기</button></div>''')
+                slot_rows.append(f"<div class='slot filled' data-participant-id='{part_id}'><div><b>{job}</b><br><span>✅ {char}</span></div><button class='small danger participant-action' onclick=\"leaveSlot('{pid}','{sid}')\">비우기</button></div>")
             else:
-                slot_rows.append(f'''<div class="slot"><div><b>{job}</b><br><span>⭕ 모집중</span></div><button class="small ok" onclick="joinSlot('{pid}','{sid}','{job}')">참여</button></div>''')
+                slot_rows.append(f"<div class='slot'><div><b>{job}</b><br><span>⭕ 모집중</span></div><button class='small ok' onclick=\"joinSlot('{pid}','{sid}','{job}')\">참여</button></div>")
         left = closed_left(post)
-        left_html = f'<div class="left-time">{esc(left)}</div>' if left else ""
-        memo_html = f'<div class="memo">메모: {esc(post.get("memo"))}</div>' if post.get("memo") else ""
+        left_html = f"<div class='left-time'>{esc(left)}</div>" if left else ""
+        memo_html = f"<div class='memo'>📝 {esc(post.get('memo'))}</div>" if post.get("memo") else ""
         copy_text = esc("\\n".join(copy_lines))
         html_parts.append(f'''
-        <div class="card post" data-post-id="{pid}" data-owner-id="{owner_id}" data-participant-ids="{esc(participant_ids)}" data-chat-count="{chat_count}" data-filled="{filled}">
-            <div class="top">
-                <span class="badge {'done' if status == '모집완료' else 'open'}">{status}</span>
-                <span class="count">{filled}/{total}</span>
+        <article class="party-card post" data-post-id="{pid}" data-owner-id="{owner_id}" data-participant-ids="{esc(participant_ids)}">
+            <div class="post-head">
+                <div><span class="pill {'done' if status == '마감' else 'open'}">{status}</span><span class="pill type">{esc(post.get("type"))}</span></div>
+                <b class="count">{filled}/{total}</b>
             </div>
             <h2>{esc(post.get("place"))}</h2>
-            <div class="meta">채널 {esc(post.get("channel") or "미정")} · {esc(post_time(post))}</div>
-            <div class="meta">작성자 {esc(post.get("owner"))} · {esc(post.get("created"))}</div>
-            {memo_html}
-            {left_html}
+            <div class="meta">📍 채널 <b>{esc(post.get("channel") or "미정")}</b> · ⏰ {esc(post_time(post))}</div>
+            <div class="meta">👑 {esc(post.get("owner"))} · {esc(post.get("created"))}</div>
+            {memo_html}{left_html}
             <div class="slots">{''.join(slot_rows)}</div>
             <div class="actions">
                 <button onclick="copyPost(`{copy_text}`)">복사</button>
                 <button class="party-action" onclick="openChat('{pid}')">채팅 {chat_count}</button>
                 <a class="owner-action btn" href="/edit/{pid}">수정</a>
-                <button class="owner-action" onclick="closePost('{pid}')">마감</button>
                 <button class="owner-action danger" onclick="deletePost('{pid}')">삭제</button>
-                <button class="admin danger" onclick="adminDeletePost('{pid}')">관리 삭제</button>
             </div>
-        </div>
+        </article>
         ''')
     return "\n".join(html_parts)
 
@@ -228,62 +231,76 @@ PAGE = r'''
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>월하 · 연가 · 연희 파티모집 v7 FINAL</title>
+<title>월하 · 연가 · 연희 파티모집 v8</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:radial-gradient(circle at top,#202847 0,#10121a 42%,#090b10 100%);color:#f2f3f7;font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",Arial,sans-serif}
-.wrap{max-width:860px;margin:0 auto;padding:14px 14px 96px}
-.header{position:sticky;top:0;background:rgba(16,18,26,.92);backdrop-filter:blur(10px);padding:12px 0 10px;border-bottom:1px solid rgba(255,255,255,.08);z-index:5}
-h1{font-size:22px;margin:0}.sub{color:#a8acba;font-size:13px}
-.card{background:linear-gradient(180deg,rgba(34,39,59,.96),rgba(22,25,37,.96));border:1px solid #3d4662;border-radius:22px;padding:16px;margin:12px 0;box-shadow:0 12px 34px rgba(0,0,0,.30)}
-.empty{background:#1b1e2b;border:1px dashed #48506b;border-radius:18px;padding:40px;text-align:center;color:#a8acba}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-button,.btn{border:0;border-radius:14px;background:linear-gradient(180deg,#5876ff,#3e5dea);color:white;font-weight:900;padding:11px 13px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:42px;box-shadow:0 5px 14px rgba(0,0,0,.22)}
-button.gray,.btn.gray{background:linear-gradient(180deg,#464d67,#34394e)}button.danger,.danger{background:linear-gradient(180deg,#e45a5a,#c94141)}button.ok{background:linear-gradient(180deg,#2dc76b,#1d9a51)}button.small{font-size:13px;padding:8px 10px;min-height:34px}
-input,select,textarea{width:100%;background:#10131d;color:#f2f3f7;border:1px solid #48516d;border-radius:14px;padding:13px;margin:6px 0 13px;font-size:16px;outline:none}input:focus,select:focus,textarea:focus{border-color:#6f86ff;box-shadow:0 0 0 3px rgba(90,115,255,.18)}
-label{font-size:13px;color:#a8acba;font-weight:900}
-.tabs{display:flex;gap:7px;overflow-x:auto;padding:11px 0 2px}.tabs a{white-space:nowrap;color:#dce1ff;background:#171a25;border:1px solid #32384d;text-decoration:none;border-radius:999px;padding:9px 13px;font-weight:900;font-size:14px}.tabs a.on{background:linear-gradient(180deg,#647dff,#4462ef);color:white;border-color:#7088ff}
-.summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}.box{background:linear-gradient(180deg,#131724,#0f121b);border:1px solid #343c55;border-radius:16px;text-align:center;padding:11px}.box b{font-size:23px;display:block;line-height:1.05}.box span{font-size:12px;color:#aeb4c7}
-.top{display:flex;justify-content:space-between;align-items:center}.badge{padding:5px 10px;border-radius:999px;font-size:13px;font-weight:900}.badge.open{background:#123f28;color:#a9ffc8}.badge.done{background:#4b1d1d;color:#ffd0d0}.count{background:#11131b;border:1px solid #30364b;border-radius:999px;padding:5px 10px;font-weight:900}
-h2{margin:10px 0 5px;font-size:22px}.meta{color:#a8acba;font-size:14px;line-height:1.5}.memo{color:#ffd36b;font-size:14px;margin-top:4px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}
-.slot{display:flex;justify-content:space-between;align-items:center;background:#121522;border:1px solid #38405a;border-radius:15px;padding:11px;margin:8px 0}.slot.filled{background:#152218;border-color:#285637}
-.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:11px}
-.owner-action,.participant-action,.party-action{display:none!important}.owner-action.show,.participant-action.show,.party-action.show{display:inline-flex!important}
-.hidden{display:none!important}.time-row{display:grid;grid-template-columns:82px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}
-.fab{position:fixed;right:18px;bottom:18px;border-radius:50%;width:58px;height:58px;font-size:30px}.alarm{position:fixed;left:14px;bottom:22px;z-index:40;background:#31364a}
-.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#252b3d;border:1px solid #56607d;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}
-.my-only .post:not(.mine){display:none}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.panel{width:100%;max-width:820px;margin:0 auto;background:#161925;border:1px solid #30364b;border-radius:20px 20px 0 0;padding:14px}
-.chat-list{background:#10121a;border:1px solid #30364b;border-radius:14px;height:330px;overflow-y:auto;padding:10px}.msg{background:#222638;border-radius:12px;padding:8px 10px;margin:6px 0}.msg.mine{background:#173822;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8acba}.chat-form{display:grid;grid-template-columns:90px 1fr 70px;gap:7px;margin-top:8px}.chat-form input{margin:0}
-@media(max-width:560px){.wrap{padding:10px 10px 90px}h1{font-size:21px}.actions{grid-template-columns:1fr 1fr}.chat-form{grid-template-columns:1fr}.row>*{flex:1}.summary{grid-template-columns:1fr 1fr 1fr}.box{padding:8px 5px}.box b{font-size:20px}button,.btn{padding:10px 11px;font-size:14px}.card{border-radius:18px;padding:13px}}
+body{margin:0;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",Arial,sans-serif;background:#0b1020}
+body:before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 20% 0%,#253b75 0,#111a34 36%,#090d18 76%);z-index:-2}
+.wrap{max-width:980px;margin:0 auto;padding:18px 16px 100px}
+.header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:10px 0 16px;border-bottom:1px solid rgba(255,255,255,.10)}
+h1{font-size:28px;margin:0;letter-spacing:-.8px}.sub{color:#aeb8d7;font-size:13px;margin-top:4px}.admin-link{color:#aeb8d7;text-decoration:none;font-size:13px}
+.panel,.party-card{background:rgba(20,27,48,.86);border:1px solid rgba(150,165,210,.22);box-shadow:0 18px 50px rgba(0,0,0,.30);border-radius:24px;padding:16px;margin:14px 0;backdrop-filter:blur(12px)}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:rgba(7,11,22,.55);border:1px solid rgba(255,255,255,.10);border-radius:18px;text-align:center;padding:14px 8px}.stat b{font-size:28px;display:block}.stat span{font-size:12px;color:#aeb8d7}
+button,.btn{border:0;border-radius:15px;background:linear-gradient(180deg,#6a86ff,#4163ff);color:#fff;font-weight:900;padding:12px 15px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;box-shadow:0 8px 22px rgba(35,80,255,.24);cursor:pointer}
+button.gray,.btn.gray{background:linear-gradient(180deg,#4c5571,#363d55);box-shadow:none}button.danger,.danger{background:linear-gradient(180deg,#ff6666,#ce4040);box-shadow:none}button.ok{background:linear-gradient(180deg,#2bd176,#169851)}
+input,select,textarea{width:100%;background:#0d1325;color:#f4f6ff;border:1px solid rgba(170,185,230,.25);border-radius:15px;padding:13px;margin:6px 0 13px;font-size:16px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:#7891ff;box-shadow:0 0 0 3px rgba(120,145,255,.18)}
+label{font-size:13px;color:#bac4de;font-weight:900}.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tabs a{white-space:nowrap;color:#dce4ff;background:rgba(10,15,30,.55);border:1px solid rgba(255,255,255,.12);text-decoration:none;border-radius:999px;padding:9px 14px;font-weight:900;font-size:14px}.tabs a.on{background:linear-gradient(180deg,#6a86ff,#4163ff);border-color:#8ca0ff}
+.empty{border:1px dashed rgba(255,255,255,.25);border-radius:22px;padding:46px;text-align:center;color:#c2c9dd;background:rgba(20,27,48,.55)}
+.post-head{display:flex;justify-content:space-between;align-items:center}.pill{display:inline-flex;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;margin-right:4px}.pill.open{background:#123f2a;color:#9dffc4}.pill.done{background:#4d2020;color:#ffd1d1}.pill.type{background:#242c48;color:#ccd6ff}.count{font-size:18px;background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 12px}
+h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-height:1.6}.memo{color:#ffd16a;font-size:14px;margin-top:5px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}
+.slot{display:flex;justify-content:space-between;align-items:center;background:rgba(8,12,24,.62);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px;margin:9px 0}.slot.filled{background:rgba(18,55,33,.58);border-color:rgba(73,190,112,.35)}
+.actions{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:12px}.owner-action,.participant-action,.party-action{display:none!important}.owner-action.show,.participant-action.show,.party-action.show{display:inline-flex!important}
+.hidden{display:none!important}.time-row{display:grid;grid-template-columns:90px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}.small{font-size:13px;padding:8px 10px;min-height:34px}
+.fab{position:fixed;right:18px;bottom:18px;border-radius:50%;width:62px;height:62px;font-size:30px}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1e2845;border:1px solid #53648f;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}
+.my-only .post:not(.mine){display:none}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.panel.chat-panel{width:100%;max-width:820px;margin:0 auto;border-radius:22px 22px 0 0}.chat-list{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;height:330px;overflow-y:auto;padding:10px}.msg{background:#202a47;border-radius:13px;padding:9px 11px;margin:7px 0}.msg.mine{background:#173d27;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8b2cc}.chat-form{display:grid;grid-template-columns:95px 1fr 74px;gap:7px;margin-top:9px}.chat-form input{margin:0}
+.notice{background:linear-gradient(180deg,rgba(255,211,106,.18),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.30);color:#ffe5a3;border-radius:18px;padding:12px;margin-top:12px}
+@media(max-width:640px){.wrap{padding:12px 10px 90px}.header{display:block}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.chat-form{grid-template-columns:1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="header"><h1>🏹 월하 · 연가 · 연희 파티모집 v7 FINAL</h1><div class="sub">파티모집 v7 FINAL · 실시간 모집 현황</div></div>
+<header class="header">
+  <div><h1>🏹 월하 · 연가 · 연희 파티모집</h1><div class="sub">바람의나라 클래식 통합 파티 모집 · v8 ADMIN</div></div>
+  <a class="admin-link" href="/admin">관리자</a>
+</header>
+
+{% if notice %}<div class="notice">📢 {{ notice }}</div>{% endif %}
+
 {% if page == "home" %}
-<div class="card"><div class="row"><a class="btn" href="/new">+ 모집글</a><a class="btn gray" href="/profile">내 캐릭터</a><button class="gray" onclick="toggleMy()">내 참여/내 글</button></div><div class="summary"><div class="box"><b>{{ open_count }}</b><span>모집중</span></div><div class="box"><b id="onlineCount">1</b><span>접속중</span></div><div class="box"><b id="myCount">0</b><span>내 글/참여</span></div></div><div class="tabs">{% for f in filters %}<a class="{% if filter_value == f %}on{% endif %}" href="/?filter={{ f }}">{{ f }}</a>{% endfor %}</div></div>
+<section class="panel">
+  <div class="top-actions"><a class="btn" href="/new">+ 모집글</a><a class="btn gray" href="/profile">내 캐릭터</a><button class="gray" onclick="toggleMy()">내 참여/내 글</button></div>
+  <div class="summary"><div class="stat"><b>{{ open_count }}</b><span>모집중</span></div><div class="stat"><b id="onlineCount">1</b><span>접속중</span></div><div class="stat"><b id="myCount">0</b><span>내 글/참여</span></div></div>
+  <div class="tabs">{% for f in filters %}<a class="{% if filter_value == f %}on{% endif %}" href="/?filter={{ f }}">{{ f }}</a>{% endfor %}</div>
+</section>
 <div id="postList">{{ post_list|safe }}</div><a class="btn fab" href="/new">+</a>
 {% endif %}
+
 {% if page in ["new","edit"] %}
-<div class="card"><h2>{% if page == "edit" %}모집글 수정{% else %}파티 모집글 올리기{% endif %}</h2>
+<section class="panel"><h2>{% if page == "edit" %}모집글 수정{% else %}모집글 올리기{% endif %}</h2>
 <form method="post" action="{% if page == 'edit' %}/edit/{{ post.id }}{% else %}/create{% endif %}" onsubmit="return prepareSubmit()">
-<input type="hidden" name="owner_id" id="ownerIdInput"><label>작성자 닉네임</label><input name="owner" required placeholder="예: 역인" value="{{ post.owner if post else '' }}">
+<input type="hidden" name="owner_id" id="ownerIdInput">
+<label>작성자 닉네임</label><input name="owner" required placeholder="예: 역인" value="{{ post.owner if post else '' }}">
 <label>종류</label><select name="type" id="typeSelect" onchange="updatePlaces()">{% for t in ["사냥","파밍","600퀘"] %}<option {% if post and post.type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
-<label>장소</label><select name="place_hunting" id="place_사냥" class="place-select">{% for p in hunting %}<option {% if post and post.place == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select><select name="place_farming" id="place_파밍" class="place-select hidden">{% for p in farming %}<option {% if post and post.place == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select><select name="place_quest" id="place_600퀘" class="place-select hidden">{% for p in quest600 %}<option {% if post and post.place == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
-<label>채널 4자리</label><input name="channel" id="channelInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="예: 3385" value="{{ post.channel if post else '' }}" oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,4)">
+<label>장소</label>
+<select name="place_hunting" id="place_사냥" class="place-select">{% for p in hunting %}<option {% if post and post.place == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+<select name="place_farming" id="place_파밍" class="place-select hidden">{% for p in farming %}<option {% if post and post.place == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+<select name="place_quest" id="place_600퀘" class="place-select hidden">{% for p in quest600 %}<option {% if post and post.place == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+<label>채널 4자리</label><input name="channel" id="channelInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="예: 3385" value="{{ post.channel if post else '' }}" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)">
 <label>시작시간</label><div class="time-row"><select name="start_period"><option {% if post and post.start_period == "오전" %}selected{% endif %}>오전</option><option {% if post and post.start_period == "오후" %}selected{% endif %}>오후</option></select><input name="start_time" placeholder="예: 09:00" value="{{ post.start_time if post else '' }}"></div>
 <label>종료시간</label><div class="time-row"><select name="end_period"><option {% if post and post.end_period == "오전" %}selected{% endif %}>오전</option><option {% if not post or post.end_period == "오후" %}selected{% endif %}>오후</option></select><input name="end_time" placeholder="예: 11:00" value="{{ post.end_time if post else '' }}"></div>
 <label>메모</label><textarea name="memo" rows="2">{{ post.memo if post else '' }}</textarea>
-<div class="card"><label>모집 자리 추가</label><div class="quick"><select id="slotJob">{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button type="button" class="ok" onclick="addSlot()">추가</button></div><div id="slotsBox">{% if post %}{% for s in post.slots %}<div class="slot"><div><b>{{ s.job }}</b><br><span>{{ s.char }}</span></div><button type="button" class="small danger" onclick="this.parentElement.remove()">삭제</button><input type="hidden" name="slots" value="{{ s.job }}"><input type="hidden" name="slot_chars" value="{{ s.char }}"><input type="hidden" name="slot_participant_ids" value="{{ s.participant_id }}"></div>{% endfor %}{% endif %}</div></div>
-<button style="width:100%" type="submit">모집글 저장</button><a class="btn gray" style="width:100%;margin-top:8px" href="/">취소</a>
-</form></div>
+<div class="panel"><label>모집 자리 추가</label><div class="quick"><select id="slotJob">{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button type="button" class="ok" onclick="addSlot()">추가</button></div><div id="slotsBox">{% if post %}{% for s in post.slots %}<div class="slot"><div><b>{{ s.job }}</b><br><span>{{ s.char }}</span></div><button type="button" class="small danger" onclick="this.parentElement.remove()">삭제</button><input type="hidden" name="slots" value="{{ s.job }}"><input type="hidden" name="slot_chars" value="{{ s.char }}"><input type="hidden" name="slot_participant_ids" value="{{ s.participant_id }}"></div>{% endfor %}{% endif %}</div></div>
+<button style="width:100%" type="submit">저장</button><a class="btn gray" style="width:100%;margin-top:8px" href="/">취소</a>
+</form></section>
 {% endif %}
+
 {% if page == "profile" %}
-<div class="card"><h2>내 캐릭터</h2><label>캐릭터명</label><input id="charName" placeholder="예: 역인"><label>직업/차수</label><select id="charJob">{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button onclick="saveChar()" style="width:100%">캐릭터 추가</button><a class="btn gray" style="width:100%;margin-top:8px" href="/">메인으로</a><div id="charList"></div></div>
+<section class="panel"><h2>내 캐릭터</h2><label>캐릭터명</label><input id="charName" placeholder="예: 역인"><label>직업/차수</label><select id="charJob">{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button onclick="saveChar()" style="width:100%">캐릭터 추가</button><a class="btn gray" style="width:100%;margin-top:8px" href="/">메인으로</a><div id="charList"></div></section>
 {% endif %}
 </div>
-<button id="alarmBtn" class="alarm" onclick="toggleAlarm()">🔔 알림 ON</button>
-<div id="chatModal" class="modal" onclick="if(event.target.id==='chatModal')closeChat()"><div class="panel"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>💬 파티채팅</b><button class="small gray" onclick="closeChat()">닫기</button></div><div id="chatList" class="chat-list"></div><div class="chat-form"><input id="chatName" placeholder="닉네임" maxlength="12"><input id="chatText" placeholder="메시지" maxlength="120" onkeydown="if(event.key==='Enter')sendChat()"><button onclick="sendChat()">전송</button></div></div></div>
+
+<div id="chatModal" class="modal" onclick="if(event.target.id==='chatModal')closeChat()"><div class="panel chat-panel"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>💬 파티채팅</b><button class="small gray" onclick="closeChat()">닫기</button></div><div id="chatList" class="chat-list"></div><div class="chat-form"><input id="chatName" placeholder="닉네임" maxlength="12"><input id="chatText" placeholder="메시지" maxlength="120" onkeydown="if(event.key==='Enter')sendChat()"><button onclick="sendChat()">전송</button></div></div></div>
 <div id="toast" class="toast"></div>
 <script>
 function id(){let v=localStorage.getItem("baram_client_id");if(!v){v=(crypto&&crypto.randomUUID)?crypto.randomUUID():"id_"+Date.now()+"_"+Math.random();localStorage.setItem("baram_client_id",v)}return v}
@@ -295,27 +312,40 @@ function chars(){return JSON.parse(localStorage.getItem("baram_chars")||"[]")}
 function setChars(v){localStorage.setItem("baram_chars",JSON.stringify(v));renderChars()}
 function saveChar(){let n=document.getElementById("charName").value.trim();let j=document.getElementById("charJob").value;if(!n)return alert("캐릭터명 입력");let c=chars();c.push({name:n,job:j});setChars(c);document.getElementById("charName").value="";toast("저장됨")}
 function delChar(i){let c=chars();c.splice(i,1);setChars(c)}
-function renderChars(){let b=document.getElementById("charList");if(!b)return;let c=chars();b.innerHTML=c.length?c.map((x,i)=>"<div class='slot'><div><b>"+x.name+"</b><br>"+x.job+"</div><button class='small danger' onclick='delChar("+i+")'>삭제</button></div>").join(""):"<div class='card'>등록된 캐릭터 없음</div>"}
+function renderChars(){let b=document.getElementById("charList");if(!b)return;let c=chars();b.innerHTML=c.length?c.map((x,i)=>"<div class='slot'><div><b>"+x.name+"</b><br>"+x.job+"</div><button class='small danger' onclick='delChar("+i+")'>삭제</button></div>").join(""):"<div class='panel'>등록된 캐릭터 없음</div>"}
 function apply(){let cid=id();document.querySelectorAll(".post").forEach(p=>{let owner=p.dataset.ownerId===cid;let parts=(p.dataset.participantIds||"").split("|").filter(Boolean);let inParty=owner||parts.includes(cid);p.classList.toggle("mine",inParty);p.querySelectorAll(".owner-action").forEach(b=>b.classList.toggle("show",owner));p.querySelectorAll(".party-action").forEach(b=>b.classList.toggle("show",inParty));p.querySelectorAll(".slot").forEach(s=>{let can=owner||(s.dataset.participantId===cid);s.querySelectorAll(".participant-action").forEach(b=>b.classList.toggle("show",can))})});let mc=document.getElementById("myCount");if(mc)mc.textContent=document.querySelectorAll(".post.mine").length}
 function toggleMy(){document.body.classList.toggle("my-only");apply()}
 function refresh(){if(location.pathname!=="/")return;fetch("/api/posts"+location.search).then(r=>r.text()).then(h=>{document.getElementById("postList").innerHTML=h;apply()})}
 function copyPost(t){navigator.clipboard?navigator.clipboard.writeText(t).then(()=>toast("복사됨")):alert(t)}
 function joinSlot(pid,sid,job){let m=chars().filter(c=>c.job===job);let name=m.length===1?m[0].name:prompt(job+" 참여 캐릭터명");if(!name)return;fetch("/join",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({post_id:pid,slot_id:sid,char:name,participant_id:id()})}).then(()=>{toast("참여됨");refresh()})}
 function leaveSlot(pid,sid){if(!confirm("비울까?"))return;fetch("/leave",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({post_id:pid,slot_id:sid,client_id:id()})}).then(()=>refresh())}
-function closePost(pid){if(!confirm("마감할까?"))return;fetch("/close",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({post_id:pid,owner_id:id(),admin_pw:""})}).then(r=>r.json()).then(x=>{toast(x.ok?"마감됨":x.reason);refresh()})}
-function deletePost(pid){if(!confirm("삭제할까?"))return;fetch("/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({post_id:pid,owner_id:id(),admin_pw:""})}).then(r=>r.json()).then(x=>{toast(x.ok?"삭제됨":x.reason);refresh()})}
-function adminDeletePost(pid){let pw=prompt("관리자 비밀번호");if(!pw)return;fetch("/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({post_id:pid,owner_id:id(),admin_pw:pw})}).then(r=>r.json()).then(x=>{toast(x.ok?"관리삭제됨":x.reason);refresh()})}
+function deletePost(pid){if(!confirm("삭제할까?"))return;fetch("/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({post_id:pid,owner_id:id()})}).then(r=>r.json()).then(x=>{toast(x.ok?"삭제됨":x.reason);refresh()})}
 let currentChat=null;
 function openChat(pid){currentChat=pid;document.getElementById("chatModal").classList.add("show");let n=localStorage.getItem("baram_chat_name");if(n)document.getElementById("chatName").value=n;refreshChat()}
 function closeChat(){currentChat=null;document.getElementById("chatModal").classList.remove("show")}
 function refreshChat(){if(!currentChat)return;fetch("/api/chat/"+currentChat+"?client_id="+encodeURIComponent(id())).then(r=>r.text()).then(h=>{let b=document.getElementById("chatList");b.innerHTML=h;b.scrollTop=b.scrollHeight})}
 function sendChat(){if(!currentChat)return;let n=document.getElementById("chatName");let t=document.getElementById("chatText");if(!t.value.trim())return;if(n.value.trim())localStorage.setItem("baram_chat_name",n.value.trim());fetch("/chat/"+currentChat,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:id(),name:n.value.trim()||"익명",text:t.value.trim()})}).then(r=>r.json()).then(x=>{if(!x.ok)return toast("참여자만 이용 가능");t.value="";refreshChat();refresh()})}
-function alarmOn(){return localStorage.getItem("baram_alarm_off")!=="1"}function toggleAlarm(){localStorage.setItem("baram_alarm_off",alarmOn()?"1":"0");document.getElementById("alarmBtn").textContent=alarmOn()?"🔔 알림 ON":"🔕 알림 OFF"}document.getElementById("alarmBtn").textContent=alarmOn()?"🔔 알림 ON":"🔕 알림 OFF";
 function heartbeat(){fetch("/api/heartbeat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:id()})}).then(r=>r.json()).then(x=>{let o=document.getElementById("onlineCount");if(o)o.textContent=x.online||1}).catch(()=>{})}
 setInterval(refresh,2500);setInterval(refreshChat,1800);setInterval(heartbeat,15000);renderChars();updatePlaces();apply();heartbeat();
 </script>
 </body>
 </html>
+'''
+
+ADMIN_PAGE = r'''
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>관리자</title>
+<style>
+body{margin:0;background:#0b1020;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",Arial,sans-serif}.wrap{max-width:900px;margin:0 auto;padding:18px}.box{background:#151b30;border:1px solid #38425f;border-radius:20px;padding:16px;margin:12px 0}input,textarea{width:100%;background:#0d1325;color:white;border:1px solid #4b5575;border-radius:12px;padding:12px;margin:8px 0}button,.btn{border:0;border-radius:12px;background:#5574ff;color:white;font-weight:900;padding:10px 13px;text-decoration:none}button.danger{background:#d64a4a}.row{display:flex;gap:8px;flex-wrap:wrap}.post{border-top:1px solid #313a56;padding:12px 0}.muted{color:#aeb8d7}
+</style></head><body><div class="wrap"><h1>🔒 관리자 페이지</h1><a class="btn" href="/">메인으로</a>
+{% if not admin_ok %}
+<div class="box"><form method="post" action="/admin/login"><label>관리자 비밀번호</label><input name="password" type="password" autofocus><button>로그인</button></form><p class="muted">기본 비밀번호는 1234입니다. Render 환경변수 ADMIN_PASSWORD로 변경 가능합니다.</p></div>
+{% else %}
+<div class="box"><div class="row"><form method="post" action="/admin/logout"><button>로그아웃</button></form><form method="post" action="/admin/clear_closed"><button>마감글 정리</button></form></div></div>
+<div class="box"><h2>공지</h2><form method="post" action="/admin/notice"><textarea name="notice" rows="3">{{ notice }}</textarea><button>공지 저장</button></form></div>
+<div class="box"><h2>현황</h2><p>전체 글 {{ posts|length }}개 · 접속중 {{ online }}명</p></div>
+<div class="box"><h2>모집글 관리</h2>{% for p in posts %}<div class="post"><b>{{ p.place }}</b> / 채널 {{ p.channel }} / {{ p.owner }} / {{ p.created }}<br><span class="muted">{{ p.type }} · {{ p.start_period }} {{ p.start_time }} ~ {{ p.end_period }} {{ p.end_time }}</span><form method="post" action="/admin/delete/{{ p.id }}" style="margin-top:8px"><button class="danger">삭제</button></form></div>{% else %}<p>글 없음</p>{% endfor %}</div>
+{% endif %}
+</div></body></html>
 '''
 
 @app.route("/")
@@ -326,7 +356,7 @@ def home():
     if filt != "전체":
         posts = [p for p in posts if p.get("type") == filt or p.get("place") == filt]
     open_count = sum(1 for p in posts if post_status(p) == "모집중")
-    return render_template_string(PAGE, page="home", filters=FILTERS, filter_value=filt, post_list=render_posts(posts), open_count=open_count, jobs=JOBS, hunting=HUNTING, farming=FARMING, quest600=QUEST600)
+    return render_template_string(PAGE, page="home", filters=FILTERS, filter_value=filt, post_list=render_posts(posts), open_count=open_count, jobs=JOBS, hunting=HUNTING, farming=FARMING, quest600=QUEST600, notice=data.get("notice",""))
 
 @app.route("/api/posts")
 def api_posts():
@@ -339,11 +369,11 @@ def api_posts():
 
 @app.route("/new")
 def new():
-    return render_template_string(PAGE, page="new", post=None, jobs=JOBS, hunting=HUNTING, farming=FARMING, quest600=QUEST600)
+    return render_template_string(PAGE, page="new", post=None, jobs=JOBS, hunting=HUNTING, farming=FARMING, quest600=QUEST600, notice="")
 
 @app.route("/profile")
 def profile():
-    return render_template_string(PAGE, page="profile", jobs=JOBS)
+    return render_template_string(PAGE, page="profile", jobs=JOBS, notice="")
 
 @app.route("/create", methods=["POST"])
 def create():
@@ -352,7 +382,7 @@ def create():
         update_post_from_form(post, request.form)
         data["posts"].append(post)
     mutate(fn)
-    return '<script>location.href="/"</script>'
+    return redirect("/")
 
 @app.route("/edit/<post_id>", methods=["GET", "POST"])
 def edit(post_id):
@@ -360,13 +390,13 @@ def edit(post_id):
         post = find_post(load_data(), post_id)
         if not post:
             return "not found", 404
-        return render_template_string(PAGE, page="edit", post=post, jobs=JOBS, hunting=HUNTING, farming=FARMING, quest600=QUEST600)
+        return render_template_string(PAGE, page="edit", post=post, jobs=JOBS, hunting=HUNTING, farming=FARMING, quest600=QUEST600, notice="")
     def fn(data):
         post = find_post(data, post_id)
         if post and can_manage(post, request.form.get("owner_id", "")):
             update_post_from_form(post, request.form)
     mutate(fn)
-    return '<script>location.href="/"</script>'
+    return redirect("/")
 
 @app.route("/join", methods=["POST"])
 def join():
@@ -409,31 +439,16 @@ def leave():
     mutate(fn)
     return jsonify(ok=True)
 
-@app.route("/close", methods=["POST"])
-def close():
-    req = request.get_json(force=True)
-    result = {"ok": False, "reason": "작성자 또는 관리자만 가능"}
-    def fn(data):
-        post = find_post(data, req.get("post_id"))
-        if post and can_manage(post, req.get("owner_id", ""), req.get("admin_pw", "")):
-            post["closed"] = True
-            post["closed_at"] = now_iso()
-            result["ok"] = True
-            result["reason"] = "마감됨"
-    mutate(fn)
-    return jsonify(result)
-
 @app.route("/delete", methods=["POST"])
 def delete():
     req = request.get_json(force=True)
-    result = {"ok": False, "reason": "작성자 또는 관리자만 가능"}
+    result = {"ok": False, "reason": "작성자만 삭제 가능"}
     def fn(data):
         post_id = req.get("post_id")
         owner_id = req.get("owner_id", "")
-        admin_pw = req.get("admin_pw", "")
         kept = []
         for post in data.get("posts", []):
-            if post.get("id") == post_id and can_manage(post, owner_id, admin_pw):
+            if post.get("id") == post_id and can_manage(post, owner_id):
                 result["ok"] = True
                 result["reason"] = "삭제됨"
                 continue
@@ -477,30 +492,59 @@ def chat(post_id):
     mutate(fn)
     return jsonify(result)
 
-
 @app.route("/api/heartbeat", methods=["POST"])
 def heartbeat():
     req = request.get_json(force=True, silent=True) or {}
     client_id = (req.get("client_id") or "").strip()
     if client_id:
         ONLINE_USERS[client_id] = datetime.now()
-    cutoff = datetime.now() - timedelta(seconds=70)
-    for key, last_seen in list(ONLINE_USERS.items()):
-        if last_seen < cutoff:
-            ONLINE_USERS.pop(key, None)
-    return jsonify(ok=True, online=max(1, len(ONLINE_USERS)))
+    return jsonify(ok=True, online=online_count())
 
-@app.route("/api/online")
-def online():
-    cutoff = datetime.now() - timedelta(seconds=70)
-    for key, last_seen in list(ONLINE_USERS.items()):
-        if last_seen < cutoff:
-            ONLINE_USERS.pop(key, None)
-    return jsonify(online=max(1, len(ONLINE_USERS)))
+@app.route("/admin")
+def admin():
+    data = load_data()
+    return render_template_string(ADMIN_PAGE, admin_ok=is_admin(), posts=list(reversed(data.get("posts", []))), notice=data.get("notice",""), online=online_count())
+
+@app.route("/admin/login", methods=["POST"])
+def admin_login():
+    if request.form.get("password") == ADMIN_PASSWORD:
+        session["admin_ok"] = True
+    return redirect("/admin")
+
+@app.route("/admin/logout", methods=["POST"])
+def admin_logout():
+    session.pop("admin_ok", None)
+    return redirect("/admin")
+
+@app.route("/admin/notice", methods=["POST"])
+def admin_notice():
+    if not is_admin():
+        return redirect("/admin")
+    notice = request.form.get("notice", "").strip()[:300]
+    mutate(lambda data: data.update({"notice": notice}))
+    return redirect("/admin")
+
+@app.route("/admin/delete/<post_id>", methods=["POST"])
+def admin_delete(post_id):
+    if not is_admin():
+        return redirect("/admin")
+    def fn(data):
+        data["posts"] = [p for p in data.get("posts", []) if p.get("id") != post_id]
+    mutate(fn)
+    return redirect("/admin")
+
+@app.route("/admin/clear_closed", methods=["POST"])
+def admin_clear_closed():
+    if not is_admin():
+        return redirect("/admin")
+    def fn(data):
+        data["posts"] = [p for p in data.get("posts", []) if not p.get("closed")]
+    mutate(fn)
+    return redirect("/admin")
 
 @app.route("/manifest.json")
 def manifest():
-    return jsonify({"name": "월하 · 연가 · 연희 파티모집 v7 FINAL", "short_name": "파티모집", "start_url": "/", "display": "standalone", "background_color": "#10121a", "theme_color": "#10121a", "icons": []})
+    return jsonify({"name": "월하 연가 연희 파티모집 v8", "short_name": "파티모집", "start_url": "/", "display": "standalone", "background_color": "#0b1020", "theme_color": "#0b1020", "icons": []})
 
 @app.route("/sw.js")
 def sw():

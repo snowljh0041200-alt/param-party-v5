@@ -2,14 +2,14 @@
 from flask import Flask, request, jsonify, render_template_string, redirect, session, send_file
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import os, json, uuid, tempfile, html, threading, re
+import os, json, uuid, tempfile, html, threading, re, re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v16.4"
+APP_VERSION = "v16.5"
 SITE_TITLE = "월하 · 연가 · 연희 파티모집"
 SITE_DESC = "월하 · 연가 · 연희 문파 파티모집, 파밍일정, 실시간 채팅"
 LOCK = threading.Lock()
@@ -545,37 +545,38 @@ def member_summary_html(d):
     """
 
 
+
+
+
 def normalize_time_input(value):
-    """1107 -> 11:07, 930 -> 09:30, 11:07 -> 11:07"""
-    s = (value or "").strip()
-    s = re.sub(r"[^0-9:]", "", s)
-    if ":" in s:
-        a, b = s.split(":", 1)
-        if not a or not b:
-            return ""
-        try:
-            h = int(a)
-            m = int(b[:2])
-        except Exception:
-            return ""
-    else:
-        if len(s) <= 2:
-            try:
+    """시간 입력 보정: 1107 -> 11:07, 930 -> 09:30, 11:07 -> 11:07"""
+    raw = (value or "").strip().replace("：", ":")
+    s = re.sub(r"[^0-9:]", "", raw)
+    if not s:
+        return ""
+    try:
+        if ":" in s:
+            hh, mm = s.split(":", 1)
+            h = int(hh)
+            m = int((mm + "00")[:2])
+        else:
+            if len(s) <= 2:
                 h = int(s)
                 m = 0
-            except Exception:
-                return ""
-        elif len(s) == 3:
-            h = int(s[0])
-            m = int(s[1:])
-        else:
-            h = int(s[:2])
-            m = int(s[2:4])
-    if h < 0 or h > 23 or m < 0 or m > 59:
+            elif len(s) == 3:
+                h = int(s[0])
+                m = int(s[1:3])
+            else:
+                h = int(s[:2])
+                m = int(s[2:4])
+        if not (0 <= h <= 23 and 0 <= m <= 59):
+            return ""
+        return f"{h:02d}:{m:02d}"
+    except Exception:
         return ""
-    return f"{h:02d}:{m:02d}"
 
 def period_time_to_24(period, value):
+    """오전/오후 + 시간 입력을 24시간제로 변환."""
     t = normalize_time_input(value)
     if not t:
         return ""
@@ -583,7 +584,7 @@ def period_time_to_24(period, value):
     p = (period or "").strip()
     if p == "오후" and h < 12:
         h += 12
-    if p == "오전" and h == 12:
+    elif p == "오전" and h == 12:
         h = 0
     return f"{h:02d}:{m:02d}"
 
@@ -958,7 +959,7 @@ MAIN = """
 </section>
 {% endif %}
 {% if page=='new' or page=='edit' %}
-<section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();bindTimeAutoColon();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 1107 또는 11:07' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' placeholder='예: 2314 또는 23:14' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘는 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
+<section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();bindTimeAutoColon();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 1107 또는 11:07' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' placeholder='예: 2314 또는 23:14' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘/파밍은 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
 {% endif %}
 {% if page=='chars' %}
 <section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>내 캐릭터</h2><form method='post' action='/chars/add'><label>캐릭터명</label><input name='name' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button style='width:100%'>캐릭터 추가 요청</button></form></section><section class='panel'><h2>등록 캐릭터</h2>{% for c in user.chars %}<div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>{% endfor %}</section>
@@ -1007,8 +1008,9 @@ function formatTimeInput(v){
   return v;
 }
 function bindTimeAutoColon(){
-  document.querySelectorAll("input[name='start_time' placeholder='예: 1107 또는 11:07'],input[name='end_time' placeholder='예: 2314 또는 23:14']").forEach(i=>{
+  document.querySelectorAll("input[name='start_time' placeholder='예: 1107 또는 11:07' ],input[name='end_time' placeholder='예: 2314 또는 23:14' ]").forEach(i=>{
     i.setAttribute('inputmode','numeric');
+    i.setAttribute('maxlength','5');
     i.addEventListener('input',()=>{i.value=formatTimeInput(i.value)});
     i.addEventListener('blur',()=>{
       let v=i.value.replace(/[^0-9]/g,'');
@@ -1336,19 +1338,65 @@ def new_page():
 
 @app.route("/create", methods=["POST"])
 def create():
-    d = load()
-    u = current_user(d)
-    c = has_char(u, request.form.get("owner_char_id"))
+    d=load()
+    u=current_user(d)
+    if not approved(u):
+        return redirect("/")
+    c=selected_char(u)
     if not c:
         return redirect("/chars")
+
     cat = request.form.get("category","사냥")
     if cat == "파밍" and not is_admin_user(u):
         return redirect("/")
+
+    fixed_start_time = period_time_to_24(request.form.get("start_period",""), request.form.get("start_time",""))
+    fixed_end_time = period_time_to_24(request.form.get("end_period",""), request.form.get("end_time",""))
+
     slots = []
+    participants = []
+
+    # 사냥만 직업 슬롯 사용
     if cat == "사냥":
-        slots = [{"id":new_id(),"job":j,"uid":"","char_id":"","label":"","external":""} for j in request.form.getlist("slots")]
-    p = {"id":new_id(),"owner_uid":u["id"],"owner_label":label(c),"category":cat,"place":request.form.get(f"place_{cat}",""),"channel":digits(request.form.get("channel"),4),"start_period":request.form.get("start_period",""),"start_time":request.form.get("start_time","").strip(),"end_period":request.form.get("end_period",""),"end_time":request.form.get("end_time","").strip(),"memo":request.form.get("memo","").strip(),"slots":slots,"participants":[],"closed":False,"closed_at":"","party_chat":[],"created":text_now(),"farm_status":"진행중","farm_result":"","farm_item":"","sale_amount":"","share_ids":[]}
-    save(lambda x: x["posts"].append(p))
+        for i in range(10):
+            job = request.form.get(f"slot_job_{i}","")
+            if job:
+                slots.append({"job":job,"uid":"","char_id":"","label":"","external":""})
+
+    # 파밍/600퀘는 참여 버튼 방식. 생성자가 자동 참여되지 않음.
+    p = {
+        "id": new_id(),
+        "owner_uid": u["id"],
+        "owner_label": label(c),
+        "category": cat,
+        "place": request.form.get(f"place_{cat}",""),
+        "channel": digits(request.form.get("channel"),4),
+        "start_period": request.form.get("start_period",""),
+        "start_time": fixed_start_time,
+        "end_period": request.form.get("end_period",""),
+        "end_time": fixed_end_time,
+        "memo": request.form.get("memo","").strip(),
+        "slots": slots,
+        "participants": participants,
+        "closed": False,
+        "closed_at": "",
+        "party_chat": [],
+        "created": text_now(),
+        "farm_status": "진행중",
+        "farm_result": "",
+        "farm_item": "",
+        "sale_amount": "",
+        "share_ids": [],
+        "early_ids": [],
+        "late_ids": [],
+        "early_weight": "1.0",
+        "late_weight": "0.88",
+        "schedule_alerts_sent": []
+    }
+
+    def fn(x):
+        x["posts"].append(p)
+    save(fn)
     return redirect("/")
 
 @app.route("/edit/<pid>", methods=["GET","POST"])
@@ -1365,8 +1413,8 @@ def edit(pid):
         pp = find_post(x, pid)
         if pp and pp.get("owner_uid") == u.get("id"):
             pp["channel"] = digits(request.form.get("channel"),4)
-            pp["start_time"] = request.form.get("start_time","").strip()
-            pp["end_time"] = request.form.get("end_time","").strip()
+            pp["start_time"] = period_time_to_24(request.form.get("start_period",""), request.form.get("start_time","")).strip()
+            pp["end_time"] = period_time_to_24(request.form.get("end_period",""), request.form.get("end_time","")).strip()
             pp["memo"] = request.form.get("memo","").strip()
     save(fn)
     return redirect("/")

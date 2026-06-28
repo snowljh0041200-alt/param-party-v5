@@ -92,6 +92,8 @@ def read_data():
     d["settings"].setdefault("notice", "")
     d["settings"].setdefault("farm_items", FARM_ITEMS)
     d.setdefault("users", [])
+    for u in d.get("users", []):
+        u.setdefault("role", "member")
     d.setdefault("posts", [])
     d.setdefault("chat", [])
     return d
@@ -169,6 +171,18 @@ def current_user(d):
 
 def approved(u):
     return bool(u and u.get("status") == "approved" and not u.get("blocked"))
+
+def role_of(u):
+    return (u or {}).get("role", "member")
+
+def is_admin_user(u):
+    return approved(u) and role_of(u) in ["admin", "super"]
+
+def is_super_user(u):
+    return approved(u) and role_of(u) == "super"
+
+def super_count(d):
+    return sum(1 for u in d.get("users", []) if approved(u) and role_of(u) == "super")
 
 def chars(u):
     return [c for c in (u or {}).get("chars", []) if c.get("status") == "approved"]
@@ -559,7 +573,7 @@ setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refres
 </script></body></html>
 """
 
-ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>관리자</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>비밀번호</label><input name='password' type='password'><button>로그인</button></form></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>회원</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block'><button class='mini danger'>차단/해제</button></form></div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div></body></html>"""
+ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>관리자</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>최고관리자로 등록</button></form><p class='meta'>승인된 회원이 최고관리자가 되면 이후에는 회원 권한으로 관리자 페이지에 접속합니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ u.role|default('member') }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form></div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div></body></html>"""
 
 @app.before_request
 def gate_guard():
@@ -608,7 +622,7 @@ def register():
     if form["char_name"].lower() in all_char_names(d):
         return render_template_string(REGISTER, css=CSS, jobs=JOBS, form=form, error="이미 등록된 캐릭터명입니다.")
     uid, cid = new_id(), new_id()
-    nu = {"id":uid,"account":form["account"],"status":"pending","blocked":False,"selected_char_id":cid,"created":text_now(),"chars":[{"id":cid,"name":form["char_name"],"job":form["job"],"status":"pending"}]}
+    nu = {"id":uid,"account":form["account"],"status":"pending","role":"member","blocked":False,"selected_char_id":cid,"created":text_now(),"chars":[{"id":cid,"name":form["char_name"],"job":form["job"],"status":"pending"}]}
     save(lambda x: x["users"].append(nu))
     session["uid"] = uid
     session["access_ok"] = True
@@ -637,7 +651,7 @@ def home():
     if filt != "전체":
         posts = [p for p in posts if p.get("category") == filt]
     open_count = sum(1 for p in posts if status_text(p) in ["모집중","진행중"])
-    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS)), open_count=open_count, member_html=member_html(d), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES)
+    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), open_count=open_count, member_html=member_html(d), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES)
 
 @app.route("/api/posts")
 def api_posts():
@@ -647,7 +661,7 @@ def api_posts():
     posts = list(reversed(d["posts"]))
     if filt != "전체":
         posts = [p for p in posts if p.get("category") == filt]
-    return render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS))
+    return render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u))
 
 @app.route("/new")
 def new_page():
@@ -800,7 +814,7 @@ def simple_remove():
     r=request.get_json(force=True); d=load(); u=current_user(d)
     def fn(x):
         p=find_post(x,r.get("post_id"))
-        if not p or p.get("category") not in ["600퀘","파밍"] or p.get("owner_uid")!=u.get("id"):
+        if not p or p.get("category") not in ["600퀘","파밍"] or (p.get("owner_uid")!=u.get("id") and not is_admin_user(u)):
             return
         rid=r.get("participant_id")
         p["participants"]=[a for a in p.get("participants",[]) if a.get("id")!=rid]
@@ -817,7 +831,7 @@ def simple_add_manual():
         return jsonify(ok=False)
     def fn(x):
         p=find_post(x,r.get("post_id"))
-        if not p or p.get("category") not in ["600퀘","파밍"] or p.get("owner_uid")!=u.get("id"):
+        if not p or p.get("category") not in ["600퀘","파밍"] or (p.get("owner_uid")!=u.get("id") and not is_admin_user(u)):
             return
         if p.get("category")=="600퀘" and (p.get("closed") or len(p.get("participants", [])) >= QUEST_MAX_PARTICIPANTS):
             return
@@ -836,7 +850,7 @@ def farming_result(pid):
     d=load(); u=current_user(d)
     def fn(x):
         p=find_post(x,pid)
-        if not p or p.get("category")!="파밍" or p.get("owner_uid")!=u.get("id"): return
+        if not p or p.get("category")!="파밍" or (p.get("owner_uid")!=u.get("id") and not is_admin_user(u)): return
         res=request.form.get("farm_result","노득")
         p["farm_result"]=res
         if res=="득템":
@@ -858,7 +872,7 @@ def farming_result(pid):
 @app.route("/farming/settle/<pid>", methods=["POST"])
 def farming_settle(pid):
     d=load(); u=current_user(d)
-    save(lambda x: (find_post(x,pid) or {}).update({"farm_status":"정산완료"}) if (find_post(x,pid) and find_post(x,pid).get("owner_uid")==u.get("id")) else None)
+    save(lambda x: (find_post(x,pid) or {}).update({"farm_status":"정산완료"}) if (find_post(x,pid) and (find_post(x,pid).get("owner_uid")==u.get("id") or is_admin_user(u))) else None)
     return redirect("/")
 
 
@@ -867,7 +881,7 @@ def complete_post():
     r=request.get_json(force=True); d=load(); u=current_user(d); result={"ok":False,"reason":"작성자만 가능"}
     def fn(x):
         p=find_post(x,r.get("post_id"))
-        if not p or p.get("owner_uid")!=u.get("id") or p.get("category") not in ["사냥","600퀘"]:
+        if not p or (p.get("owner_uid")!=u.get("id") and not is_admin_user(u)) or p.get("category") not in ["사냥","600퀘"]:
             return
         p["closed"]=True
         p["closed_at"]=iso_now()
@@ -880,7 +894,7 @@ def delete():
     def fn(x):
         new=[]
         for p in x["posts"]:
-            if p.get("id")==r.get("post_id") and p.get("owner_uid")==u.get("id"):
+            if p.get("id")==r.get("post_id") and (p.get("owner_uid")==u.get("id") or is_admin_user(u)):
                 result["ok"]=True
             else:
                 new.append(p)
@@ -929,29 +943,42 @@ def heartbeat():
 @app.route("/admin")
 def admin():
     d=load()
-    pending=[u for u in d["users"] if u.get("status")=="pending"]
+    u=current_user(d)
+    admin_ok = is_admin_user(u)
+    pending=[x for x in d["users"] if x.get("status")=="pending"]
     pc=[]
-    for u in d["users"]:
-        if u.get("status")=="approved":
-            for c in u.get("chars",[]):
+    for x in d["users"]:
+        if x.get("status")=="approved":
+            for c in x.get("chars",[]):
                 if c.get("status")=="pending":
-                    pc.append({"user":u,"char":c})
-    return render_template_string(ADMIN, css=CSS, admin_ok=bool(session.get("admin_ok")), pending_users=pending, pending_chars=pc, users=d["users"], posts=list(reversed(d["posts"])), notice=d["settings"].get("notice",""), farm_items=d["settings"].get("farm_items",FARM_ITEMS))
+                    pc.append({"user":x,"char":c})
+    return render_template_string(
+        ADMIN, css=CSS, admin_ok=admin_ok, super_ok=is_super_user(u),
+        pending_users=pending, pending_chars=pc, users=d["users"],
+        posts=list(reversed(d["posts"])), notice=d["settings"].get("notice",""),
+        farm_items=d["settings"].get("farm_items",FARM_ITEMS)
+    )
 
 @app.route("/admin/login", methods=["POST"])
 def admin_login():
     d=load()
-    if request.form.get("password")==d["settings"].get("admin_password"):
-        session["admin_ok"]=True
+    u=current_user(d)
+    if request.form.get("password")==d["settings"].get("admin_password") and approved(u):
+        def fn(x):
+            uu=find_user(x,u["id"])
+            if uu:
+                uu["role"]="super"
+        save(fn)
     return redirect("/admin")
 
 @app.route("/admin/logout", methods=["POST"])
 def admin_logout():
-    session.pop("admin_ok", None); return redirect("/admin")
+    return redirect("/")
 
 @app.route("/admin/settings", methods=["POST"])
 def admin_settings():
-    if not session.get("admin_ok"): return redirect("/admin")
+    d=load(); actor=current_user(d)
+    if not is_super_user(actor): return redirect("/admin")
     ap=request.form.get("access_password","").strip(); ad=request.form.get("admin_password","").strip()
     def fn(d):
         if ap: d["settings"]["access_password"]=ap
@@ -960,24 +987,47 @@ def admin_settings():
 
 @app.route("/admin/notice", methods=["POST"])
 def admin_notice():
-    if not session.get("admin_ok"): return redirect("/admin")
+    d=load(); actor=current_user(d)
+    if not is_admin_user(actor): return redirect("/admin")
     save(lambda d: d["settings"].update({"notice":request.form.get("notice","").strip()[:300]})); return redirect("/admin")
 
 @app.route("/admin/farm_items", methods=["POST"])
 def admin_farm_items():
-    if not session.get("admin_ok"): return redirect("/admin")
+    d=load(); actor=current_user(d)
+    if not is_admin_user(actor): return redirect("/admin")
     def parse(n): return [x.strip() for x in request.form.get(n,"").split(",") if x.strip()]
     items={"해골왕":parse("items_해골왕") or ["해뼈"],"어금니":parse("items_어금니") or ["흑룡 어금니","묵룡 어금니","진룡 어금니","감룡 어금니"]}
     save(lambda d: d["settings"].update({"farm_items":items})); return redirect("/admin")
 
+
+@app.route("/admin/role/<uid>/<role>", methods=["POST"])
+def admin_role(uid, role):
+    d=load(); actor=current_user(d)
+    if not is_super_user(actor):
+        return redirect("/admin")
+    if role not in ["member","admin","super"]:
+        return redirect("/admin")
+    def fn(x):
+        target=find_user(x, uid)
+        if not target or not approved(target):
+            return
+        if role != "super" and target.get("role") == "super":
+            if super_count(x) <= 1:
+                return
+        target["role"] = role
+    save(fn)
+    return redirect("/admin")
+
 @app.route("/admin/user/<uid>/<action>", methods=["POST"])
 def admin_user(uid,action):
-    if not session.get("admin_ok"): return redirect("/admin")
+    d=load(); actor=current_user(d)
+    if not is_admin_user(actor): return redirect("/admin")
     def fn(d):
         u=find_user(d,uid)
         if not u: return
         if action=="approve":
             u["status"]="approved"
+            u.setdefault("role","member")
             for c in u.get("chars",[]):
                 if c.get("status")=="pending": c["status"]="approved"
         elif action=="reject": u["status"]="rejected"
@@ -986,7 +1036,8 @@ def admin_user(uid,action):
 
 @app.route("/admin/char/<uid>/<cid>/<action>", methods=["POST"])
 def admin_char(uid,cid,action):
-    if not session.get("admin_ok"): return redirect("/admin")
+    d=load(); actor=current_user(d)
+    if not is_admin_user(actor): return redirect("/admin")
     def fn(d):
         u=find_user(d,uid)
         if not u: return
@@ -996,17 +1047,20 @@ def admin_char(uid,cid,action):
 
 @app.route("/admin/delete_post/<pid>", methods=["POST"])
 def admin_delete_post(pid):
-    if not session.get("admin_ok"): return redirect("/admin")
+    d=load(); actor=current_user(d)
+    if not is_admin_user(actor): return redirect("/admin")
     save(lambda d: d.update({"posts":[p for p in d["posts"] if p.get("id")!=pid]})); return redirect("/admin")
 
 @app.route("/admin/clear_closed", methods=["POST"])
 def admin_clear_closed():
-    if not session.get("admin_ok"): return redirect("/admin")
+    d=load(); actor=current_user(d)
+    if not is_admin_user(actor): return redirect("/admin")
     save(lambda d: d.update({"posts":[p for p in d["posts"] if not (p.get("category") in ["사냥","600퀘"] and p.get("closed"))]})); return redirect("/admin")
 
 @app.route("/admin/clear_chat", methods=["POST"])
 def admin_clear_chat():
-    if not session.get("admin_ok"): return redirect("/admin")
+    d=load(); actor=current_user(d)
+    if not is_admin_user(actor): return redirect("/admin")
     save(lambda d: d.update({"chat":[]})); return redirect("/admin")
 
 @app.route("/manifest.json")

@@ -9,6 +9,7 @@ DATA_FILE = "data.json"
 LOCK = threading.Lock()
 AUTO_DELETE_HOURS = 1
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "1234")
+ONLINE_USERS = {}
 
 HUNTING = ["도삭산 900층", "흉노족", "선비족"]
 FARMING = ["해골왕", "어금니"]
@@ -145,7 +146,7 @@ def update_post_from_form(post, form):
         "owner_id": form.get("owner_id", "").strip() or post.get("owner_id", ""),
         "type": post_type,
         "place": place_select(post_type, form),
-        "channel": form.get("channel", "").strip(),
+        "channel": "".join([c for c in form.get("channel", "") if c.isdigit()])[:4],
         "start_period": form.get("start_period", ""),
         "start_time": form.get("start_time", "").strip(),
         "end_period": form.get("end_period", ""),
@@ -215,7 +216,7 @@ def render_posts(posts):
                 <a class="owner-action btn" href="/edit/{pid}">수정</a>
                 <button class="owner-action" onclick="closePost('{pid}')">마감</button>
                 <button class="owner-action danger" onclick="deletePost('{pid}')">삭제</button>
-                <button class="admin danger" onclick="adminDeletePost('{pid}')">관리삭제</button>
+                <button class="admin danger" onclick="adminDeletePost('{pid}')">관리자 삭제</button>
             </div>
         </div>
         ''')
@@ -227,25 +228,25 @@ PAGE = r'''
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>바클 파티 모집 v5</title>
+<title>월하 · 연가 · 연희 파티모집 v6.1</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#10121a;color:#f2f3f7;font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",Arial,sans-serif}
+body{margin:0;background:radial-gradient(circle at top,#202847 0,#10121a 42%,#090b10 100%);color:#f2f3f7;font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",Arial,sans-serif}
 .wrap{max-width:820px;margin:0 auto;padding:14px 14px 90px}
-.header{position:sticky;top:0;background:#10121a;padding:10px 0;border-bottom:1px solid #2e3346;z-index:5}
+.header{position:sticky;top:0;background:rgba(16,18,26,.92);backdrop-filter:blur(10px);padding:12px 0 10px;border-bottom:1px solid rgba(255,255,255,.08);z-index:5}
 h1{font-size:22px;margin:0}.sub{color:#a8acba;font-size:13px}
-.card{background:#1b1e2b;border:1px solid #30364b;border-radius:18px;padding:14px;margin:12px 0}
+.card{background:linear-gradient(180deg,#202437,#171a26);border:1px solid #39415b;border-radius:20px;padding:15px;margin:12px 0;box-shadow:0 10px 28px rgba(0,0,0,.28)}
 .empty{background:#1b1e2b;border:1px dashed #48506b;border-radius:18px;padding:40px;text-align:center;color:#a8acba}
 .row{display:flex;gap:8px;flex-wrap:wrap}
-button,.btn{border:0;border-radius:13px;background:#4b6bff;color:white;font-weight:900;padding:11px 13px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:42px}
-button.gray,.btn.gray{background:#3a3f55}button.danger,.danger{background:#dc4c4c}button.ok{background:#23a55a}button.small{font-size:13px;padding:8px 10px;min-height:34px}
+button,.btn{border:0;border-radius:14px;background:linear-gradient(180deg,#5876ff,#3e5dea);color:white;font-weight:900;padding:11px 13px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:42px;box-shadow:0 5px 14px rgba(0,0,0,.22)}
+button.gray,.btn.gray{background:linear-gradient(180deg,#464d67,#34394e)}button.danger,.danger{background:linear-gradient(180deg,#e45a5a,#c94141)}button.ok{background:linear-gradient(180deg,#2dc76b,#1d9a51)}button.small{font-size:13px;padding:8px 10px;min-height:34px}
 input,select,textarea{width:100%;background:#11131b;color:#f2f3f7;border:1px solid #444b63;border-radius:13px;padding:12px;margin:6px 0 12px;font-size:16px}
 label{font-size:13px;color:#a8acba;font-weight:900}
 .tabs{display:flex;gap:7px;overflow-x:auto;padding:10px 0}.tabs a{white-space:nowrap;color:#dce1ff;background:#171a25;border:1px solid #32384d;text-decoration:none;border-radius:999px;padding:8px 12px;font-weight:900;font-size:14px}.tabs a.on{background:#4b6bff;color:white}
-.summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.box{background:#11131b;border:1px solid #30364b;border-radius:14px;text-align:center;padding:10px}.box b{font-size:22px;display:block}
+.summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}.box{background:#11131b;border:1px solid #30364b;border-radius:14px;text-align:center;padding:10px}.box b{font-size:22px;display:block}
 .top{display:flex;justify-content:space-between;align-items:center}.badge{padding:5px 10px;border-radius:999px;font-size:13px;font-weight:900}.badge.open{background:#123f28;color:#a9ffc8}.badge.done{background:#4b1d1d;color:#ffd0d0}.count{background:#11131b;border:1px solid #30364b;border-radius:999px;padding:5px 10px;font-weight:900}
 h2{margin:10px 0 5px;font-size:22px}.meta{color:#a8acba;font-size:14px;line-height:1.5}.memo{color:#ffd36b;font-size:14px;margin-top:4px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}
-.slot{display:flex;justify-content:space-between;align-items:center;background:#11131b;border:1px solid #33394c;border-radius:14px;padding:10px;margin:8px 0}.slot.filled{background:#152218;border-color:#285637}
+.slot{display:flex;justify-content:space-between;align-items:center;background:#121522;border:1px solid #38405a;border-radius:15px;padding:11px;margin:8px 0}.slot.filled{background:#152218;border-color:#285637}
 .actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:10px}
 .owner-action,.participant-action,.party-action{display:none!important}.owner-action.show,.participant-action.show,.party-action.show{display:inline-flex!important}
 .hidden{display:none!important}.time-row{display:grid;grid-template-columns:82px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}
@@ -253,14 +254,14 @@ h2{margin:10px 0 5px;font-size:22px}.meta{color:#a8acba;font-size:14px;line-heig
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#252b3d;border:1px solid #56607d;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}
 .my-only .post:not(.mine){display:none}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.panel{width:100%;max-width:820px;margin:0 auto;background:#161925;border:1px solid #30364b;border-radius:20px 20px 0 0;padding:14px}
 .chat-list{background:#10121a;border:1px solid #30364b;border-radius:14px;height:330px;overflow-y:auto;padding:10px}.msg{background:#222638;border-radius:12px;padding:8px 10px;margin:6px 0}.msg.mine{background:#173822;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8acba}.chat-form{display:grid;grid-template-columns:90px 1fr 70px;gap:7px;margin-top:8px}.chat-form input{margin:0}
-@media(max-width:560px){.actions{grid-template-columns:1fr 1fr}.chat-form{grid-template-columns:1fr}.row>*{flex:1}}
+@media(max-width:560px){.actions{grid-template-columns:1fr 1fr}.chat-form{grid-template-columns:1fr}.row>*{flex:1}.summary{grid-template-columns:1fr 1fr 1fr}.box{padding:8px 5px}.box b{font-size:20px}}
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="header"><h1>🏹 바클 파티 모집 v5</h1><div class="sub">월하 · 연가 · 연희 통합</div></div>
+<div class="header"><h1>🏹 월하 · 연가 · 연희 파티모집 v6.1</h1><div class="sub">파티모집 v6.1 · 현재 접속인원 표시</div></div>
 {% if page == "home" %}
-<div class="card"><div class="row"><a class="btn" href="/new">+ 구인글</a><a class="btn gray" href="/profile">내 캐릭터</a><button class="gray" onclick="toggleMy()">내 참여/내 글</button></div><div class="summary"><div class="box"><b>{{ open_count }}</b><span>모집중</span></div><div class="box"><b id="myCount">0</b><span>내 글/참여</span></div></div><div class="tabs">{% for f in filters %}<a class="{% if filter_value == f %}on{% endif %}" href="/?filter={{ f }}">{{ f }}</a>{% endfor %}</div></div>
+<div class="card"><div class="row"><a class="btn" href="/new">+ 구인글</a><a class="btn gray" href="/profile">내 캐릭터</a><button class="gray" onclick="toggleMy()">내 참여/내 글</button></div><div class="summary"><div class="box"><b>{{ open_count }}</b><span>모집중</span></div><div class="box"><b id="onlineCount">1</b><span>접속중</span></div><div class="box"><b id="myCount">0</b><span>내 글/참여</span></div></div><div class="tabs">{% for f in filters %}<a class="{% if filter_value == f %}on{% endif %}" href="/?filter={{ f }}">{{ f }}</a>{% endfor %}</div></div>
 <div id="postList">{{ post_list|safe }}</div><a class="btn fab" href="/new">+</a>
 {% endif %}
 {% if page in ["new","edit"] %}
@@ -269,7 +270,7 @@ h2{margin:10px 0 5px;font-size:22px}.meta{color:#a8acba;font-size:14px;line-heig
 <input type="hidden" name="owner_id" id="ownerIdInput"><label>작성자 닉네임</label><input name="owner" required placeholder="예: 역인" value="{{ post.owner if post else '' }}">
 <label>종류</label><select name="type" id="typeSelect" onchange="updatePlaces()">{% for t in ["사냥","파밍","600퀘"] %}<option {% if post and post.type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
 <label>장소</label><select name="place_hunting" id="place_사냥" class="place-select">{% for p in hunting %}<option {% if post and post.place == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select><select name="place_farming" id="place_파밍" class="place-select hidden">{% for p in farming %}<option {% if post and post.place == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select><select name="place_quest" id="place_600퀘" class="place-select hidden">{% for p in quest600 %}<option {% if post and post.place == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
-<label>채널 4자리</label><input name="channel" id="channelInput" maxlength="4" inputmode="numeric" placeholder="예: 3385" value="{{ post.channel if post else '' }}">
+<label>채널 4자리</label><input name="channel" id="channelInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="예: 3385" value="{{ post.channel if post else '' }}" oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,4)">
 <label>시작시간</label><div class="time-row"><select name="start_period"><option {% if post and post.start_period == "오전" %}selected{% endif %}>오전</option><option {% if post and post.start_period == "오후" %}selected{% endif %}>오후</option></select><input name="start_time" placeholder="예: 09:00" value="{{ post.start_time if post else '' }}"></div>
 <label>종료시간</label><div class="time-row"><select name="end_period"><option {% if post and post.end_period == "오전" %}selected{% endif %}>오전</option><option {% if not post or post.end_period == "오후" %}selected{% endif %}>오후</option></select><input name="end_time" placeholder="예: 11:00" value="{{ post.end_time if post else '' }}"></div>
 <label>메모</label><textarea name="memo" rows="2">{{ post.memo if post else '' }}</textarea>
@@ -287,7 +288,7 @@ h2{margin:10px 0 5px;font-size:22px}.meta{color:#a8acba;font-size:14px;line-heig
 <script>
 function id(){let v=localStorage.getItem("baram_client_id");if(!v){v=(crypto&&crypto.randomUUID)?crypto.randomUUID():"id_"+Date.now()+"_"+Math.random();localStorage.setItem("baram_client_id",v)}return v}
 function toast(m){let t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1600)}
-function prepareSubmit(){document.getElementById("ownerIdInput").value=id();let ch=document.getElementById("channelInput");if(ch.value.trim()&&!/^\\d{4}$/.test(ch.value.trim())){alert("채널은 숫자 4자리");return false}return true}
+function prepareSubmit(){document.getElementById("ownerIdInput").value=id();let ch=document.getElementById("channelInput");ch.value=(ch.value||"").replace(/[^0-9]/g,"").slice(0,4);if(ch.value.length!==4){alert("채널은 숫자 4자리로 입력해줘.");ch.focus();return false}return true}
 function updatePlaces(){let t=document.getElementById("typeSelect");if(!t)return;document.querySelectorAll(".place-select").forEach(x=>x.classList.add("hidden"));let x=document.getElementById("place_"+t.value);if(x)x.classList.remove("hidden")}
 function addSlot(){let j=document.getElementById("slotJob").value;let box=document.getElementById("slotsBox");let d=document.createElement("div");d.className="slot";d.innerHTML="<div><b>"+j+"</b><br><span>빈자리</span></div><button type='button' class='small danger' onclick='this.parentElement.remove()'>삭제</button><input type='hidden' name='slots' value='"+j+"'><input type='hidden' name='slot_chars' value=''><input type='hidden' name='slot_participant_ids' value=''>";box.appendChild(d)}
 function chars(){return JSON.parse(localStorage.getItem("baram_chars")||"[]")}
@@ -310,7 +311,8 @@ function closeChat(){currentChat=null;document.getElementById("chatModal").class
 function refreshChat(){if(!currentChat)return;fetch("/api/chat/"+currentChat+"?client_id="+encodeURIComponent(id())).then(r=>r.text()).then(h=>{let b=document.getElementById("chatList");b.innerHTML=h;b.scrollTop=b.scrollHeight})}
 function sendChat(){if(!currentChat)return;let n=document.getElementById("chatName");let t=document.getElementById("chatText");if(!t.value.trim())return;if(n.value.trim())localStorage.setItem("baram_chat_name",n.value.trim());fetch("/chat/"+currentChat,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:id(),name:n.value.trim()||"익명",text:t.value.trim()})}).then(r=>r.json()).then(x=>{if(!x.ok)return toast("참여자만 이용 가능");t.value="";refreshChat();refresh()})}
 function alarmOn(){return localStorage.getItem("baram_alarm_off")!=="1"}function toggleAlarm(){localStorage.setItem("baram_alarm_off",alarmOn()?"1":"0");document.getElementById("alarmBtn").textContent=alarmOn()?"🔔 알림 ON":"🔕 알림 OFF"}document.getElementById("alarmBtn").textContent=alarmOn()?"🔔 알림 ON":"🔕 알림 OFF";
-setInterval(refresh,2500);setInterval(refreshChat,1800);renderChars();updatePlaces();apply();
+function heartbeat(){fetch("/api/heartbeat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:id()})}).then(r=>r.json()).then(x=>{let o=document.getElementById("onlineCount");if(o)o.textContent=x.online||1}).catch(()=>{})}
+setInterval(refresh,2500);setInterval(refreshChat,1800);setInterval(heartbeat,15000);renderChars();updatePlaces();apply();heartbeat();
 </script>
 </body>
 </html>
@@ -475,9 +477,30 @@ def chat(post_id):
     mutate(fn)
     return jsonify(result)
 
+
+@app.route("/api/heartbeat", methods=["POST"])
+def heartbeat():
+    req = request.get_json(force=True, silent=True) or {}
+    client_id = (req.get("client_id") or "").strip()
+    if client_id:
+        ONLINE_USERS[client_id] = datetime.now()
+    cutoff = datetime.now() - timedelta(seconds=70)
+    for key, last_seen in list(ONLINE_USERS.items()):
+        if last_seen < cutoff:
+            ONLINE_USERS.pop(key, None)
+    return jsonify(ok=True, online=max(1, len(ONLINE_USERS)))
+
+@app.route("/api/online")
+def online():
+    cutoff = datetime.now() - timedelta(seconds=70)
+    for key, last_seen in list(ONLINE_USERS.items()):
+        if last_seen < cutoff:
+            ONLINE_USERS.pop(key, None)
+    return jsonify(online=max(1, len(ONLINE_USERS)))
+
 @app.route("/manifest.json")
 def manifest():
-    return jsonify({"name": "바클 파티 모집 v5", "short_name": "파티모집", "start_url": "/", "display": "standalone", "background_color": "#10121a", "theme_color": "#10121a", "icons": []})
+    return jsonify({"name": "월하 · 연가 · 연희 파티모집 v6.1", "short_name": "파티모집", "start_url": "/", "display": "standalone", "background_color": "#10121a", "theme_color": "#10121a", "icons": []})
 
 @app.route("/sw.js")
 def sw():

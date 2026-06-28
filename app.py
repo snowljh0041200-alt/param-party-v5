@@ -9,7 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v18.2"
+APP_VERSION = "v18.3"
 SITE_TITLE = "월하 · 연가 · 연희 파티모집"
 SITE_DESC = "월하 · 연가 · 연희 문파 파티모집, 파밍일정, 실시간 채팅"
 LOCK = threading.Lock()
@@ -1456,31 +1456,69 @@ def boss_mark_alert():
     save(fn)
     return jsonify(ok=True)
 
+
+ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }} 관리자</title><style>{{ css }}</style></head><body>
+<div class='wrap'>
+<header class='header'><h1>🛠 관리자</h1><div class='sub'>{{ app_version }}</div></header>
+<section class='panel'>
+<a class='btn gray' href='/'>← 메인</a>
+<h2>가입 승인</h2>
+{% if pending_users %}
+  {% for u in pending_users %}
+  <div class='slot'><div><b>{{ u.account }}</b><br><span class='meta'>{{ u.chars[0].name if u.chars else '' }} / {{ u.chars[0].job if u.chars else '' }}</span></div>
+  <div><a class='mini ok' href='/admin/approve_user/{{ u.id }}'>승인</a></div></div>
+  {% endfor %}
+{% else %}<p class='meta'>대기 없음</p>{% endif %}
+</section>
+
+<section class='panel'>
+<h2>캐릭터 승인</h2>
+{% if pending_chars %}
+  {% for item in pending_chars %}
+  <div class='slot'><div><b>{{ item.char.name }}</b><br><span class='meta'>{{ item.char.job }} / {{ item.user.account }}</span></div>
+  <div><a class='mini ok' href='/admin/approve_char/{{ item.user.id }}/{{ item.char.id }}'>승인</a></div></div>
+  {% endfor %}
+{% else %}<p class='meta'>대기 없음</p>{% endif %}
+</section>
+
+<section class='panel'>
+<h2>권한 관리</h2>
+{% for u in users %}
+  <div class='slot'>
+    <div><b>{{ u.account }}</b><br><span class='meta'>권한: {{ u.role|default('일반') }} · {{ u.status|default('') }}</span></div>
+    <div>
+      <a class='mini gray' href='/admin/role/{{ u.id }}/normal'>일반</a>
+      <a class='mini ok' href='/admin/role/{{ u.id }}/admin'>관리자</a>
+      <a class='mini' href='/admin/role/{{ u.id }}/super'>최고관리자</a>
+    </div>
+  </div>
+{% endfor %}
+</section>
+</div></body></html>"""
+
 @app.route("/admin")
 def admin():
-    d=load()
-    u=current_user(d)
-    admin_ok = is_admin_user(u) or bootstrap_admin_ok(d)
-    pending=[x for x in d["users"] if x.get("status")=="pending"]
-    pc=[]
-    for x in d["users"]:
-        if x.get("status")=="approved":
-            for c in x.get("chars",[]):
-                if c.get("status")=="pending":
-                    pc.append({"user":x,"char":c})
-    admin_msg = session.pop("admin_msg", "")
-    current_label = "로그인된 회원 없음"
-    if u:
-        current_label = f"{u.get('account')} / 권한: {role_of(u)} / 상태: {u.get('status')}"
-    if bootstrap_admin_ok(d):
-        current_label += " / 임시 관리자 모드"
+    d = load()
+    u = current_user(d)
+    if not is_admin_user(u):
+        return redirect("/")
+    pending_users = [x for x in d.get("users", []) if x.get("status") == "pending"]
+    pending_chars = []
+    for user in d.get("users", []):
+        for ch in user.get("chars", []):
+            if ch.get("status") == "pending":
+                pending_chars.append({"user": user, "char": ch})
     return render_template_string(
-        ADMIN, css=CSS, admin_ok=admin_ok,
-        super_ok=(is_super_user(u) or bootstrap_admin_ok(d)),
-        pending_users=pending, pending_chars=pc, users=d["users"],
-        posts=list(reversed(d["posts"])), notice=d["settings"].get("notice",""),
-        farm_items=d["settings"].get("farm_items",FARM_ITEMS),
-        admin_msg=admin_msg, current_label=current_label
+        ADMIN,
+        css=CSS,
+        users=d.get("users", []),
+        pending_users=pending_users,
+        pending_chars=pending_chars,
+        admin_ok=True,
+        app_version=APP_VERSION,
+        site_title=SITE_TITLE if "SITE_TITLE" in globals() else "월하 · 연가 · 연희 파티모집",
+        site_desc=SITE_DESC if "SITE_DESC" in globals() else "월하 · 연가 · 연희 문파 파티모집"
     )
 
 @app.route("/admin/login", methods=["POST"])
@@ -1542,6 +1580,37 @@ def admin_farm_items():
     items={"해골왕":parse("items_해골왕") or ["해뼈"],"어금니":parse("items_어금니") or ["흑룡 어금니","묵룡 어금니","진룡 어금니","감룡 어금니"]}
     save(lambda d: d["settings"].update({"farm_items":items})); return redirect("/admin")
 
+
+
+
+@app.route("/admin/approve_user/<uid>")
+def admin_approve_user(uid):
+    u = current_user(load())
+    if not is_admin_user(u):
+        return redirect("/")
+    def fn(d):
+        for x in d.get("users", []):
+            if x.get("id") == uid:
+                x["status"] = "approved"
+                for ch in x.get("chars", []):
+                    if ch.get("status") == "pending":
+                        ch["status"] = "approved"
+    save(fn)
+    return redirect("/admin")
+
+@app.route("/admin/approve_char/<uid>/<cid>")
+def admin_approve_char(uid, cid):
+    u = current_user(load())
+    if not is_admin_user(u):
+        return redirect("/")
+    def fn(d):
+        for x in d.get("users", []):
+            if x.get("id") == uid:
+                for ch in x.get("chars", []):
+                    if ch.get("id") == cid:
+                        ch["status"] = "approved"
+    save(fn)
+    return redirect("/admin")
 
 @app.route("/admin/role/<uid>/<role>", methods=["POST"])
 def admin_role(uid, role):

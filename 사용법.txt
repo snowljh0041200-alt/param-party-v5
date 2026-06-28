@@ -1,20 +1,15 @@
-v16.0 SCHEDULE CHAT DASHBOARD
+v16.1 RUNTIME HOTFIX
 
 수정:
-- 보스 젠타임 독립 UI 제거
-- 파밍방/600퀘 출발시간을 일정 알림 기준으로 사용
-- 오늘 일정 카드 추가
-- 30분/15분/5분 전 일정 알림
-- 파밍통계 축소
-- 통합채팅을 메인 화면에 항상 표시
-- 모집글 + 실시간 채팅 2단 대시보드
-- 접속현황 compact 표시
+- 메인 접속 500 에러 수정
+- 일정 날짜 처리용 re import 누락 수정
+- 실시간 통합채팅 갱신 안정화
+- 통합채팅이 팝업을 열지 않아도 메인에서 자동 갱신
 
 중요:
 - data.json은 절대 덮어쓰지 마세요.
-- 기존 회원/승인/권한/글 데이터는 유지됩니다.
 
 배포:
 git add .
-git commit -m "v16.0 schedule chat dashboard"
+git commit -m "v16.1 runtime hotfix"
 git push

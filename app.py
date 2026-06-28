@@ -2,14 +2,14 @@
 from flask import Flask, request, jsonify, render_template_string, redirect, session, send_file
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import os, json, uuid, tempfile, html, threading
+import os, json, uuid, tempfile, html, threading, re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v16.0"
+APP_VERSION = "v16.1"
 LOCK = threading.Lock()
 
 DEFAULT_ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "moon")
@@ -971,7 +971,7 @@ function leaveSlot(pid,sid){if(!confirm('비울까?'))return;fetch('/leave',{met
 function deletePost(pid){if(!confirm('삭제할까?'))return;fetch('/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid})}).then(r=>r.json()).then(x=>{toast(x.ok?'삭제됨':x.reason||'삭제 실패');refresh()})}
 function completePost(pid){if(!confirm('모집완료 처리할까?'))return;fetch('/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid})}).then(r=>r.json()).then(x=>{toast(x.ok?'모집완료됨':x.reason||'실패');refresh()})}
 function openGlobalChat(){globalOpen=true;qs('globalModal').classList.add('show');refreshGlobalChat()}function closeGlobalChat(){globalOpen=false;qs('globalModal').classList.remove('show')}
-function refreshGlobalChat(){if(!globalOpen)return;fetch('/api/global_chat',{cache:'no-store'}).then(r=>r.text()).then(h=>{const b=qs('globalChatList');b.innerHTML=h;b.scrollTop=b.scrollHeight})}
+function refreshGlobalChat(){fetch('/api/global_chat',{cache:'no-store'}).then(r=>r.text()).then(h=>{const a=qs('globalChatInline');if(a){a.innerHTML=h;a.scrollTop=a.scrollHeight}const b=qs('globalChatListOld')||qs('globalChatList');if(b){b.innerHTML=h;b.scrollTop=b.scrollHeight}}).catch(()=>{})}
 function sendGlobalChat(){const i=qs('globalChatText');if(!i.value.trim())return;fetch('/global_chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:i.value.trim()})}).then(r=>r.json()).then(x=>{if(!x.ok)toast(x.reason||'실패');else{i.value='';refreshGlobalChat()}})}
 function deleteGlobalChat(id){fetch('/global_chat/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})}).then(()=>refreshGlobalChat())}
 function openPartyChat(pid){partyId=pid;qs('partyModal').classList.add('show');refreshPartyChat()}function closePartyChat(){partyId=null;qs('partyModal').classList.remove('show')}

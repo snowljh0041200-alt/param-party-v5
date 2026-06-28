@@ -1,30 +1,27 @@
-월하 · 연가 · 연희 파티모집 v9 PRACTICAL
+월하 · 연가 · 연희 파티모집 v10 정식판
 
-최종 확정 내용:
-- 메인 관리자 링크 제거
-- /admin 직접 입력으로만 관리자 접근
-- 관리자 페이지 비밀번호 안내 문구 제거
-- 메인 제목: 월하 · 연가 · 연희 파티모집
-- Made by 역인(진선)
-- 필터: 전체 / 사냥 / 파밍 / 600퀘
-- 접속중 / 모집중 / 내 글·참여 표시
-- 알림 ON/OFF 복구
-- 알림 안내 문구 표시
-- 새 모집글 / 새 채팅 / 새 참여자 알림
-- 모집글 작성, 참여, 비우기, 본인글 삭제, 참여자 채팅 유지
-
-일반 사용자 주소:
-https://너의주소.onrender.com/
+기본 입장 비밀번호: moon
+기본 관리자 비밀번호: 1234
 
 관리자 주소:
 https://너의주소.onrender.com/admin
 
-관리자 기본 비밀번호:
-1234
-※ 배포 후 Render > Environment 에서 ADMIN_PASSWORD를 원하는 비밀번호로 변경 권장.
+포함 기능:
+- 문파 입장 비밀번호
+- 회원가입/관리자 승인
+- 캐릭터 여러 개 등록/승인
+- 승인된 캐릭터로만 모집/참여/채팅
+- 통합 실시간 채팅
+- 파티별 참여자 채팅
+- 관리자: 비밀번호 변경, 공지, 회원 승인, 캐릭터 승인, 차단, 글 삭제
+- 알림 안내/알림 ON-OFF
+- 필터: 전체/사냥/파밍/600퀘
 
 업데이트:
-1. 기존 param-party-v5 폴더에 ZIP 내용 전부 덮어쓰기
-2. PowerShell에서 git add . / git commit -m "v9 practical" / git push
+1. 기존 폴더에 ZIP 내용 전부 덮어쓰기
+2. PowerShell:
+   git add .
+   git commit -m "v10 official guild system"
+   git push
 3. Render Deploy live 확인
 4. 사이트 Ctrl + Shift + R

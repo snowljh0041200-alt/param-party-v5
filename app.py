@@ -315,7 +315,8 @@ def render_chat_rows(chats, uid, allow_delete=True):
         rows.append(f"<div class='msg{mine}'><div class='msg-meta'>{meta} {delete_btn}</div><div>{esc(msg.get('text'))}</div></div>")
     return "\n".join(rows)
 
-def render_posts(posts, user, admin=False):
+def render_posts(posts, user, admin=False, farming_items=None):
+    farming_items = farming_items or DEFAULT_FARMING_ITEMS
     if not posts:
         return "<div class='empty'>현재 모집글이 없습니다.</div>"
 
@@ -380,23 +381,29 @@ def render_posts(posts, user, admin=False):
 
             manage_html = ""
             if owner_or_admin:
-                items = DEFAULT_FARMING_ITEMS.get(post.get("place"), ["기타"])
+                items = farming_items.get(post.get("place"), DEFAULT_FARMING_ITEMS.get(post.get("place"), ["기타"]))
                 item_options = "".join([f"<option {'selected' if x==post.get('farming_item') else ''}>{esc(x)}</option>" for x in items])
                 participant_check_html = "".join(participant_rows) if participant_rows else "<p class='meta'>참여자가 없습니다.</p>"
+                is_drop = post.get("farming_result") == "득템"
+                drop_style = "" if is_drop else "display:none"
+                result_select_id = "farmResult_" + post.get("id", "")
+                drop_box_id = "farmDrop_" + post.get("id", "")
                 manage_html = f"""
                 <div class='farm-manage owner-only'>
                   <form method='post' action='/farming/result/{pid}'>
                     <label>파밍 결과</label>
-                    <select name='farming_result'>
+                    <select name='farming_result' id='{result_select_id}' onchange="toggleFarmResultBox('{result_select_id}','{drop_box_id}')">
                       <option {'selected' if post.get('farming_result')=='노득' else ''}>노득</option>
                       <option {'selected' if post.get('farming_result')=='득템' else ''}>득템</option>
                     </select>
-                    <label>득템 아이템</label>
-                    <select name='farming_item'>{item_options}</select>
-                    <label>판매금액</label>
-                    <input name='sale_amount' inputmode='numeric' value='{esc(post.get('sale_amount'))}' placeholder='예: 26000000'>
-                    <label>분배 대상자 체크</label>
-                    <div class='check-box'>{participant_check_html}</div>
+                    <div id='{drop_box_id}' style='{drop_style}'>
+                      <label>득템 아이템</label>
+                      <select name='farming_item'>{item_options}</select>
+                      <label>판매금액</label>
+                      <input name='sale_amount' inputmode='numeric' value='{esc(post.get('sale_amount'))}' placeholder='예: 26000000'>
+                      <label>분배 대상자 체크</label>
+                      <div class='check-box'>{participant_check_html}</div>
+                    </div>
                     <button type='submit'>결과/분배 저장</button>
                   </form>
                   <form method='post' action='/farming/settle/{pid}' onsubmit="return confirm('정산완료 처리할까요?')">
@@ -429,7 +436,7 @@ def render_posts(posts, user, admin=False):
                     slot_rows.append(f"<div class='slot filled'><div><b>{job}</b><br><span>{mark} {label}</span></div>{leave_btn}</div>")
                 else:
                     disabled = "disabled" if post.get("closed") else ""
-                    external_btn = f"<button type='button' class='mini gray owner-only' onclick=\"addExternal('{pid}','{sid}')\">외부인</button>" if owner_or_admin else ""
+                    external_btn = f"<button type='button' class='mini gray' onclick=\"addExternal('{pid}','{sid}')\">외부인</button>" if owner_or_admin else ""
                     slot_rows.append(f"<div class='slot'><div><b>{job}</b><br><span>⭕ 모집중</span></div><div>{external_btn}<button type='button' class='mini ok' {disabled} onclick=\"joinSlot('{pid}','{sid}','{job}')\">참여</button></div></div>")
             body_html = f"<div class='slots'>{''.join(slot_rows)}</div>"
 
@@ -457,6 +464,7 @@ def render_posts(posts, user, admin=False):
             <button type='button' onclick="copyPost(`{copy_text}`)">복사</button>
             <button type='button' onclick="shareKakao(`{copy_text}`)">카톡공유</button>
             <button type='button' onclick="openPartyChat('{pid}')">채팅 {len(post.get("party_chat", []))}</button>
+            <a class='btn gray owner-only' href='/edit/{pid}'>수정</a>
             <button type='button' class='owner-only danger' onclick="deletePost('{pid}')">삭제</button>
           </div>
         </article>
@@ -476,7 +484,7 @@ def member_html(data):
     return "".join(rows) if rows else "<div class='member'>승인된 문파원이 없습니다.</div>"
 
 CSS = """
-*{box-sizing:border-box}body{margin:0;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Malgun Gothic',Arial,sans-serif;background:#0b1020}body:before{content:'';position:fixed;inset:0;background:radial-gradient(circle at 20% 0%,#263c77 0,#111a34 38%,#090d18 78%);z-index:-1}.wrap{max-width:1040px;margin:0 auto;padding:18px 14px 100px}.header{padding:12px 0 16px;border-bottom:1px solid rgba(255,255,255,.11)}h1{font-size:28px;margin:0;letter-spacing:-.8px}.sub{color:#aeb8d7;font-size:13px;margin-top:4px}.panel,.party-card{background:rgba(20,27,48,.88);border:1px solid rgba(150,165,210,.22);box-shadow:0 18px 50px rgba(0,0,0,.32);border-radius:24px;padding:16px;margin:14px 0;backdrop-filter:blur(12px)}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:rgba(7,11,22,.57);border:1px solid rgba(255,255,255,.10);border-radius:18px;text-align:center;padding:14px 8px}.stat b{font-size:28px;display:block}.stat span{font-size:12px;color:#aeb8d7}button,.btn{border:0;border-radius:15px;background:linear-gradient(180deg,#6a86ff,#4163ff);color:#fff;font-weight:900;padding:12px 15px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;box-shadow:0 8px 22px rgba(35,80,255,.24);cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button.gray,.btn.gray{background:linear-gradient(180deg,#4c5571,#363d55);box-shadow:none}button.danger,.danger{background:linear-gradient(180deg,#ff6666,#ce4040);box-shadow:none}button.ok{background:linear-gradient(180deg,#2bd176,#169851)}input,select,textarea{width:100%;background:#0d1325;color:#f4f6ff;border:1px solid rgba(170,185,230,.25);border-radius:15px;padding:13px;margin:6px 0 13px;font-size:16px;outline:none}label{font-size:13px;color:#bac4de;font-weight:900}.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tabs a{white-space:nowrap;color:#dce4ff;background:rgba(10,15,30,.55);border:1px solid rgba(255,255,255,.12);text-decoration:none;border-radius:999px;padding:9px 14px;font-weight:900;font-size:14px}.tabs a.on{background:linear-gradient(180deg,#6a86ff,#4163ff);border-color:#8ca0ff}.empty{border:1px dashed rgba(255,255,255,.25);border-radius:22px;padding:46px;text-align:center;color:#c2c9dd;background:rgba(20,27,48,.55)}.post-head{display:flex;justify-content:space-between;align-items:center}.pill{display:inline-flex;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;margin-right:4px}.pill.open{background:#123f2a;color:#9dffc4}.pill.done{background:#4d2020;color:#ffd1d1}.pill.type{background:#242c48;color:#ccd6ff}.count{font-size:18px;background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 12px}h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-height:1.6}.memo{color:#ffd16a;font-size:14px;margin-top:5px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}.slot{display:flex;justify-content:space-between;align-items:center;background:rgba(8,12,24,.62);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px;margin:9px 0}.slot.filled{background:rgba(18,55,33,.58);border-color:rgba(73,190,112,.35)}.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.farm-actions{grid-template-columns:1fr}.owner-only{display:none!important}.post[data-owner='1'] .owner-only{display:inline-flex!important}.hidden{display:none!important}.time-row{display:grid;grid-template-columns:90px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}.mini{font-size:13px;padding:8px 10px;min-height:34px}.notice,.alarm-guide{background:linear-gradient(180deg,rgba(255,211,106,.18),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.30);color:#ffe5a3;border-radius:18px;padding:12px;margin-top:12px;font-size:13px;line-height:1.45}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1e2845;border:1px solid #53648f;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.chat-panel{width:100%;max-width:880px;margin:0 auto;border-radius:22px 22px 0 0}.chat-list{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;height:340px;overflow-y:auto;padding:10px}.msg{background:#202a47;border-radius:13px;padding:9px 11px;margin:7px 0}.msg.mine{background:#173d27;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8b2cc;display:flex;justify-content:space-between;gap:8px;align-items:center}.chat-form{display:grid;grid-template-columns:1fr 74px;gap:7px;margin-top:9px}.chat-form input{margin:0}.member-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.member{background:rgba(8,12,24,.55);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;margin:6px 0}.choice-list{display:grid;gap:8px}.choice-list button{width:100%;justify-content:flex-start;background:linear-gradient(180deg,#4c5571,#363d55)}.check-box{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px;margin-bottom:10px}.check-row{display:block;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)}.check-row input{width:auto;margin-right:8px}.farm-manage{display:block!important;margin-top:12px}@media(max-width:680px){.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
+*{box-sizing:border-box}body{margin:0;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Malgun Gothic',Arial,sans-serif;background:#0b1020}body:before{content:'';position:fixed;inset:0;background:radial-gradient(circle at 20% 0%,#263c77 0,#111a34 38%,#090d18 78%);z-index:-1}.wrap{max-width:1040px;margin:0 auto;padding:18px 14px 100px}.header{padding:12px 0 16px;border-bottom:1px solid rgba(255,255,255,.11)}h1{font-size:28px;margin:0;letter-spacing:-.8px}.sub{color:#aeb8d7;font-size:13px;margin-top:4px}.panel,.party-card{background:rgba(20,27,48,.88);border:1px solid rgba(150,165,210,.22);box-shadow:0 18px 50px rgba(0,0,0,.32);border-radius:24px;padding:16px;margin:14px 0;backdrop-filter:blur(12px)}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:rgba(7,11,22,.57);border:1px solid rgba(255,255,255,.10);border-radius:18px;text-align:center;padding:14px 8px}.stat b{font-size:28px;display:block}.stat span{font-size:12px;color:#aeb8d7}button,.btn{border:0;border-radius:15px;background:linear-gradient(180deg,#6a86ff,#4163ff);color:#fff;font-weight:900;padding:12px 15px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;box-shadow:0 8px 22px rgba(35,80,255,.24);cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button.gray,.btn.gray{background:linear-gradient(180deg,#4c5571,#363d55);box-shadow:none}button.danger,.danger{background:linear-gradient(180deg,#ff6666,#ce4040);box-shadow:none}button.ok{background:linear-gradient(180deg,#2bd176,#169851)}input,select,textarea{width:100%;background:#0d1325;color:#f4f6ff;border:1px solid rgba(170,185,230,.25);border-radius:15px;padding:13px;margin:6px 0 13px;font-size:16px;outline:none}label{font-size:13px;color:#bac4de;font-weight:900}.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tabs a{white-space:nowrap;color:#dce4ff;background:rgba(10,15,30,.55);border:1px solid rgba(255,255,255,.12);text-decoration:none;border-radius:999px;padding:9px 14px;font-weight:900;font-size:14px}.tabs a.on{background:linear-gradient(180deg,#6a86ff,#4163ff);border-color:#8ca0ff}.empty{border:1px dashed rgba(255,255,255,.25);border-radius:22px;padding:46px;text-align:center;color:#c2c9dd;background:rgba(20,27,48,.55)}.post-head{display:flex;justify-content:space-between;align-items:center}.pill{display:inline-flex;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;margin-right:4px}.pill.open{background:#123f2a;color:#9dffc4}.pill.done{background:#4d2020;color:#ffd1d1}.pill.type{background:#242c48;color:#ccd6ff}.count{font-size:18px;background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 12px}h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-height:1.6}.memo{color:#ffd16a;font-size:14px;margin-top:5px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}.slot{display:flex;justify-content:space-between;align-items:center;background:rgba(8,12,24,.62);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px;margin:9px 0}.slot.filled{background:rgba(18,55,33,.58);border-color:rgba(73,190,112,.35)}.actions{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}.farm-actions{grid-template-columns:1fr}.owner-only{display:none!important}.post[data-owner='1'] .owner-only{display:inline-flex!important}.hidden{display:none!important}.time-row{display:grid;grid-template-columns:90px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}.mini{font-size:13px;padding:8px 10px;min-height:34px}.notice,.alarm-guide{background:linear-gradient(180deg,rgba(255,211,106,.18),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.30);color:#ffe5a3;border-radius:18px;padding:12px;margin-top:12px;font-size:13px;line-height:1.45}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1e2845;border:1px solid #53648f;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.chat-panel{width:100%;max-width:880px;margin:0 auto;border-radius:22px 22px 0 0}.chat-list{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;height:340px;overflow-y:auto;padding:10px}.msg{background:#202a47;border-radius:13px;padding:9px 11px;margin:7px 0}.msg.mine{background:#173d27;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8b2cc;display:flex;justify-content:space-between;gap:8px;align-items:center}.chat-form{display:grid;grid-template-columns:1fr 74px;gap:7px;margin-top:9px}.chat-form input{margin:0}.member-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.member{background:rgba(8,12,24,.55);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;margin:6px 0}.choice-list{display:grid;gap:8px}.choice-list button{width:100%;justify-content:flex-start;background:linear-gradient(180deg,#4c5571,#363d55)}.check-box{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px;margin-bottom:10px}.check-row{display:block;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)}.check-row input{width:auto;margin-right:8px}.farm-manage{display:block!important;margin-top:12px}@media(max-width:680px){.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
 """
 
 GATE_PAGE = """
@@ -566,6 +574,7 @@ function numbersOnly(el){el.value=(el.value||'').replace(/[^0-9]/g,'').slice(0,4
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function updatePlaces(){const t=qs('typeSelect');if(!t)return;document.querySelectorAll('.place-select').forEach(x=>x.classList.add('hidden'));const target=qs('place_'+t.value);if(target)target.classList.remove('hidden')}
 function toggleSlotBox(){const cat=qs('typeSelect')?.value;const panel=qs('slotPanel');const note=qs('farmNotice');if(!panel||!note)return;if(cat==='파밍'){panel.classList.add('hidden');note.classList.remove('hidden')}else{panel.classList.remove('hidden');note.classList.add('hidden')}}
+function toggleFarmResultBox(selectId,boxId){const s=qs(selectId);const b=qs(boxId);if(!s||!b)return;b.style.display=(s.value==='득템')?'block':'none'}
 function addSlot(){const job=qs('slotJob')?.value;const box=qs('slotsBox');if(!job||!box)return;const d=document.createElement('div');d.className='slot';d.innerHTML='<div><b>'+escapeHtml(job)+'</b><br><span>빈자리</span></div><button type="button" class="mini danger" onclick="this.parentElement.remove()">삭제</button><input type="hidden" name="slots" value="'+escapeHtml(job)+'">';box.appendChild(d)}
 function copyPost(text){if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>toast('복사됨')).catch(()=>alert(text))}else alert(text)}
 function shareKakao(text){const shareText='월하 · 연가 · 연희 파티모집\\n\\n'+text+'\\n\\n'+location.origin;if(navigator.share){navigator.share({title:'파티모집',text:shareText,url:location.origin}).catch(()=>copyPost(shareText))}else{copyPost(shareText);toast('공유문구가 복사됐습니다. 카톡에 붙여넣어 주세요.')}}
@@ -704,7 +713,7 @@ def home():
     open_count = sum(1 for p in posts if post_status(p) in ["모집중", "진행중"])
     return render_template_string(
         MAIN_PAGE, css=CSS, page="home", user=user, filters=FILTERS, filters_no_all=["사냥","파밍","600퀘"], filter_value=filt,
-        post_list=render_posts(posts, user), open_count=open_count, member_html=member_html(data),
+        post_list=render_posts(posts, user, farming_items=data["settings"].get("farming_items", DEFAULT_FARMING_ITEMS)), open_count=open_count, member_html=member_html(data),
         notice=data["settings"].get("notice", ""), jobs=JOBS, places=PLACES
     )
 
@@ -716,7 +725,7 @@ def api_posts():
     posts = list(reversed(data.get("posts", [])))
     if filt != "전체":
         posts = [p for p in posts if p.get("category") == filt]
-    return render_posts(posts, user)
+    return render_posts(posts, user, farming_items=data["settings"].get("farming_items", DEFAULT_FARMING_ITEMS))
 
 @app.route("/new")
 def new_post_page():
@@ -934,9 +943,14 @@ def farming_result(post_id):
             return
         result = request.form.get("farming_result", "노득")
         post["farming_result"] = result
-        post["farming_item"] = request.form.get("farming_item", "")
-        post["sale_amount"] = only_digits(request.form.get("sale_amount", ""))
-        post["farming_share_ids"] = request.form.getlist("share_ids")
+        if result == "득템":
+            post["farming_item"] = request.form.get("farming_item", "")
+            post["sale_amount"] = only_digits(request.form.get("sale_amount", ""))
+            post["farming_share_ids"] = request.form.getlist("share_ids")
+        else:
+            post["farming_item"] = ""
+            post["sale_amount"] = ""
+            post["farming_share_ids"] = []
         post["farming_status"] = "결과입력완료"
     mutate(fn)
     return redirect("/")

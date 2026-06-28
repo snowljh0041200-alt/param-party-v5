@@ -525,10 +525,10 @@ MAIN = """
 <!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>파티모집</title><style>{{ css }}</style></head><body>
 <div class='wrap'><header class='header'><h1>⚔️ 월하 · 연가 · 연희 파티모집</h1><div class='sub'>Made by 역인(진선)</div></header>{% if notice %}<div class='notice'>📢 {{ notice }}</div>{% endif %}
 {% if page=='home' %}
-<section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='openGlobalChat()'>통합채팅</button><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button></div><div class='summary'><div class='stat'><b>{{ open_count }}</b><span>모집중</span></div><div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div><div class='stat'><b id='myCount'>0</b><span>내 참여</span></div></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안에만 동작합니다.</div><div class='tabs'>{% for f in cats %}<a class='{% if f==filter_value %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section><section class='panel'><h2>문파원 접속 현황</h2><div class='member-grid'>{{ member_html|safe }}</div></section><div id='postList'>{{ post_list|safe }}</div>
+<section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='openGlobalChat()'>통합채팅</button><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button></div><div class='summary'><div class='stat'><b>{{ open_count }}</b><span>모집중</span></div><div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div><div class='stat'><b id='myCount'>0</b><span>내 참여</span></div></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안 동작합니다. 버튼을 눌러 브라우저 알림 권한을 허용하면 새 모집글/참여/채팅 알림을 받을 수 있습니다.</div><div class='tabs'>{% for f in cats %}<a class='{% if f==filter_value %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section><section class='panel'><h2>문파원 접속 현황</h2><div class='member-grid'>{{ member_html|safe }}</div></section><div id='postList'>{{ post_list|safe }}</div>
 {% endif %}
 {% if page=='new' or page=='edit' %}
-<section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘/파밍은 직업 자리 없이 참여 버튼 방식입니다.</div><button style='width:100%'>저장</button></form></section>
+<section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘는 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
 {% endif %}
 {% if page=='chars' %}
 <section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>내 캐릭터</h2><form method='post' action='/chars/add'><label>캐릭터명</label><input name='name' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button style='width:100%'>캐릭터 추가 요청</button></form></section><section class='panel'><h2>등록 캐릭터</h2>{% for c in user.chars %}<div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>{% endfor %}</section>
@@ -569,11 +569,58 @@ function deleteGlobalChat(id){fetch('/global_chat/delete',{method:'POST',headers
 function openPartyChat(pid){partyId=pid;qs('partyModal').classList.add('show');refreshPartyChat()}function closePartyChat(){partyId=null;qs('partyModal').classList.remove('show')}
 function refreshPartyChat(){if(!partyId)return;fetch('/api/party_chat/'+partyId,{cache:'no-store'}).then(r=>r.text()).then(h=>{const b=qs('partyChatList');b.innerHTML=h;b.scrollTop=b.scrollHeight})}
 function sendPartyChat(){const i=qs('partyChatText');if(!partyId||!i.value.trim())return;fetch('/party_chat/'+partyId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:i.value.trim()})}).then(r=>r.json()).then(x=>{if(!x.ok)toast(x.reason||'실패');else{i.value='';refreshPartyChat();refresh()}})}
-function alarmOn(){return localStorage.getItem('baram_alarm_off')!=='1'}function updateAlarmBtn(){if(qs('alarmBtn'))qs('alarmBtn').textContent=alarmOn()?'🔔 알림 ON':'🔕 알림 OFF'}function toggleAlarm(){localStorage.setItem('baram_alarm_off',alarmOn()?'1':'0');updateAlarmBtn()}
-function scanAlarms(){document.querySelectorAll('.post').forEach(p=>{const id=p.dataset.postId;if(id&&!knownPosts.has(id)){if(!firstLoad&&alarmOn())toast('새 글이 올라왔습니다.');knownPosts.add(id)}});firstLoad=false}
+function alarmOn(){return localStorage.getItem('baram_alarm_off')!=='1'}
+function updateAlarmBtn(){if(qs('alarmBtn'))qs('alarmBtn').textContent=alarmOn()?'🔔 알림 ON':'🔕 알림 OFF'}
+function notifyUser(title, body){
+  if(!alarmOn())return;
+  toast(title + (body ? ' - ' + body : ''));
+  try{
+    if('Notification' in window && Notification.permission==='granted'){
+      new Notification(title,{body:body||'',silent:false});
+    }
+  }catch(e){}
+}
+function toggleAlarm(){
+  const turningOff=alarmOn();
+  localStorage.setItem('baram_alarm_off',turningOff?'1':'0');
+  updateAlarmBtn();
+  if(!turningOff && 'Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission().then(()=>toast('알림이 켜졌습니다.'));
+  }else{
+    toast(turningOff?'알림 꺼짐':'알림 켜짐');
+  }
+}
+function scanAlarms(){document.querySelectorAll('.post').forEach(p=>{const id=p.dataset.postId;if(id&&!knownPosts.has(id)){if(!firstLoad&&alarmOn())notifyUser('새 모집글','새 글이 올라왔습니다.');knownPosts.add(id)}});firstLoad=false}
+let eventState=null;
+function pollEvents(){
+  if(location.pathname!='/')return;
+  fetch('/api/events',{cache:'no-store'}).then(r=>r.json()).then(ev=>{
+    if(!ev.ok)return;
+    if(!eventState){eventState=ev;return;}
+    const oldPosts={};(eventState.posts||[]).forEach(p=>oldPosts[p.id]=p);
+    const newPosts={};(ev.posts||[]).forEach(p=>newPosts[p.id]=p);
+    (ev.posts||[]).forEach(p=>{
+      const old=oldPosts[p.id];
+      if(!old){
+        notifyUser('새 모집글', (p.category||'')+' '+(p.place||''));
+        return;
+      }
+      if(p.owner && p.participant_count>old.participant_count){
+        notifyUser('참여 알림', (p.place||'모집글')+'에 참여자가 추가됐습니다.');
+      }
+      if(p.owner && p.chat_count>old.chat_count){
+        notifyUser('파티채팅 알림', (p.place||'모집글')+'에 새 채팅이 있습니다.');
+      }
+    });
+    if(ev.chat_count>eventState.chat_count && ev.chat_last_uid!==CURRENT_USER_ID){
+      notifyUser('통합채팅', (ev.chat_last_label||'문파원')+': '+(ev.chat_last_text||'새 메시지'));
+    }
+    eventState=ev;
+  }).catch(()=>{});
+}
 function heartbeat(){fetch('/api/heartbeat',{method:'POST'}).then(r=>r.json()).then(x=>{if(qs('onlineCount'))qs('onlineCount').textContent=x.online||1}).catch(()=>{})}
-document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();heartbeat();scanAlarms();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});
-setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);
+document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();heartbeat();scanAlarms();pollEvents();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});
+setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);setInterval(pollEvents,2500);
 </script></body></html>
 """
 
@@ -673,7 +720,8 @@ def new_page():
     u = current_user(d)
     if not chars(u):
         return redirect("/chars")
-    return render_template_string(MAIN, css=CSS, page="new", post=None, chars=chars(u), user=u, cats_no_all=CATEGORIES[1:], jobs=JOBS, places=PLACES, notice="")
+    allowed_categories = ["사냥", "600퀘", "파밍"] if is_admin_user(u) else ["사냥", "600퀘"]
+    return render_template_string(MAIN, css=CSS, page="new", post=None, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="")
 
 @app.route("/create", methods=["POST"])
 def create():
@@ -683,6 +731,8 @@ def create():
     if not c:
         return redirect("/chars")
     cat = request.form.get("category","사냥")
+    if cat == "파밍" and not is_admin_user(u):
+        return redirect("/")
     slots = []
     if cat == "사냥":
         slots = [{"id":new_id(),"job":j,"uid":"","char_id":"","label":"","external":""} for j in request.form.getlist("slots")]
@@ -698,7 +748,8 @@ def edit(pid):
     if not p or p.get("owner_uid") != u.get("id"):
         return redirect("/")
     if request.method == "GET":
-        return render_template_string(MAIN, css=CSS, page="edit", post=p, chars=chars(u), user=u, cats_no_all=CATEGORIES[1:], jobs=JOBS, places=PLACES, notice="")
+        allowed_categories = ["사냥", "600퀘", "파밍"] if is_admin_user(u) else ["사냥", "600퀘"]
+        return render_template_string(MAIN, css=CSS, page="edit", post=p, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="")
     def fn(x):
         pp = find_post(x, pid)
         if pp and pp.get("owner_uid") == u.get("id"):
@@ -939,6 +990,40 @@ def party_chat_send(pid):
         return jsonify(ok=False, reason="참여자만 이용 가능")
     msg={"id":new_id(),"uid":u["id"],"label":label(c),"text":txt,"time":time_now(),"created_at":iso_now()}
     save(lambda x: find_post(x,pid).setdefault("party_chat",[]).append(msg)); return jsonify(ok=True)
+
+
+@app.route("/api/events")
+def api_events():
+    d=load()
+    u=current_user(d)
+    uid = u.get("id") if u else ""
+    posts=[]
+    for p in d.get("posts", []):
+        owner = p.get("owner_uid") == uid
+        if p.get("category") == "사냥":
+            participants = [s.get("uid") or s.get("external") or "" for s in p.get("slots", []) if s.get("uid") or s.get("external")]
+        else:
+            participants = [x.get("uid") or x.get("label") or "" for x in p.get("participants", [])]
+        posts.append({
+            "id": p.get("id"),
+            "owner": owner,
+            "category": p.get("category"),
+            "place": p.get("place"),
+            "participant_count": len(participants),
+            "participants_key": "|".join(participants),
+            "chat_count": len(p.get("party_chat", [])),
+            "status": status_text(p)
+        })
+    return jsonify({
+        "ok": True,
+        "now": iso_now(),
+        "chat_count": len(d.get("chat", [])),
+        "chat_last_id": d.get("chat", [{}])[-1].get("id", "") if d.get("chat") else "",
+        "chat_last_text": d.get("chat", [{}])[-1].get("text", "") if d.get("chat") else "",
+        "chat_last_label": d.get("chat", [{}])[-1].get("label", "") if d.get("chat") else "",
+        "chat_last_uid": d.get("chat", [{}])[-1].get("uid", "") if d.get("chat") else "",
+        "posts": posts
+    })
 
 @app.route("/api/heartbeat", methods=["POST"])
 def heartbeat():

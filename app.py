@@ -573,7 +573,7 @@ setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refres
 </script></body></html>
 """
 
-ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>관리자</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>최고관리자로 등록</button></form><p class='meta'>승인된 회원이 최고관리자가 되면 이후에는 회원 권한으로 관리자 페이지에 접속합니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ u.role|default('member') }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form></div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div></body></html>"""
+ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>관리자</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if admin_msg %}<div class='notice'>{{ admin_msg }}</div>{% endif %}<section class='panel'><b>현재 로그인</b><br>{{ current_label }}</section>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>현재 계정을 최고관리자로 등록</button></form><p class='meta'>먼저 메인 사이트에서 본인 문파원 계정으로 로그인되어 있어야 합니다. 로그인 계정이 없으면 최고관리자로 지정할 대상이 없습니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ u.role|default('member') }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form></div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div></body></html>"""
 
 @app.before_request
 def gate_guard():
@@ -952,23 +952,34 @@ def admin():
             for c in x.get("chars",[]):
                 if c.get("status")=="pending":
                     pc.append({"user":x,"char":c})
+    admin_msg = session.pop("admin_msg", "")
+    current_label = "로그인된 회원 없음"
+    if u:
+        current_label = f"{u.get('account')} / 권한: {role_of(u)} / 상태: {u.get('status')}"
     return render_template_string(
         ADMIN, css=CSS, admin_ok=admin_ok, super_ok=is_super_user(u),
         pending_users=pending, pending_chars=pc, users=d["users"],
         posts=list(reversed(d["posts"])), notice=d["settings"].get("notice",""),
-        farm_items=d["settings"].get("farm_items",FARM_ITEMS)
+        farm_items=d["settings"].get("farm_items",FARM_ITEMS),
+        admin_msg=admin_msg, current_label=current_label
     )
 
 @app.route("/admin/login", methods=["POST"])
 def admin_login():
     d=load()
     u=current_user(d)
-    if request.form.get("password")==d["settings"].get("admin_password") and approved(u):
-        def fn(x):
-            uu=find_user(x,u["id"])
-            if uu:
-                uu["role"]="super"
-        save(fn)
+    if not approved(u):
+        session["admin_msg"] = "먼저 메인 사이트에서 문파원으로 로그인하고 승인된 계정이어야 합니다."
+        return redirect("/admin")
+    if request.form.get("password") != d["settings"].get("admin_password"):
+        session["admin_msg"] = "관리자 비밀번호가 맞지 않습니다."
+        return redirect("/admin")
+    def fn(x):
+        uu=find_user(x,u["id"])
+        if uu:
+            uu["role"]="super"
+    save(fn)
+    session["admin_msg"] = "현재 로그인 계정이 최고관리자로 등록되었습니다."
     return redirect("/admin")
 
 @app.route("/admin/logout", methods=["POST"])
@@ -1016,6 +1027,7 @@ def admin_role(uid, role):
                 return
         target["role"] = role
     save(fn)
+    session["admin_msg"] = "권한이 변경되었습니다. 화면에 반영되지 않으면 새로고침하세요."
     return redirect("/admin")
 
 @app.route("/admin/user/<uid>/<action>", methods=["POST"])

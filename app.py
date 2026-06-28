@@ -9,7 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v15.4"
+APP_VERSION = "v15.5"
 LOCK = threading.Lock()
 
 DEFAULT_ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "moon")
@@ -768,6 +768,9 @@ CSS = """
 
 .mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.mini-stats div{background:rgba(8,12,24,.55);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px 10px;text-align:center}.mini-stats b{display:block;font-size:34px}.mini-stats span{font-size:13px;color:var(--muted);font-weight:900}.total-money{margin-top:14px;border-radius:16px;background:linear-gradient(90deg,rgba(255,211,106,.22),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.28);padding:14px;color:#ffe7a1;font-weight:900}.total-money b{font-size:18px}
 
+
+.voice-panel{max-width:520px}.voice-box{display:grid;gap:12px;margin-top:12px}.check-line{display:flex;align-items:center;gap:10px;background:rgba(8,12,24,.45);border:1px solid rgba(255,255,255,.10);padding:12px;border-radius:14px;font-weight:900}.check-line input{width:20px;height:20px}.voice-box input[type=range]{width:100%;accent-color:#66a3ff}
+
 @media(max-width:680px){.online-compact{grid-template-columns:1fr}.dashboard-pair{grid-template-columns:1fr}.boss-form.better{grid-template-columns:1fr}.boss-form.better button{width:100%}.board-head{align-items:flex-start;flex-direction:column}.boss-card{grid-template-columns:1fr}.boss-right-box{text-align:left}.mini-stats b{font-size:28px}.dashboard-pair{grid-template-columns:1fr}.boss-form.compact{grid-template-columns:1fr}.mini-board h2{font-size:20px}.boss-form{grid-template-columns:1fr}.boss-form button{width:100%}.tabs{padding-bottom:8px}.slot{align-items:flex-start;gap:8px}.post-head{gap:8px}.chat-list{height:55vh}.pill.big-done{font-size:15px;padding:9px 15px}.closed-card:before{font-size:16px;padding:7px}.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
 """
 
@@ -781,7 +784,7 @@ MAIN = """
 <!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>파티모집</title><style>{{ css }}</style></head><body>
 <div class='wrap'><header class='header'><h1>⚔️ 월하 · 연가 · 연희 파티모집</h1><div class='sub'>Made by 역인(진선) · {{ app_version|default('v15.0') }}</div></header>{% if notice %}<div class='notice'>📢 {{ notice }}</div>{% endif %}
 {% if page=='home' %}
-<section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='openGlobalChat()'>통합채팅</button><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button><button class='gray' onclick='openAlarmCheck()'>알림점검</button><button class='gray' onclick='toggleClosedPosts()' id='closedToggleBtn'>마감숨김</button></div><div class='summary'><div class='stat'><b>{{ open_count }}</b><span>모집중</span></div><div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div><div class='stat'><b id='myCount'>0</b><span>내 참여</span></div></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안 동작합니다. 알림점검에서 권한과 테스트 알림을 확인하세요.</div>
+<section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='openGlobalChat()'>통합채팅</button><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button><button class='gray' onclick='openAlarmCheck()'>알림점검</button><button class='gray' onclick='openVoiceSettings()'>음성설정</button><button class='gray' onclick='toggleClosedPosts()' id='closedToggleBtn'>마감숨김</button></div><div class='summary'><div class='stat'><b>{{ open_count }}</b><span>모집중</span></div><div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div><div class='stat'><b id='myCount'>0</b><span>내 참여</span></div></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안 동작합니다. 알림점검에서 권한과 테스트 알림을 확인하세요.</div>
 <div class='tabs'>{% for f in cats %}<a class='{% if f==filter_value %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section>{{ member_summary|safe }}<section class='dashboard-pair'>{{ boss_timers|safe }}{{ farm_stats|safe }}</section><div id='postList'>{{ post_list|safe }}</div>
 {% endif %}
 {% if page=='new' or page=='edit' %}
@@ -795,6 +798,21 @@ MAIN = """
 <div id='partyModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>💬 채팅</b><button class='mini gray' onclick='closePartyChat()'>닫기</button></div><div id='partyChatList' class='chat-list'></div><div class='chat-form'><input id='partyChatText' placeholder='메시지'><button onclick='sendPartyChat()'>전송</button></div></div></div>
 <div id='charPickModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>참여 캐릭터 선택</b><button class='mini gray' onclick='closeCharPick()'>닫기</button></div><div id='charPickList' class='choice-list'></div></div></div>
 <div id='alarmModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between;align-items:center'><b>🔔 알림 점검</b><button class='mini gray' onclick='closeAlarmCheck()'>닫기</button></div><div id='alarmStatusBox' class='alarm-guide'>상태 확인중...</div><div class='top-actions'><button class='ok' onclick='requestAlarmPermission()'>권한 요청</button><button onclick='sendTestNotification()'>테스트 알림</button><button class='gray' onclick='refreshAlarmStatus()'>새로고침</button></div><div class='notice'>알림은 사이트 탭이 열려 있어야 동작합니다. 주소창 왼쪽 사이트 설정에서 알림이 차단되어 있으면 허용으로 바꿔주세요.</div></div></div>
+
+<div id='voiceModal' class='modal'><div class='panel chat-panel voice-panel'>
+  <div style='display:flex;justify-content:space-between;align-items:center'><b>🔊 음성 알림 설정</b><button class='mini gray' onclick='closeVoiceSettings()'>닫기</button></div>
+  <div class='voice-box'>
+    <label class='check-line'><input type='checkbox' id='voiceEnabled' onchange='saveVoiceSettings()'> 음성 알림 사용</label>
+    <label class='check-line'><input type='checkbox' id='voiceMuted' onchange='saveVoiceSettings()'> 음소거</label>
+    <label>음량 <span id='voiceVolumeText'>70%</span></label>
+    <input type='range' id='voiceVolume' min='0' max='100' value='70' oninput='saveVoiceSettings()'>
+    <div class='top-actions'>
+      <button class='ok' onclick='testVoiceAlert()'>테스트 음성</button>
+      <button class='gray' onclick='stopVoiceAlert()'>음성 중지</button>
+    </div>
+    <div class='notice'>브라우저 정책 때문에 처음 한 번은 버튼을 눌러야 음성이 정상 재생됩니다. 설정은 각 문파원 기기에 따로 저장됩니다.</div>
+  </div>
+</div></div>
 <div id='toast' class='toast'></div>
 <script>
 const CURRENT_USER_ID="{{ user.id if user else '' }}";let globalOpen=false;let partyId=null;let knownPosts=new Set();let firstLoad=true;
@@ -842,7 +860,7 @@ function notifyUser(title, body){
 function toggleAlarm(){
   const turningOff=alarmOn();
   localStorage.setItem('baram_alarm_off',turningOff?'1':'0');
-  updateAlarmBtn();
+  updateAlarmBtn();loadVoiceSettings();
   if(!turningOff && 'Notification' in window && Notification.permission==='default'){
     Notification.requestPermission().then(()=>toast('알림이 켜졌습니다.'));
   }else{
@@ -897,15 +915,64 @@ function pollEvents(){
 }
 
 
+
+function voiceOn(){return localStorage.getItem('baram_voice_on')==='1'}
+function voiceMuted(){return localStorage.getItem('baram_voice_muted')==='1'}
+function voiceVolume(){let v=parseInt(localStorage.getItem('baram_voice_volume')||'70');return Math.max(0,Math.min(100,v))}
+function loadVoiceSettings(){
+  const en=qs('voiceEnabled'), mu=qs('voiceMuted'), vol=qs('voiceVolume'), txt=qs('voiceVolumeText');
+  if(en)en.checked=voiceOn();
+  if(mu)mu.checked=voiceMuted();
+  if(vol)vol.value=voiceVolume();
+  if(txt)txt.textContent=voiceVolume()+'%';
+}
+function saveVoiceSettings(){
+  const en=qs('voiceEnabled'), mu=qs('voiceMuted'), vol=qs('voiceVolume'), txt=qs('voiceVolumeText');
+  if(en)localStorage.setItem('baram_voice_on',en.checked?'1':'0');
+  if(mu)localStorage.setItem('baram_voice_muted',mu.checked?'1':'0');
+  if(vol)localStorage.setItem('baram_voice_volume',vol.value);
+  if(txt)txt.textContent=voiceVolume()+'%';
+}
+function openVoiceSettings(){const m=qs('voiceModal');if(m){loadVoiceSettings();m.classList.add('show')}}
+function closeVoiceSettings(){const m=qs('voiceModal');if(m)m.classList.remove('show')}
+function stopVoiceAlert(){try{window.speechSynthesis.cancel()}catch(e){}}
+function speakVoice(text, repeat){
+  if(!voiceOn()||voiceMuted())return;
+  if(!('speechSynthesis' in window))return;
+  try{
+    window.speechSynthesis.cancel();
+    const times=repeat||1;
+    let i=0;
+    const run=()=>{
+      if(i>=times)return;
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang='ko-KR';
+      u.rate=1.0;
+      u.pitch=1.0;
+      u.volume=voiceVolume()/100;
+      u.onend=()=>{i++; if(i<times)setTimeout(run,700)};
+      window.speechSynthesis.speak(u);
+    };
+    run();
+  }catch(e){}
+}
+function testVoiceAlert(){
+  localStorage.setItem('baram_voice_on','1');
+  loadVoiceSettings();
+  speakVoice('해골왕 젠까지 5분 남았습니다.',1);
+  toast('테스트 음성 재생');
+}
+
 function testBossAlert(minText){
   notifyUser('보스 젠 테스트', '해골왕 젠 '+minText+' 전 알림 테스트입니다.');
+  speakVoice('해골왕 젠까지 '+minText+' 남았습니다.',1);
   toast('보스 젠 '+minText+' 전 테스트 알림 전송');
 }
 
 function formatLeft(ms){if(ms<=0)return '젠 시간';const sec=Math.floor(ms/1000),h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
 function markBossAlert(id,mark){fetch('/api/boss/mark_alert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,mark:mark})}).catch(()=>{})}
 let bossLocalSent={};
-function updateBossTimers(){const now=Date.now();document.querySelectorAll('.boss-timer').forEach(card=>{const id=card.dataset.bossId,name=card.dataset.bossName||'보스',at=new Date(card.dataset.spawnAt).getTime(),left=at-now;const el=card.querySelector('.boss-left');if(el)el.textContent=formatLeft(left);if(!bossLocalSent[id])bossLocalSent[id]={};if(left<=30*60*1000&&left>29*60*1000&&!bossLocalSent[id]['30']){bossLocalSent[id]['30']=true;notifyUser('보스 젠 30분 전',name);markBossAlert(id,'30')}if(left<=15*60*1000&&left>14*60*1000&&!bossLocalSent[id]['15']){bossLocalSent[id]['15']=true;notifyUser('보스 젠 15분 전',name);markBossAlert(id,'15')}if(left<=5*60*1000&&left>4*60*1000&&!bossLocalSent[id]['5']){bossLocalSent[id]['5']=true;notifyUser('보스 젠 5분 전',name);markBossAlert(id,'5')}})}
+function updateBossTimers(){const now=Date.now();document.querySelectorAll('.boss-timer').forEach(card=>{const id=card.dataset.bossId,name=card.dataset.bossName||'보스',at=new Date(card.dataset.spawnAt).getTime(),left=at-now;const el=card.querySelector('.boss-left');if(el)el.textContent=formatLeft(left);if(!bossLocalSent[id])bossLocalSent[id]={};if(left<=30*60*1000&&left>29*60*1000&&!bossLocalSent[id]['30']){bossLocalSent[id]['30']=true;notifyUser('보스 젠 30분 전',name);speakVoice(name+' 젠까지 30분 남았습니다.',1);markBossAlert(id,'30')}if(left<=15*60*1000&&left>14*60*1000&&!bossLocalSent[id]['15']){bossLocalSent[id]['15']=true;notifyUser('보스 젠 15분 전',name);speakVoice(name+' 젠까지 15분 남았습니다.',1);markBossAlert(id,'15')}if(left<=5*60*1000&&left>4*60*1000&&!bossLocalSent[id]['5']){bossLocalSent[id]['5']=true;notifyUser('보스 젠 5분 전',name);speakVoice(name+' 젠까지 5분 남았습니다.',3);markBossAlert(id,'5')}})}
 
 function heartbeat(){fetch('/api/heartbeat',{method:'POST'}).then(r=>r.json()).then(x=>{if(qs('onlineCount'))qs('onlineCount').textContent=x.online||1}).catch(()=>{})}
 document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();refreshAlarmStatus();heartbeat();updateBossTimers();scanAlarms();applyClosedVisibility();pollEvents();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});

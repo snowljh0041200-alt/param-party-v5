@@ -1,17 +1,13 @@
-v18.0 STABLE REBUILD
+v18.1 HUNTING JOIN FIX
 
 수정:
-- 회원가입 화면 새로 작성
-- 모집 생성 화면 새로 작성
-- 수정 화면 새로 작성
-- 날짜 입력 추가
-- 오전/오후/시간 저장과 표시 분리
-- 파밍/600퀘는 참여 버튼 방식
-- 사냥만 직업 자리 사용
-- 오늘 일정은 파밍만 표시
-- 기존 data.json 유지
+- 사냥 모집글 직업 자리 참여 버그 수정
+- 사냥 슬롯 저장 구조 호환성 개선
+- 참여 경로 추가: /join_slot, /slot_join, /join/<pid>/<idx>
+- 파밍/600퀘 참여 방식 유지
+- v18 안정화 기능 유지
 
 배포:
 git add .
-git commit -m "v18.0 stable rebuild"
+git commit -m "v18.1 hunting join fix"
 git push

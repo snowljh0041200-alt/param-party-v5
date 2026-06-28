@@ -9,7 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v18.0"
+APP_VERSION = "v18.1"
 SITE_TITLE = "월하 · 연가 · 연희 파티모집"
 SITE_DESC = "월하 · 연가 · 연희 문파 파티모집, 파밍일정, 실시간 채팅"
 LOCK = threading.Lock()
@@ -951,6 +951,17 @@ CSS = """
 
 GATE = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔐 문파 전용</h1><div class='sub'>월하 · 연가 · 연희 파티모집</div></header><section class='panel'><h2>입장 비밀번호</h2><form method='post'><input name='password' type='password' placeholder='문파 비밀번호'><button style='width:100%'>입장</button></form>{% if error %}<div class='notice'>비밀번호가 맞지 않습니다.</div>{% endif %}</section></div>
 
+
+<script id="v18_1_hunting_join_fallback">
+document.addEventListener('click',function(e){
+  const b=e.target.closest('[data-join-slot]');
+  if(!b)return;
+  const pid=b.getAttribute('data-post-id');
+  const idx=b.getAttribute('data-join-slot');
+  if(pid && idx!==null) location.href='/join_slot/'+pid+'/'+idx;
+});
+</script>
+
 </body></html>"""
 
 
@@ -967,10 +978,32 @@ REGISTER = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta n
 </form>
 {% if error %}<div class='notice'>{{ error }}</div>{% endif %}
 <p class='meta'>관리자 승인 후 이용 가능합니다.</p>
-</section></div></body></html>"""
+</section></div>
+<script id="v18_1_hunting_join_fallback">
+document.addEventListener('click',function(e){
+  const b=e.target.closest('[data-join-slot]');
+  if(!b)return;
+  const pid=b.getAttribute('data-post-id');
+  const idx=b.getAttribute('data-join-slot');
+  if(pid && idx!==null) location.href='/join_slot/'+pid+'/'+idx;
+});
+</script>
+
+</body></html>"""
 
 
 WAIT = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>⏳ 승인 대기중</h1></header><section class='panel'><p>{{ user.account if user else "승인 대기중" }} 계정이 승인 대기중입니다.</p><div class='top-actions'><a class='btn' href='/admin'>관리자 페이지</a><form method='post' action='/logout'><button class='gray'>로그아웃</button></form></div><p class='meta'>최초 세팅이면 관리자 페이지에서 기존 관리자 비밀번호로 임시 관리자 모드에 들어가 승인할 수 있습니다.</p></section></div>
+
+
+<script id="v18_1_hunting_join_fallback">
+document.addEventListener('click',function(e){
+  const b=e.target.closest('[data-join-slot]');
+  if(!b)return;
+  const pid=b.getAttribute('data-post-id');
+  const idx=b.getAttribute('data-join-slot');
+  if(pid && idx!==null) location.href='/join_slot/'+pid+'/'+idx;
+});
+</script>
 
 </body></html>"""
 
@@ -1309,10 +1342,32 @@ document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox()
 setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);setInterval(updateBossTimers,1000);setInterval(updatePostSchedules,1000);setInterval(pollEvents,2500);
 </script>
 
+
+<script id="v18_1_hunting_join_fallback">
+document.addEventListener('click',function(e){
+  const b=e.target.closest('[data-join-slot]');
+  if(!b)return;
+  const pid=b.getAttribute('data-post-id');
+  const idx=b.getAttribute('data-join-slot');
+  if(pid && idx!==null) location.href='/join_slot/'+pid+'/'+idx;
+});
+</script>
+
 </body></html>
 """
 
 ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if admin_msg %}<div class='notice'>{{ admin_msg }}</div>{% endif %}<section class='panel'><b>현재 로그인</b><br>{{ current_label }}</section>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>현재 계정을 임시 관리자 접속 / 최고관리자 등록</button></form><p class='meta'>먼저 메인 사이트에서 본인 문파원 계정으로 로그인되어 있어야 합니다. 로그인 계정이 없으면 최고관리자로 지정할 대상이 없습니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form><a class='btn ok' href='/admin/backup'>데이터 백업</a></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ {'member':'일반','admin':'관리자/부문파장','super':'최고관리자'}.get(u.role|default('member'), u.role|default('member')) }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form>{% if super_ok %}<form method='post' action='/admin/delete_user/{{ u.id }}' style='display:inline' onsubmit="return confirm('정말 이 회원을 삭제할까요?')"><button class='mini danger'>회원삭제</button></form>{% endif %}</div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div>
+
+
+<script id="v18_1_hunting_join_fallback">
+document.addEventListener('click',function(e){
+  const b=e.target.closest('[data-join-slot]');
+  if(!b)return;
+  const pid=b.getAttribute('data-post-id');
+  const idx=b.getAttribute('data-join-slot');
+  if(pid && idx!==null) location.href='/join_slot/'+pid+'/'+idx;
+});
+</script>
 
 </body></html>"""
 
@@ -1398,7 +1453,18 @@ function updateMode(){const cat=qs('#categorySelect').value;qs('#slotArea').styl
 function formatTimeInput(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);return v}
 function bindTimeAutoColon(){document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{i.addEventListener('input',()=>{i.value=formatTimeInput(i.value)});i.addEventListener('blur',()=>{let v=i.value.replace(/[^0-9]/g,'');if(v.length===3)v='0'+v;if(v.length===4)i.value=v.slice(0,2)+':'+v.slice(2)})})}
 document.addEventListener('DOMContentLoaded',()=>{qs('#categorySelect').addEventListener('change',()=>{updatePlaces();updateMode()});updatePlaces();updateMode();bindTimeAutoColon()});
-</script></body></html>
+</script>
+<script id="v18_1_hunting_join_fallback">
+document.addEventListener('click',function(e){
+  const b=e.target.closest('[data-join-slot]');
+  if(!b)return;
+  const pid=b.getAttribute('data-post-id');
+  const idx=b.getAttribute('data-join-slot');
+  if(pid && idx!==null) location.href='/join_slot/'+pid+'/'+idx;
+});
+</script>
+
+</body></html>
 """
 
 
@@ -1468,6 +1534,88 @@ def home():
     open_count = sum(1 for p in posts if status_text(p) in ["모집중","진행중"])
     return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), global_chat=chat_html(d), open_count=open_count, member_html=member_html(d), member_job_html=member_job_html(d), member_summary=member_summary_html(d), schedule_html=today_schedule_html(d), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
 
+
+
+def _join_hunting_slot(pid, idx):
+    d = load()
+    u = current_user(d)
+    if not approved(u):
+        return redirect("/")
+    c = selected_char(u)
+    if not c:
+        return redirect("/chars")
+    try:
+        idx = int(idx)
+    except Exception:
+        return redirect("/")
+    def fn(x):
+        p = find_post(x, pid)
+        if not p or p.get("category") != "사냥":
+            return
+        slots = p.get("slots", [])
+        if idx < 0 or idx >= len(slots):
+            return
+        # 한 캐릭터는 사냥 글 안에서 한 자리만 참여
+        for s in slots:
+            if s.get("uid") == u.get("id") or s.get("user_id") == u.get("id") or s.get("char_id") == c.get("id"):
+                s["uid"] = ""
+                s["user_id"] = ""
+                s["char_id"] = ""
+                s["label"] = ""
+                s["name"] = ""
+                s["external"] = ""
+                s["status"] = "모집중"
+        s = slots[idx]
+        if not (s.get("uid") or s.get("user_id") or s.get("char_id") or s.get("external")):
+            s["uid"] = u.get("id")
+            s["user_id"] = u.get("id")
+            s["char_id"] = c.get("id")
+            s["label"] = label(c)
+            s["name"] = label(c)
+            s["status"] = "참여"
+    save(fn)
+    return redirect("/")
+
+@app.route("/join_slot/<pid>/<idx>")
+def join_slot(pid, idx):
+    return _join_hunting_slot(pid, idx)
+
+@app.route("/slot_join/<pid>/<idx>")
+def slot_join(pid, idx):
+    return _join_hunting_slot(pid, idx)
+
+@app.route("/join/<pid>/<idx>")
+def join_pid_idx(pid, idx):
+    return _join_hunting_slot(pid, idx)
+
+@app.route("/leave_slot/<pid>/<idx>")
+def leave_slot(pid, idx):
+    d = load()
+    u = current_user(d)
+    c = selected_char(u) if u else None
+    try:
+        idx = int(idx)
+    except Exception:
+        return redirect("/")
+    def fn(x):
+        p = find_post(x, pid)
+        if not p or p.get("category") != "사냥":
+            return
+        slots = p.get("slots", [])
+        if idx < 0 or idx >= len(slots):
+            return
+        s = slots[idx]
+        if s.get("uid") == u.get("id") or s.get("user_id") == u.get("id") or (c and s.get("char_id") == c.get("id")):
+            s["uid"] = ""
+            s["user_id"] = ""
+            s["char_id"] = ""
+            s["label"] = ""
+            s["name"] = ""
+            s["external"] = ""
+            s["status"] = "모집중"
+    save(fn)
+    return redirect("/")
+
 @app.route("/api/posts")
 def api_posts():
     d = load()
@@ -1519,7 +1667,7 @@ def create():
         for i in range(10):
             job = request.form.get(f"slot_job_{i}","")
             if job:
-                slots.append({"job":job,"uid":"","char_id":"","label":"","external":""})
+                slots.append({"job":job,"uid":"","user_id":"","char_id":"","label":"","name":"","external":"","status":"모집중"})
     p = {
         "id": new_id(),
         "owner_uid": u["id"],

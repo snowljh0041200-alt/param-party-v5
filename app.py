@@ -2,14 +2,14 @@
 from flask import Flask, request, jsonify, render_template_string, redirect, session, send_file
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import os, json, uuid, tempfile, html, threading, re, re
+import os, json, uuid, tempfile, html, threading, re, re, re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v17.1"
+APP_VERSION = "v17.2"
 SITE_TITLE = "월하 · 연가 · 연희 파티모집"
 SITE_DESC = "월하 · 연가 · 연희 문파 파티모집, 파밍일정, 실시간 채팅"
 LOCK = threading.Lock()
@@ -931,221 +931,14 @@ CSS = """
 """
 
 GATE = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔐 문파 전용</h1><div class='sub'>월하 · 연가 · 연희 파티모집</div></header><section class='panel'><h2>입장 비밀번호</h2><form method='post'><input name='password' type='password' placeholder='문파 비밀번호'><button style='width:100%'>입장</button></form>{% if error %}<div class='notice'>비밀번호가 맞지 않습니다.</div>{% endif %}</section></div>
-<script id="v17_1_force_form_fix">
-(function(){
-  function fmt(v){
-    v=(v||'').replace(/[^0-9]/g,'').slice(0,4);
-    if(v.length>=3) return v.slice(0,v.length-2)+':'+v.slice(v.length-2);
-    return v;
-  }
-  function findSlotBoxes(){
-    const result=[];
-    document.querySelectorAll('section,div,fieldset').forEach(el=>{
-      const tx=(el.innerText||'').trim();
-      if(tx.includes('사냥 직업 자리 추가') || tx.includes('직업 자리 추가')){
-        result.push(el);
-      }
-    });
-    return result;
-  }
-  function currentCat(){
-    const s=document.querySelector("select[name='category']");
-    return s ? s.value : '';
-  }
-  function applyMode(){
-    const cat=currentCat();
-    findSlotBoxes().forEach(el=>{
-      el.style.display = (cat==='사냥') ? '' : 'none';
-    });
-    let help=document.getElementById('v17ModeHelp');
-    const catSelect=document.querySelector("select[name='category']");
-    if(catSelect && !help){
-      help=document.createElement('div');
-      help.id='v17ModeHelp';
-      help.className='notice';
-      catSelect.closest('label,div,section')?.insertAdjacentElement('afterend', help);
-    }
-    if(help){
-      if(cat==='파밍') help.textContent='파밍은 생성 후 참여하기 버튼으로 참여합니다. 직업 자리는 사용하지 않습니다.';
-      else if(cat==='600퀘') help.textContent='600퀘는 참여하기 버튼 방식입니다.';
-      else help.textContent='사냥은 직업 자리를 추가해서 모집합니다.';
-    }
-  }
-  function bindTimes(){
-    document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{
-      i.setAttribute('inputmode','numeric');
-      i.setAttribute('maxlength','5');
-      i.placeholder=i.name==='start_time'?'예: 1107 또는 11:07':'예: 1120 또는 11:20';
-      if(i.dataset.v17bound==='1') return;
-      i.dataset.v17bound='1';
-      i.addEventListener('input',()=>{ i.value=fmt(i.value); });
-      i.addEventListener('blur',()=>{
-        let v=i.value.replace(/[^0-9]/g,'');
-        if(v.length===3) v='0'+v;
-        if(v.length===4) i.value=v.slice(0,2)+':'+v.slice(2);
-      });
-    });
-  }
-  function init(){
-    bindTimes();
-    applyMode();
-    const s=document.querySelector("select[name='category']");
-    if(s && s.dataset.v17bound!=='1'){
-      s.dataset.v17bound='1';
-      s.addEventListener('change',()=>setTimeout(()=>{bindTimes();applyMode();},50));
-    }
-  }
-  document.addEventListener('DOMContentLoaded', init);
-  setTimeout(init, 200);
-  setTimeout(init, 800);
-})();
-</script>
 
 </body></html>"""
 
 REGISTER = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>👤 문파원 등록</h1><div class='sub'>처음 한 번만 등록하면 됩니다.</div></header><section class='panel'><form method='post'><label>계정명</label><input name='account' value='{{ form.account }}' placeholder='예: 역인' required><label>대표 캐릭터명</label><input name='char_name' value='{{ form.char_name }}' placeholder='예: 역인' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option {% if form.job==job %}selected{% endif %}>{{ job }}</option>{% endfor %}</select><button style='width:100%'>승인 요청</button></form>{% if error %}<div class='notice'>{{ error }}</div>{% endif %}<p class='meta'>관리자 승인 후 이용 가능합니다.</p></section></div>
-<script id="v17_1_force_form_fix">
-(function(){
-  function fmt(v){
-    v=(v||'').replace(/[^0-9]/g,'').slice(0,4);
-    if(v.length>=3) return v.slice(0,v.length-2)+':'+v.slice(v.length-2);
-    return v;
-  }
-  function findSlotBoxes(){
-    const result=[];
-    document.querySelectorAll('section,div,fieldset').forEach(el=>{
-      const tx=(el.innerText||'').trim();
-      if(tx.includes('사냥 직업 자리 추가') || tx.includes('직업 자리 추가')){
-        result.push(el);
-      }
-    });
-    return result;
-  }
-  function currentCat(){
-    const s=document.querySelector("select[name='category']");
-    return s ? s.value : '';
-  }
-  function applyMode(){
-    const cat=currentCat();
-    findSlotBoxes().forEach(el=>{
-      el.style.display = (cat==='사냥') ? '' : 'none';
-    });
-    let help=document.getElementById('v17ModeHelp');
-    const catSelect=document.querySelector("select[name='category']");
-    if(catSelect && !help){
-      help=document.createElement('div');
-      help.id='v17ModeHelp';
-      help.className='notice';
-      catSelect.closest('label,div,section')?.insertAdjacentElement('afterend', help);
-    }
-    if(help){
-      if(cat==='파밍') help.textContent='파밍은 생성 후 참여하기 버튼으로 참여합니다. 직업 자리는 사용하지 않습니다.';
-      else if(cat==='600퀘') help.textContent='600퀘는 참여하기 버튼 방식입니다.';
-      else help.textContent='사냥은 직업 자리를 추가해서 모집합니다.';
-    }
-  }
-  function bindTimes(){
-    document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{
-      i.setAttribute('inputmode','numeric');
-      i.setAttribute('maxlength','5');
-      i.placeholder=i.name==='start_time'?'예: 1107 또는 11:07':'예: 1120 또는 11:20';
-      if(i.dataset.v17bound==='1') return;
-      i.dataset.v17bound='1';
-      i.addEventListener('input',()=>{ i.value=fmt(i.value); });
-      i.addEventListener('blur',()=>{
-        let v=i.value.replace(/[^0-9]/g,'');
-        if(v.length===3) v='0'+v;
-        if(v.length===4) i.value=v.slice(0,2)+':'+v.slice(2);
-      });
-    });
-  }
-  function init(){
-    bindTimes();
-    applyMode();
-    const s=document.querySelector("select[name='category']");
-    if(s && s.dataset.v17bound!=='1'){
-      s.dataset.v17bound='1';
-      s.addEventListener('change',()=>setTimeout(()=>{bindTimes();applyMode();},50));
-    }
-  }
-  document.addEventListener('DOMContentLoaded', init);
-  setTimeout(init, 200);
-  setTimeout(init, 800);
-})();
-</script>
 
 </body></html>"""
 
 WAIT = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>⏳ 승인 대기중</h1></header><section class='panel'><p>{{ user.account if user else "승인 대기중" }} 계정이 승인 대기중입니다.</p><div class='top-actions'><a class='btn' href='/admin'>관리자 페이지</a><form method='post' action='/logout'><button class='gray'>로그아웃</button></form></div><p class='meta'>최초 세팅이면 관리자 페이지에서 기존 관리자 비밀번호로 임시 관리자 모드에 들어가 승인할 수 있습니다.</p></section></div>
-<script id="v17_1_force_form_fix">
-(function(){
-  function fmt(v){
-    v=(v||'').replace(/[^0-9]/g,'').slice(0,4);
-    if(v.length>=3) return v.slice(0,v.length-2)+':'+v.slice(v.length-2);
-    return v;
-  }
-  function findSlotBoxes(){
-    const result=[];
-    document.querySelectorAll('section,div,fieldset').forEach(el=>{
-      const tx=(el.innerText||'').trim();
-      if(tx.includes('사냥 직업 자리 추가') || tx.includes('직업 자리 추가')){
-        result.push(el);
-      }
-    });
-    return result;
-  }
-  function currentCat(){
-    const s=document.querySelector("select[name='category']");
-    return s ? s.value : '';
-  }
-  function applyMode(){
-    const cat=currentCat();
-    findSlotBoxes().forEach(el=>{
-      el.style.display = (cat==='사냥') ? '' : 'none';
-    });
-    let help=document.getElementById('v17ModeHelp');
-    const catSelect=document.querySelector("select[name='category']");
-    if(catSelect && !help){
-      help=document.createElement('div');
-      help.id='v17ModeHelp';
-      help.className='notice';
-      catSelect.closest('label,div,section')?.insertAdjacentElement('afterend', help);
-    }
-    if(help){
-      if(cat==='파밍') help.textContent='파밍은 생성 후 참여하기 버튼으로 참여합니다. 직업 자리는 사용하지 않습니다.';
-      else if(cat==='600퀘') help.textContent='600퀘는 참여하기 버튼 방식입니다.';
-      else help.textContent='사냥은 직업 자리를 추가해서 모집합니다.';
-    }
-  }
-  function bindTimes(){
-    document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{
-      i.setAttribute('inputmode','numeric');
-      i.setAttribute('maxlength','5');
-      i.placeholder=i.name==='start_time'?'예: 1107 또는 11:07':'예: 1120 또는 11:20';
-      if(i.dataset.v17bound==='1') return;
-      i.dataset.v17bound='1';
-      i.addEventListener('input',()=>{ i.value=fmt(i.value); });
-      i.addEventListener('blur',()=>{
-        let v=i.value.replace(/[^0-9]/g,'');
-        if(v.length===3) v='0'+v;
-        if(v.length===4) i.value=v.slice(0,2)+':'+v.slice(2);
-      });
-    });
-  }
-  function init(){
-    bindTimes();
-    applyMode();
-    const s=document.querySelector("select[name='category']");
-    if(s && s.dataset.v17bound!=='1'){
-      s.dataset.v17bound='1';
-      s.addEventListener('change',()=>setTimeout(()=>{bindTimes();applyMode();},50));
-    }
-  }
-  document.addEventListener('DOMContentLoaded', init);
-  setTimeout(init, 200);
-  setTimeout(init, 800);
-})();
-</script>
 
 </body></html>"""
 
@@ -1463,149 +1256,11 @@ function heartbeat(){fetch('/api/heartbeat',{method:'POST'}).then(r=>r.json()).t
 document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();refreshAlarmStatus();heartbeat();updateBossTimers();updatePostSchedules();scanAlarms();applyClosedVisibility();pollEvents();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});
 setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);setInterval(updateBossTimers,1000);setInterval(updatePostSchedules,1000);setInterval(pollEvents,2500);
 </script>
-<script id="v17_1_force_form_fix">
-(function(){
-  function fmt(v){
-    v=(v||'').replace(/[^0-9]/g,'').slice(0,4);
-    if(v.length>=3) return v.slice(0,v.length-2)+':'+v.slice(v.length-2);
-    return v;
-  }
-  function findSlotBoxes(){
-    const result=[];
-    document.querySelectorAll('section,div,fieldset').forEach(el=>{
-      const tx=(el.innerText||'').trim();
-      if(tx.includes('사냥 직업 자리 추가') || tx.includes('직업 자리 추가')){
-        result.push(el);
-      }
-    });
-    return result;
-  }
-  function currentCat(){
-    const s=document.querySelector("select[name='category']");
-    return s ? s.value : '';
-  }
-  function applyMode(){
-    const cat=currentCat();
-    findSlotBoxes().forEach(el=>{
-      el.style.display = (cat==='사냥') ? '' : 'none';
-    });
-    let help=document.getElementById('v17ModeHelp');
-    const catSelect=document.querySelector("select[name='category']");
-    if(catSelect && !help){
-      help=document.createElement('div');
-      help.id='v17ModeHelp';
-      help.className='notice';
-      catSelect.closest('label,div,section')?.insertAdjacentElement('afterend', help);
-    }
-    if(help){
-      if(cat==='파밍') help.textContent='파밍은 생성 후 참여하기 버튼으로 참여합니다. 직업 자리는 사용하지 않습니다.';
-      else if(cat==='600퀘') help.textContent='600퀘는 참여하기 버튼 방식입니다.';
-      else help.textContent='사냥은 직업 자리를 추가해서 모집합니다.';
-    }
-  }
-  function bindTimes(){
-    document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{
-      i.setAttribute('inputmode','numeric');
-      i.setAttribute('maxlength','5');
-      i.placeholder=i.name==='start_time'?'예: 1107 또는 11:07':'예: 1120 또는 11:20';
-      if(i.dataset.v17bound==='1') return;
-      i.dataset.v17bound='1';
-      i.addEventListener('input',()=>{ i.value=fmt(i.value); });
-      i.addEventListener('blur',()=>{
-        let v=i.value.replace(/[^0-9]/g,'');
-        if(v.length===3) v='0'+v;
-        if(v.length===4) i.value=v.slice(0,2)+':'+v.slice(2);
-      });
-    });
-  }
-  function init(){
-    bindTimes();
-    applyMode();
-    const s=document.querySelector("select[name='category']");
-    if(s && s.dataset.v17bound!=='1'){
-      s.dataset.v17bound='1';
-      s.addEventListener('change',()=>setTimeout(()=>{bindTimes();applyMode();},50));
-    }
-  }
-  document.addEventListener('DOMContentLoaded', init);
-  setTimeout(init, 200);
-  setTimeout(init, 800);
-})();
-</script>
 
 </body></html>
 """
 
 ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if admin_msg %}<div class='notice'>{{ admin_msg }}</div>{% endif %}<section class='panel'><b>현재 로그인</b><br>{{ current_label }}</section>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>현재 계정을 임시 관리자 접속 / 최고관리자 등록</button></form><p class='meta'>먼저 메인 사이트에서 본인 문파원 계정으로 로그인되어 있어야 합니다. 로그인 계정이 없으면 최고관리자로 지정할 대상이 없습니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form><a class='btn ok' href='/admin/backup'>데이터 백업</a></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ {'member':'일반','admin':'관리자/부문파장','super':'최고관리자'}.get(u.role|default('member'), u.role|default('member')) }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form>{% if super_ok %}<form method='post' action='/admin/delete_user/{{ u.id }}' style='display:inline' onsubmit="return confirm('정말 이 회원을 삭제할까요?')"><button class='mini danger'>회원삭제</button></form>{% endif %}</div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div>
-<script id="v17_1_force_form_fix">
-(function(){
-  function fmt(v){
-    v=(v||'').replace(/[^0-9]/g,'').slice(0,4);
-    if(v.length>=3) return v.slice(0,v.length-2)+':'+v.slice(v.length-2);
-    return v;
-  }
-  function findSlotBoxes(){
-    const result=[];
-    document.querySelectorAll('section,div,fieldset').forEach(el=>{
-      const tx=(el.innerText||'').trim();
-      if(tx.includes('사냥 직업 자리 추가') || tx.includes('직업 자리 추가')){
-        result.push(el);
-      }
-    });
-    return result;
-  }
-  function currentCat(){
-    const s=document.querySelector("select[name='category']");
-    return s ? s.value : '';
-  }
-  function applyMode(){
-    const cat=currentCat();
-    findSlotBoxes().forEach(el=>{
-      el.style.display = (cat==='사냥') ? '' : 'none';
-    });
-    let help=document.getElementById('v17ModeHelp');
-    const catSelect=document.querySelector("select[name='category']");
-    if(catSelect && !help){
-      help=document.createElement('div');
-      help.id='v17ModeHelp';
-      help.className='notice';
-      catSelect.closest('label,div,section')?.insertAdjacentElement('afterend', help);
-    }
-    if(help){
-      if(cat==='파밍') help.textContent='파밍은 생성 후 참여하기 버튼으로 참여합니다. 직업 자리는 사용하지 않습니다.';
-      else if(cat==='600퀘') help.textContent='600퀘는 참여하기 버튼 방식입니다.';
-      else help.textContent='사냥은 직업 자리를 추가해서 모집합니다.';
-    }
-  }
-  function bindTimes(){
-    document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{
-      i.setAttribute('inputmode','numeric');
-      i.setAttribute('maxlength','5');
-      i.placeholder=i.name==='start_time'?'예: 1107 또는 11:07':'예: 1120 또는 11:20';
-      if(i.dataset.v17bound==='1') return;
-      i.dataset.v17bound='1';
-      i.addEventListener('input',()=>{ i.value=fmt(i.value); });
-      i.addEventListener('blur',()=>{
-        let v=i.value.replace(/[^0-9]/g,'');
-        if(v.length===3) v='0'+v;
-        if(v.length===4) i.value=v.slice(0,2)+':'+v.slice(2);
-      });
-    });
-  }
-  function init(){
-    bindTimes();
-    applyMode();
-    const s=document.querySelector("select[name='category']");
-    if(s && s.dataset.v17bound!=='1'){
-      s.dataset.v17bound='1';
-      s.addEventListener('change',()=>setTimeout(()=>{bindTimes();applyMode();},50));
-    }
-  }
-  document.addEventListener('DOMContentLoaded', init);
-  setTimeout(init, 200);
-  setTimeout(init, 800);
-})();
-</script>
 
 </body></html>"""
 
@@ -1622,6 +1277,125 @@ def gate_guard():
     if not approved(u):
         return redirect("/wait")
     touch()
+
+
+NEW = """
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title>
+<style>{{ css }}</style></head><body>
+<div class='wrap'>
+  <section class='panel'>
+    <a class='btn gray' href='/'>← 메인</a>
+    <h1>모집글 올리기</h1>
+    <form method='post' action='/create' id='createForm'>
+      <label>작성 캐릭터
+        <select name='char_id'>
+          {% for ch in user.chars if ch.status == 'approved' %}
+          <option value='{{ ch.id }}' {% if user.active_char_id==ch.id %}selected{% endif %}>{{ ch.name }}({{ ch.job }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>종류
+        <select name='category' id='categorySelect'>
+          {% for c in cats_no_all %}
+            <option value='{{ c }}'>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div id='modeHelp' class='notice'>사냥은 직업 자리, 600퀘/파밍은 참여 버튼 방식입니다.</div>
+      {% for cat in cats_no_all %}
+      <div class='place-box' data-cat='{{ cat }}'>
+        <label>장소
+          <select name='place_{{ cat }}'>
+            {% for p in places.get(cat, []) %}
+              <option value='{{ p }}'>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      {% endfor %}
+      <label>채널 4자리
+        <input name='channel' maxlength='4' inputmode='numeric' placeholder='예: 3385'>
+      </label>
+      <label>시작시간
+        <div class='time-row'>
+          <select name='start_period'><option>오전</option><option>오후</option></select>
+          <input name='start_time' placeholder='예: 1107 또는 11:07' inputmode='numeric' maxlength='5'>
+        </div>
+      </label>
+      <label>종료시간
+        <div class='time-row'>
+          <select name='end_period'><option>오전</option><option>오후</option></select>
+          <input name='end_time' placeholder='예: 1120 또는 11:20' inputmode='numeric' maxlength='5'>
+        </div>
+      </label>
+      <label>메모
+        <textarea name='memo' rows='3'></textarea>
+      </label>
+      <section class='panel slot-area' id='slotArea'>
+        <h2>사냥 직업 자리 추가</h2>
+        <div class='quick'>
+          <select id='slotJob'>
+            {% for j in jobs %}
+              <option value='{{ j }}'>{{ j }}</option>
+            {% endfor %}
+          </select>
+          <button type='button' class='ok' onclick='addSlot()'>추가</button>
+        </div>
+        <div id='slots'></div>
+      </section>
+      <div class='notice'>600퀘/파밍은 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div>
+      <button class='ok' style='width:100%;margin-top:14px'>모집글 등록</button>
+    </form>
+  </section>
+</div>
+<script>
+let slotN=0;
+function qs(s){return document.querySelector(s)}
+function addSlot(){
+  const cat=qs('#categorySelect')?.value||'사냥';
+  if(cat!=='사냥')return;
+  const job=qs('#slotJob').value;
+  const box=document.createElement('div');
+  box.className='slot';
+  box.innerHTML=`<b>${job}</b><input type="hidden" name="slot_job_${slotN}" value="${job}"><button type="button" class="mini danger" onclick="this.parentElement.remove()">삭제</button>`;
+  qs('#slots').appendChild(box);
+  slotN++;
+}
+function updatePlaces(){
+  const cat=qs('#categorySelect').value;
+  document.querySelectorAll('.place-box').forEach(x=>x.style.display=(x.dataset.cat===cat)?'':'none');
+}
+function updateMode(){
+  const cat=qs('#categorySelect').value;
+  qs('#slotArea').style.display=(cat==='사냥')?'':'none';
+  const help=qs('#modeHelp');
+  if(cat==='파밍')help.textContent='파밍은 생성 후 참여하기 버튼으로 참여합니다. 직업 자리는 사용하지 않습니다.';
+  else if(cat==='600퀘')help.textContent='600퀘는 참여하기 버튼 방식입니다.';
+  else help.textContent='사냥은 직업 자리를 추가해서 모집합니다.';
+}
+function formatTimeInput(v){
+  v=(v||'').replace(/[^0-9]/g,'').slice(0,4);
+  if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);
+  return v;
+}
+function bindTimeAutoColon(){
+  document.querySelectorAll("input[name='start_time'],input[name='end_time']").forEach(i=>{
+    i.addEventListener('input',()=>{i.value=formatTimeInput(i.value)});
+    i.addEventListener('blur',()=>{
+      let v=i.value.replace(/[^0-9]/g,'');
+      if(v.length===3)v='0'+v;
+      if(v.length===4)i.value=v.slice(0,2)+':'+v.slice(2);
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  qs('#categorySelect').addEventListener('change',()=>{updatePlaces();updateMode();});
+  updatePlaces();updateMode();bindTimeAutoColon();
+});
+</script>
+</body></html>
+"""
 
 @app.route("/health")
 def health():
@@ -1700,14 +1474,24 @@ def api_posts():
     posts = sort_posts_for_view(posts)
     return render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u))
 
+
 @app.route("/new")
-def new_page():
-    d = load()
-    u = current_user(d)
-    if not chars(u):
-        return redirect("/chars")
-    allowed_categories = ["사냥", "600퀘", "파밍"] if is_admin_user(u) else ["사냥", "600퀘"]
-    return render_template_string(MAIN, css=CSS, page="new", post=None, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="", app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
+def new():
+    d=load()
+    u=current_user(d)
+    if not approved(u):
+        return redirect("/")
+    return render_template_string(
+        NEW,
+        css=CSS,
+        user=u,
+        jobs=JOBS,
+        places=PLACES,
+        cats_no_all=CATEGORIES[1:],
+        app_version=APP_VERSION,
+        site_title=SITE_TITLE if "SITE_TITLE" in globals() else "월하 · 연가 · 연희 파티모집",
+        site_desc=SITE_DESC if "SITE_DESC" in globals() else "월하 · 연가 · 연희 문파 파티모집"
+    )
 
 @app.route("/create", methods=["POST"])
 def create():
@@ -1717,23 +1501,18 @@ def create():
         return redirect("/")
     c=selected_char(u)
     if not c:
-        return redirect("/chars")
-
+        return redirect("/")
     cat = request.form.get("category","사냥")
     if cat == "파밍" and not is_admin_user(u):
         return redirect("/")
-
     fixed_start_time = period_time_to_24(request.form.get("start_period",""), request.form.get("start_time",""))
     fixed_end_time = period_time_to_24(request.form.get("end_period",""), request.form.get("end_time",""))
-
     slots = []
-    # 사냥만 직업 슬롯 사용. 600퀘/파밍은 참여 버튼 방식.
     if cat == "사냥":
         for i in range(10):
             job = request.form.get(f"slot_job_{i}","")
             if job:
                 slots.append({"job":job,"uid":"","char_id":"","label":"","external":""})
-
     p = {
         "id": new_id(),
         "owner_uid": u["id"],
@@ -1763,10 +1542,7 @@ def create():
         "late_weight": "0.88",
         "schedule_alerts_sent": []
     }
-
-    def fn(x):
-        x["posts"].append(p)
-    save(fn)
+    save(lambda x: x["posts"].append(p))
     return redirect("/")
 
 @app.route("/edit/<pid>", methods=["GET","POST"])

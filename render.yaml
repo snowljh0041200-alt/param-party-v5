@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: baram-party-v12-final
+    name: baram-party-v13-final
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt

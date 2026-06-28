@@ -1,10 +1,10 @@
-v16.5 FARMING STABLE TIME FIX
+v17.0 FORM / FARMING REWORK
 
 수정:
-- 파밍은 생성 시 참여자를 넣지 않고, 600퀘처럼 참여 버튼 방식으로 운영
+- 파밍 생성폼에서 사냥 직업 자리 숨김
+- 사냥만 직업 자리 사용
+- 파밍은 600퀘처럼 참여 버튼 방식
 - 파밍 생성은 관리자/부문파장/최고관리자만 가능
-- 문파원은 파밍 참여하기 버튼으로 참여
-- 관리자는 이후 정산 대상자/선집합/후집합을 관리
 - 오전/오후 시간 저장 최종 수정
   오후 11:07 -> 23:07
   오전 11:07 -> 11:07
@@ -13,12 +13,15 @@ v16.5 FARMING STABLE TIME FIX
 - 1107 입력 시 11:07 자동 변환
 - 930 입력 시 09:30 자동 변환
 - 오늘 일정은 파밍만 표시
+- 실시간 채팅 대시보드 유지
 - 카톡 공유 제목 유지
 
-중요:
-- data.json은 절대 덮어쓰지 마세요.
+배포 전 확인:
+findstr /n "v17.0" app.py
+findstr /n "updateCreateMode" app.py
+findstr /n "fixed_start_time" app.py
 
 배포:
 git add .
-git commit -m "v16.5 farming stable time fix"
+git commit -m "v17.0 form farming rework"
 git push

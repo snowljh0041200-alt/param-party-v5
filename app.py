@@ -9,7 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v16.5"
+APP_VERSION = "v17.0"
 SITE_TITLE = "월하 · 연가 · 연희 파티모집"
 SITE_DESC = "월하 · 연가 · 연희 문파 파티모집, 파밍일정, 실시간 채팅"
 LOCK = threading.Lock()
@@ -545,9 +545,6 @@ def member_summary_html(d):
     """
 
 
-
-
-
 def normalize_time_input(value):
     """시간 입력 보정: 1107 -> 11:07, 930 -> 09:30, 11:07 -> 11:07"""
     raw = (value or "").strip().replace("：", ":")
@@ -959,7 +956,7 @@ MAIN = """
 </section>
 {% endif %}
 {% if page=='new' or page=='edit' %}
-<section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();bindTimeAutoColon();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 1107 또는 11:07' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' placeholder='예: 2314 또는 23:14' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘/파밍은 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
+<section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();bindCreateMode();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 1107 또는 11:07' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' placeholder='예: 2314 또는 23:14' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘는 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
 {% endif %}
 {% if page=='chars' %}
 <section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>내 캐릭터</h2><form method='post' action='/chars/add'><label>캐릭터명</label><input name='name' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button style='width:100%'>캐릭터 추가 요청</button></form></section><section class='panel'><h2>등록 캐릭터</h2>{% for c in user.chars %}<div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>{% endfor %}</section>
@@ -1018,6 +1015,27 @@ function bindTimeAutoColon(){
       if(v.length===4)i.value=v.slice(0,2)+':'+v.slice(2);
     });
   });
+}
+function updateCreateMode(){
+  const catEl=document.querySelector("select[name='category']");
+  const cat=catEl?catEl.value:'사냥';
+  document.querySelectorAll('.hunt-only,.slot-area,.slot-panel').forEach(el=>{
+    el.style.display = (cat==='사냥') ? '' : 'none';
+  });
+  const help=document.getElementById('createModeHelp');
+  if(help){
+    if(cat==='파밍') help.textContent='파밍은 생성 후 문파원이 참여하기 버튼으로 참여합니다. 직업 자리는 사용하지 않습니다.';
+    else if(cat==='600퀘') help.textContent='600퀘는 생성 후 참여하기 버튼으로 참여합니다.';
+    else help.textContent='사냥은 필요한 직업 자리를 추가해서 모집합니다.';
+  }
+}
+function bindCreateMode(){
+  const catEl=document.querySelector("select[name='category']");
+  if(catEl){
+    catEl.addEventListener('change',()=>{updatePlaces();updateCreateMode();});
+    updateCreateMode();
+  }
+  bindTimeAutoColon();
 }
 
 function updatePlaces(){const cat=qs('typeSelect')?.value;document.querySelectorAll('.place-select').forEach(x=>x.classList.add('hidden'));const t=qs('place_'+cat);if(t)t.classList.remove('hidden')}
@@ -1354,16 +1372,13 @@ def create():
     fixed_end_time = period_time_to_24(request.form.get("end_period",""), request.form.get("end_time",""))
 
     slots = []
-    participants = []
-
-    # 사냥만 직업 슬롯 사용
+    # 사냥만 직업 슬롯 사용. 600퀘/파밍은 참여 버튼 방식.
     if cat == "사냥":
         for i in range(10):
             job = request.form.get(f"slot_job_{i}","")
             if job:
                 slots.append({"job":job,"uid":"","char_id":"","label":"","external":""})
 
-    # 파밍/600퀘는 참여 버튼 방식. 생성자가 자동 참여되지 않음.
     p = {
         "id": new_id(),
         "owner_uid": u["id"],
@@ -1377,7 +1392,7 @@ def create():
         "end_time": fixed_end_time,
         "memo": request.form.get("memo","").strip(),
         "slots": slots,
-        "participants": participants,
+        "participants": [],
         "closed": False,
         "closed_at": "",
         "party_chat": [],
@@ -1413,8 +1428,8 @@ def edit(pid):
         pp = find_post(x, pid)
         if pp and pp.get("owner_uid") == u.get("id"):
             pp["channel"] = digits(request.form.get("channel"),4)
-            pp["start_time"] = period_time_to_24(request.form.get("start_period",""), request.form.get("start_time","")).strip()
-            pp["end_time"] = period_time_to_24(request.form.get("end_period",""), request.form.get("end_time","")).strip()
+            pp["start_time"] = request.form.get("start_time","").strip()
+            pp["end_time"] = request.form.get("end_time","").strip()
             pp["memo"] = request.form.get("memo","").strip()
     save(fn)
     return redirect("/")

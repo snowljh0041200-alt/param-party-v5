@@ -115,6 +115,9 @@ def clean_data(d):
         p.setdefault("farm_item", "")
         p.setdefault("sale_amount", "")
         p.setdefault("share_ids", [])
+        p.setdefault("early_ids", [])
+        p.setdefault("late_ids", [])
+        p.setdefault("late_share", "")
         closed_at = parse_dt(p.get("closed_at"))
         if p.get("category") in ["사냥","600퀘"] and p.get("closed") and closed_at and closed_at <= cutoff:
             continue
@@ -251,10 +254,25 @@ def amount_text(v):
 
 def farm_calc(p):
     amt = int(p.get("sale_amount") or 0)
-    ids = set(p.get("share_ids", []))
-    ps = [x for x in p.get("participants", []) if x.get("id") in ids]
-    cnt = len(ps)
-    return {"amount": amt, "count": cnt, "share": int(amt / cnt) if amt and cnt else 0}
+    early_ids = set(p.get("early_ids", []))
+    late_ids = set(p.get("late_ids", []))
+    # v13.3 이전 데이터 호환: share_ids만 있으면 전부 선집합으로 처리
+    if not early_ids and not late_ids and p.get("share_ids"):
+        early_ids = set(p.get("share_ids", []))
+    early = [x for x in p.get("participants", []) if x.get("id") in early_ids]
+    late = [x for x in p.get("participants", []) if x.get("id") in late_ids]
+    early_count = len(early)
+    late_count = len(late)
+    late_share = int(p.get("late_share") or 0)
+    if amt <= 0:
+        return {"amount": amt, "early_count": early_count, "late_count": late_count, "early_share": 0, "late_share": 0}
+    if late_count > 0 and late_share > 0:
+        remaining = max(0, amt - (late_share * late_count))
+        early_share = int(remaining / early_count) if early_count else 0
+        return {"amount": amt, "early_count": early_count, "late_count": late_count, "early_share": early_share, "late_share": late_share}
+    total = early_count + late_count
+    equal = int(amt / total) if total else 0
+    return {"amount": amt, "early_count": early_count, "late_count": late_count, "early_share": equal, "late_share": equal}
 
 def can_chat(p, u):
     if not approved(u):
@@ -344,6 +362,11 @@ def render_posts(posts, u, farm_items=None, admin=False):
             part_html = "".join(part_items) or "<p class='meta'>아직 참여자가 없습니다.</p>"
             for x in ps:
                 copy_lines.append(f"참여 - {x.get('label')}")
+            if cat == "파밍" and p.get("farm_result") == "득템":
+                ctmp = farm_calc(p)
+                copy_lines.append(f"득템 : {p.get('farm_item')} ({amount_text(p.get('sale_amount'))})")
+                copy_lines.append(f"선집합인원 : {ctmp['early_count']}명 / 인당 {amount_text(ctmp['early_share'])}")
+                copy_lines.append(f"후집합인원 : {ctmp['late_count']}명 / 인당 {amount_text(ctmp['late_share'])}")
             join_btn = ""
             simple_closed = (cat == "600퀘" and (p.get("closed") or participant_count(p) >= QUEST_MAX_PARTICIPANTS))
             if cat == "파밍" and p.get("farm_status") == "정산완료":
@@ -360,13 +383,16 @@ def render_posts(posts, u, farm_items=None, admin=False):
                 result += f"<div class='notice'>{badge}</div>"
                 if p.get("farm_result") == "득템":
                     c = farm_calc(p)
-                    result += f"<div class='notice'>결과: <b>득템</b><br>아이템: <b>{e(p.get('farm_item'))}</b><br>판매금액: <b>{amount_text(p.get('sale_amount'))}</b><br>분배대상: <b>{c['count']}명</b><br>1인당: <b>{amount_text(c['share'])}</b></div>"
+                    result += f"<div class='notice'>결과: <b>득템</b><br>아이템: <b>{e(p.get('farm_item'))}</b><br>판매금액: <b>{amount_text(p.get('sale_amount'))}</b><br><br>선집합: <b>{c['early_count']}명</b> / 인당 <b>{amount_text(c['early_share'])}</b><br>후집합: <b>{c['late_count']}명</b> / 인당 <b>{amount_text(c['late_share'])}</b></div>"
                 elif p.get("farm_result") == "노득":
                     result += "<div class='notice'>결과: <b>노득</b></div>"
                 if owner_admin:
                     items = farm_items.get(p.get("place"), FARM_ITEMS.get(p.get("place"), ["기타"]))
                     opts = "".join(f"<option {'selected' if x==p.get('farm_item') else ''}>{e(x)}</option>" for x in items)
-                    share_checks = "".join(f"<label class='check-row'><input type='checkbox' name='share_ids' value='{e(x.get('id'))}' {'checked' if x.get('id') in p.get('share_ids', []) else ''}> {e(x.get('label'))}</label>" for x in ps) or "<p class='meta'>참여자가 없습니다.</p>"
+                    early_ids = set(p.get("early_ids", []) or p.get("share_ids", []))
+                    late_ids = set(p.get("late_ids", []))
+                    early_checks = "".join(f"<label class='check-row'><input type='checkbox' name='early_ids' value='{e(x.get('id'))}' {'checked' if x.get('id') in early_ids else ''}> {e(x.get('label'))}</label>" for x in ps) or "<p class='meta'>참여자가 없습니다.</p>"
+                    late_checks = "".join(f"<label class='check-row'><input type='checkbox' name='late_ids' value='{e(x.get('id'))}' {'checked' if x.get('id') in late_ids else ''}> {e(x.get('label'))}</label>" for x in ps) or "<p class='meta'>참여자가 없습니다.</p>"
                     res_id = "res_" + p.get("id")
                     box_id = "drop_" + p.get("id")
                     display = "block" if p.get("farm_result") == "득템" else "none"
@@ -381,7 +407,9 @@ def render_posts(posts, u, farm_items=None, admin=False):
                     <div id='{box_id}' style='display:{display}'>
                     <label>득템 아이템</label><select name='farm_item'>{opts}</select>
                     <label>판매금액</label><input name='sale_amount' value='{e(p.get('sale_amount'))}' inputmode='numeric' placeholder='예: 26000000'>
-                    <label>분배 대상자 체크</label><div class='check-box'>{share_checks}</div>
+                    <label>선집합 체크</label><div class='check-box'>{early_checks}</div>
+                    <label>후집합 체크</label><div class='check-box'>{late_checks}</div>
+                    <label>후집합 1인당 금액</label><input name='late_share' value='{e(p.get('late_share'))}' inputmode='numeric' placeholder='예: 3900000 / 비우면 균등분배'>
                     </div>
                     <button class='ok'>결과/분배 저장</button>
                     </form>
@@ -705,6 +733,8 @@ def simple_join():
             p["closed"]=True; p["closed_at"]=iso_now()
         if p.get("category")=="파밍":
             p.setdefault("share_ids",[]).append(pid)
+            p.setdefault("early_ids",[]).append(pid)
+            p.setdefault("early_ids",[]).append(pid)
     save(fn); return jsonify(ok=True)
 
 @app.route("/simple/leave", methods=["POST"])
@@ -717,6 +747,8 @@ def simple_leave():
         rem=[a.get("id") for a in p["participants"] if a.get("uid")==u["id"]]
         p["participants"]=[a for a in p["participants"] if a.get("uid")!=u["id"]]
         p["share_ids"]=[i for i in p.get("share_ids",[]) if i not in rem]
+        p["early_ids"]=[i for i in p.get("early_ids",[]) if i not in rem]
+        p["late_ids"]=[i for i in p.get("late_ids",[]) if i not in rem]
     save(fn); return jsonify(ok=True)
 
 
@@ -730,6 +762,8 @@ def simple_remove():
         rid=r.get("participant_id")
         p["participants"]=[a for a in p.get("participants",[]) if a.get("id")!=rid]
         p["share_ids"]=[i for i in p.get("share_ids",[]) if i!=rid]
+        p["early_ids"]=[i for i in p.get("early_ids",[]) if i!=rid]
+        p["late_ids"]=[i for i in p.get("late_ids",[]) if i!=rid]
     save(fn); return jsonify(ok=True)
 
 @app.route("/simple/add_manual", methods=["POST"])
@@ -750,6 +784,8 @@ def simple_add_manual():
             p["closed"]=True; p["closed_at"]=iso_now()
         if p.get("category")=="파밍":
             p.setdefault("share_ids",[]).append(pid)
+            p.setdefault("early_ids",[]).append(pid)
+            p.setdefault("early_ids",[]).append(pid)
     save(fn); return jsonify(ok=True)
 
 @app.route("/farming/result/<pid>", methods=["POST"])
@@ -763,9 +799,13 @@ def farming_result(pid):
         if res=="득템":
             p["farm_item"]=request.form.get("farm_item","")
             p["sale_amount"]=digits(request.form.get("sale_amount",""))
-            p["share_ids"]=request.form.getlist("share_ids")
+            p["early_ids"]=request.form.getlist("early_ids")
+            p["late_ids"]=request.form.getlist("late_ids")
+            p["late_share"]=digits(request.form.get("late_share",""))
+            # 예전 호환용
+            p["share_ids"]=list(dict.fromkeys(p.get("early_ids", []) + p.get("late_ids", [])))
         else:
-            p["farm_item"]=""; p["sale_amount"]=""; p["share_ids"]=[]
+            p["farm_item"]=""; p["sale_amount"]=""; p["share_ids"]=[]; p["early_ids"]=[]; p["late_ids"]=[]; p["late_share"]=""
         p["farm_status"]="결과입력완료"
     save(fn); return redirect("/")
 

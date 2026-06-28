@@ -9,7 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v15.1"
+APP_VERSION = "v15.2"
 LOCK = threading.Lock()
 
 DEFAULT_ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "moon")
@@ -143,6 +143,17 @@ def migrate_data(d):
         m.setdefault("text", "")
         m.setdefault("time", time_now())
         m.setdefault("created_at", iso_now())
+
+    d.setdefault("boss_timers", [])
+    for b in d.get("boss_timers", []):
+        b.setdefault("id", new_id())
+        b.setdefault("name", "")
+        b.setdefault("spawn_at", iso_now())
+        b.setdefault("memo", "")
+        b.setdefault("created_by", "")
+        b.setdefault("created_label", "")
+        b.setdefault("created_at", iso_now())
+        b.setdefault("alerts_sent", [])
     return d
 
 def read_data():
@@ -198,6 +209,23 @@ def clean_data(d):
         elif dt >= chat_cut:
             chat.append(m)
     d["chat"] = chat[-CHAT_LIMIT:]
+
+    d.setdefault("boss_timers", [])
+    boss_keep = []
+    old_cut = kst_now() - timedelta(hours=2)
+    for b in d.get("boss_timers", []):
+        b.setdefault("id", new_id())
+        b.setdefault("name", "")
+        b.setdefault("spawn_at", iso_now())
+        b.setdefault("memo", "")
+        b.setdefault("created_by", "")
+        b.setdefault("created_label", "")
+        b.setdefault("created_at", iso_now())
+        b.setdefault("alerts_sent", [])
+        dt = parse_dt(b.get("spawn_at"))
+        if not dt or dt >= old_cut:
+            boss_keep.append(b)
+    d["boss_timers"] = boss_keep
     return d
 
 def load():
@@ -398,6 +426,76 @@ def can_chat(p, u):
     if p.get("category") == "사냥":
         return any(s.get("uid") == u.get("id") for s in p.get("slots", []))
     return any(x.get("uid") == u.get("id") for x in p.get("participants", []))
+
+
+def member_job_html(d):
+    groups = {}
+    ids = set(ONLINE.keys())
+    for u in d.get("users", []):
+        if approved(u) and u.get("id") in ids:
+            c = selected_char(u)
+            job = c.get("job", "기타") if c else "기타"
+            groups.setdefault(job, []).append(label(c) or u.get("account"))
+    if not groups:
+        return "<div class='member'>현재 온라인 문파원이 없습니다.</div>"
+    rows = []
+    for job in sorted(groups.keys()):
+        names = ", ".join(e(x) for x in groups[job])
+        rows.append(f"<details class='member'><summary><b>{e(job)}</b> {len(groups[job])}명</summary><div class='meta'>{names}</div></details>")
+    return "".join(rows)
+
+def boss_time_left_text(spawn_at):
+    dt = parse_dt(spawn_at)
+    if not dt:
+        return "시간 오류"
+    sec = int((dt - kst_now()).total_seconds())
+    if sec <= 0:
+        return "젠 시간"
+    h = sec // 3600
+    m = (sec % 3600) // 60
+    s = sec % 60
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+def boss_timers_html(d, admin_ok=False):
+    timers = sorted(d.get("boss_timers", []), key=lambda x: x.get("spawn_at", ""))
+    cards = []
+    for b in timers:
+        bid = e(b.get("id"))
+        dt = parse_dt(b.get("spawn_at"))
+        time_text = dt.strftime("%m/%d %H:%M") if dt else e(b.get("spawn_at"))
+        left = boss_time_left_text(b.get("spawn_at"))
+        memo = f"<div class='memo'>📝 {e(b.get('memo'))}</div>" if b.get("memo") else ""
+        delete_btn = f"""<form method='post' action='/boss/delete/{bid}' onsubmit="return confirm('보스 젠타임을 삭제할까요?')"><button class='mini danger'>삭제</button></form>""" if admin_ok else ""
+        cards.append(f"""
+        <div class='member boss-timer' data-boss-id='{bid}' data-boss-name='{e(b.get('name'))}' data-spawn-at='{e(b.get('spawn_at'))}'>
+          <b>🔥 {e(b.get('name'))}</b><br>
+          <span class='meta'>젠시간 {time_text} · 남은시간 <b class='boss-left'>{left}</b></span>
+          {memo}
+          <div class='meta'>등록: {e(b.get('created_label'))}</div>
+          {delete_btn}
+        </div>
+        """)
+    if not cards:
+        cards.append("<div class='member'>등록된 보스 젠타임이 없습니다.</div>")
+    form = ""
+    if admin_ok:
+        form = """
+        <form method='post' action='/boss/add' class='boss-form'>
+          <label>보스명</label><input name='name' placeholder='예: 해골왕' required>
+          <label>젠 날짜</label><input name='date' type='date'>
+          <label>젠 시간</label><input name='time' type='time' required>
+          <label>메모</label><input name='memo' placeholder='예: 1굴 / 준비물'>
+          <button class='ok'>젠타임 등록</button>
+        </form>
+        """
+    return f"""
+    <section class='panel'>
+      <h2>⏰ 보스 젠타임</h2>
+      <div class='notice'>관리자가 멤버십에서 확인한 젠시간을 등록하면 10분 전, 5분 전, 젠시간에 알림이 표시됩니다.</div>
+      {form}
+      <div class='member-grid'>{''.join(cards)}</div>
+    </section>
+    """
 
 def member_html(d):
     ids = set(ONLINE.keys())
@@ -625,7 +723,7 @@ def render_posts(posts, u, farm_items=None, admin=False):
     return "".join(out)
 
 CSS = """
-*{box-sizing:border-box}body{margin:0;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Malgun Gothic',Arial,sans-serif;background:#0b1020}body:before{content:'';position:fixed;inset:0;background:radial-gradient(circle at 20% 0%,#263c77 0,#111a34 38%,#090d18 78%);z-index:-1}.wrap{max-width:1040px;margin:0 auto;padding:18px 14px 100px}.header{padding:12px 0 16px;border-bottom:1px solid rgba(255,255,255,.11)}h1{font-size:28px;margin:0}.sub{color:#aeb8d7;font-size:13px;margin-top:4px}.panel,.party-card{background:rgba(20,27,48,.88);border:1px solid rgba(150,165,210,.22);box-shadow:0 18px 50px rgba(0,0,0,.32);border-radius:24px;padding:16px;margin:14px 0}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:rgba(7,11,22,.57);border:1px solid rgba(255,255,255,.10);border-radius:18px;text-align:center;padding:14px 8px}.stat b{font-size:28px;display:block}.stat span{font-size:12px;color:#aeb8d7}button,.btn{border:0;border-radius:15px;background:linear-gradient(180deg,#6a86ff,#4163ff);color:#fff;font-weight:900;padding:12px 15px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer}button.gray,.btn.gray{background:linear-gradient(180deg,#4c5571,#363d55)}button.danger,.danger{background:linear-gradient(180deg,#ff6666,#ce4040)}button.ok{background:linear-gradient(180deg,#2bd176,#169851)}input,select,textarea{width:100%;background:#0d1325;color:#f4f6ff;border:1px solid rgba(170,185,230,.25);border-radius:15px;padding:13px;margin:6px 0 13px;font-size:16px}label{font-size:13px;color:#bac4de;font-weight:900}.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tabs a{white-space:nowrap;color:#dce4ff;background:rgba(10,15,30,.55);border:1px solid rgba(255,255,255,.12);text-decoration:none;border-radius:999px;padding:9px 14px;font-weight:900;font-size:14px}.tabs a.on{background:linear-gradient(180deg,#6a86ff,#4163ff)}.empty{border:1px dashed rgba(255,255,255,.25);border-radius:22px;padding:46px;text-align:center;color:#c2c9dd}.post-head{display:flex;justify-content:space-between;align-items:center}.pill{display:inline-flex;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;margin-right:4px}.pill.open{background:#123f2a;color:#9dffc4}.pill.done{background:#4d2020;color:#ffd1d1}.pill.big-done{font-size:16px;padding:10px 18px;background:linear-gradient(180deg,#777,#444);color:#fff;border:2px solid rgba(255,255,255,.25);box-shadow:0 0 0 2px rgba(0,0,0,.15) inset}.closed-card{background:rgba(54,58,70,.82)!important;border-color:rgba(190,195,210,.18)!important;filter:grayscale(.45);opacity:.78}.closed-card h2,.closed-card .meta,.closed-card .memo{color:#c8ccd8!important}.closed-card .slot{background:rgba(40,43,52,.72)!important;border-color:rgba(210,210,220,.13)!important}.closed-card .slot.filled{background:rgba(44,52,45,.66)!important}.closed-card .count{background:#3a3d48;color:#e0e0e0}.closed-card:before{content:'마감';display:block;text-align:center;font-weight:900;font-size:18px;letter-spacing:4px;color:#fff;background:linear-gradient(90deg,#555,#777,#555);border-radius:16px;padding:8px;margin-bottom:10px}.pill.type{background:#242c48;color:#ccd6ff}.count{font-size:18px;background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 12px}h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-height:1.6}.memo{color:#ffd16a;font-size:14px;margin-top:5px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}.slot{display:flex;justify-content:space-between;align-items:center;background:rgba(8,12,24,.62);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px;margin:9px 0}.slot.filled{background:rgba(18,55,33,.58);border-color:rgba(73,190,112,.35)}.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px;margin-top:12px}.simple-action{grid-template-columns:1fr}.owner-only{display:none!important}.post[data-owner='1'] .owner-only{display:inline-flex!important}.hidden{display:none!important}.time-row{display:grid;grid-template-columns:90px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}.search-row{display:grid;grid-template-columns:1fr 80px 90px;gap:8px;margin:12px 0}.search-row input{margin:0}.farm-stats .summary{margin-top:8px}.post{scroll-margin-top:16px}.mini{font-size:13px;padding:8px 10px;min-height:34px}.notice,.alarm-guide{background:linear-gradient(180deg,rgba(255,211,106,.18),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.30);color:#ffe5a3;border-radius:18px;padding:12px;margin-top:12px;font-size:13px;line-height:1.45}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1e2845;border:1px solid #53648f;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.chat-panel{width:100%;max-width:880px;margin:0 auto;border-radius:22px 22px 0 0}.chat-list{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;height:340px;overflow-y:auto;padding:10px}.msg{background:#202a47;border-radius:13px;padding:9px 11px;margin:7px 0}.msg.mine{background:#173d27;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8b2cc;display:flex;justify-content:space-between}.chat-form{display:grid;grid-template-columns:1fr 74px;gap:7px;margin-top:9px}.chat-form input{margin:0}.member-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.member{background:rgba(8,12,24,.55);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;margin:6px 0}.choice-list{display:grid;gap:8px}.choice-list button{width:100%;justify-content:flex-start;background:linear-gradient(180deg,#4c5571,#363d55)}.check-box{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px;margin-bottom:10px}.check-row{display:block;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)}.check-row input{width:auto;margin-right:8px}.farm-manage{display:block!important;margin-top:12px}@media(max-width:680px){.search-row{grid-template-columns:1fr}.search-row button,.search-row .btn{width:100%}.tabs{padding-bottom:8px}.slot{align-items:flex-start;gap:8px}.post-head{gap:8px}.chat-list{height:55vh}.pill.big-done{font-size:15px;padding:9px 15px}.closed-card:before{font-size:16px;padding:7px}.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
+*{box-sizing:border-box}body{margin:0;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Malgun Gothic',Arial,sans-serif;background:#0b1020}body:before{content:'';position:fixed;inset:0;background:radial-gradient(circle at 20% 0%,#263c77 0,#111a34 38%,#090d18 78%);z-index:-1}.wrap{max-width:1040px;margin:0 auto;padding:18px 14px 100px}.header{padding:12px 0 16px;border-bottom:1px solid rgba(255,255,255,.11)}h1{font-size:28px;margin:0}.sub{color:#aeb8d7;font-size:13px;margin-top:4px}.panel,.party-card{background:rgba(20,27,48,.88);border:1px solid rgba(150,165,210,.22);box-shadow:0 18px 50px rgba(0,0,0,.32);border-radius:24px;padding:16px;margin:14px 0}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:rgba(7,11,22,.57);border:1px solid rgba(255,255,255,.10);border-radius:18px;text-align:center;padding:14px 8px}.stat b{font-size:28px;display:block}.stat span{font-size:12px;color:#aeb8d7}button,.btn{border:0;border-radius:15px;background:linear-gradient(180deg,#6a86ff,#4163ff);color:#fff;font-weight:900;padding:12px 15px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer}button.gray,.btn.gray{background:linear-gradient(180deg,#4c5571,#363d55)}button.danger,.danger{background:linear-gradient(180deg,#ff6666,#ce4040)}button.ok{background:linear-gradient(180deg,#2bd176,#169851)}input,select,textarea{width:100%;background:#0d1325;color:#f4f6ff;border:1px solid rgba(170,185,230,.25);border-radius:15px;padding:13px;margin:6px 0 13px;font-size:16px}label{font-size:13px;color:#bac4de;font-weight:900}.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tabs a{white-space:nowrap;color:#dce4ff;background:rgba(10,15,30,.55);border:1px solid rgba(255,255,255,.12);text-decoration:none;border-radius:999px;padding:9px 14px;font-weight:900;font-size:14px}.tabs a.on{background:linear-gradient(180deg,#6a86ff,#4163ff)}.empty{border:1px dashed rgba(255,255,255,.25);border-radius:22px;padding:46px;text-align:center;color:#c2c9dd}.post-head{display:flex;justify-content:space-between;align-items:center}.pill{display:inline-flex;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;margin-right:4px}.pill.open{background:#123f2a;color:#9dffc4}.pill.done{background:#4d2020;color:#ffd1d1}.pill.big-done{font-size:16px;padding:10px 18px;background:linear-gradient(180deg,#777,#444);color:#fff;border:2px solid rgba(255,255,255,.25);box-shadow:0 0 0 2px rgba(0,0,0,.15) inset}.closed-card{background:rgba(54,58,70,.82)!important;border-color:rgba(190,195,210,.18)!important;filter:grayscale(.45);opacity:.78}.closed-card h2,.closed-card .meta,.closed-card .memo{color:#c8ccd8!important}.closed-card .slot{background:rgba(40,43,52,.72)!important;border-color:rgba(210,210,220,.13)!important}.closed-card .slot.filled{background:rgba(44,52,45,.66)!important}.closed-card .count{background:#3a3d48;color:#e0e0e0}.closed-card:before{content:'마감';display:block;text-align:center;font-weight:900;font-size:18px;letter-spacing:4px;color:#fff;background:linear-gradient(90deg,#555,#777,#555);border-radius:16px;padding:8px;margin-bottom:10px}.pill.type{background:#242c48;color:#ccd6ff}.count{font-size:18px;background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 12px}h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-height:1.6}.memo{color:#ffd16a;font-size:14px;margin-top:5px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}.slot{display:flex;justify-content:space-between;align-items:center;background:rgba(8,12,24,.62);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px;margin:9px 0}.slot.filled{background:rgba(18,55,33,.58);border-color:rgba(73,190,112,.35)}.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px;margin-top:12px}.simple-action{grid-template-columns:1fr}.owner-only{display:none!important}.post[data-owner='1'] .owner-only{display:inline-flex!important}.hidden{display:none!important}.time-row{display:grid;grid-template-columns:90px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}.search-row{display:grid;grid-template-columns:1fr 80px 90px;gap:8px;margin:12px 0}.search-row input{margin:0}.farm-stats .summary{margin-top:8px}.post{scroll-margin-top:16px}.mini{font-size:13px;padding:8px 10px;min-height:34px}.notice,.alarm-guide{background:linear-gradient(180deg,rgba(255,211,106,.18),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.30);color:#ffe5a3;border-radius:18px;padding:12px;margin-top:12px;font-size:13px;line-height:1.45}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1e2845;border:1px solid #53648f;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.chat-panel{width:100%;max-width:880px;margin:0 auto;border-radius:22px 22px 0 0}.chat-list{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;height:340px;overflow-y:auto;padding:10px}.msg{background:#202a47;border-radius:13px;padding:9px 11px;margin:7px 0}.msg.mine{background:#173d27;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8b2cc;display:flex;justify-content:space-between}.chat-form{display:grid;grid-template-columns:1fr 74px;gap:7px;margin-top:9px}.chat-form input{margin:0}.member-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.member{background:rgba(8,12,24,.55);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;margin:6px 0}.boss-form{display:grid;grid-template-columns:1fr 150px 120px 1fr 120px;gap:8px;align-items:end}.boss-form input{margin:0}.boss-timer{border-color:rgba(255,211,106,.35);background:rgba(70,52,18,.38)}details.member summary{cursor:pointer;font-weight:900}.choice-list{display:grid;gap:8px}.choice-list button{width:100%;justify-content:flex-start;background:linear-gradient(180deg,#4c5571,#363d55)}.check-box{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px;margin-bottom:10px}.check-row{display:block;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)}.check-row input{width:auto;margin-right:8px}.farm-manage{display:block!important;margin-top:12px}@media(max-width:680px){.boss-form{grid-template-columns:1fr}.boss-form button{width:100%}.search-row{grid-template-columns:1fr}.search-row button,.search-row .btn{width:100%}.tabs{padding-bottom:8px}.slot{align-items:flex-start;gap:8px}.post-head{gap:8px}.chat-list{height:55vh}.pill.big-done{font-size:15px;padding:9px 15px}.closed-card:before{font-size:16px;padding:7px}.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
 """
 
 GATE = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>입장</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔐 문파 전용</h1><div class='sub'>월하 · 연가 · 연희 파티모집</div></header><section class='panel'><h2>입장 비밀번호</h2><form method='post'><input name='password' type='password' placeholder='문파 비밀번호'><button style='width:100%'>입장</button></form>{% if error %}<div class='notice'>비밀번호가 맞지 않습니다.</div>{% endif %}</section></div></body></html>"""
@@ -640,7 +738,7 @@ MAIN = """
 {% if page=='home' %}
 <section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='openGlobalChat()'>통합채팅</button><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button><button class='gray' onclick='openAlarmCheck()'>알림점검</button><button class='gray' onclick='toggleClosedPosts()' id='closedToggleBtn'>마감숨김</button></div><div class='summary'><div class='stat'><b>{{ open_count }}</b><span>모집중</span></div><div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div><div class='stat'><b id='myCount'>0</b><span>내 참여</span></div></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안 동작합니다. 알림점검에서 권한과 테스트 알림을 확인하세요.</div>
 <form class='search-row' method='get' action='/'><input name='q' value='{{ q }}' placeholder='닉네임 / 장소 / 직업 검색'><input type='hidden' name='filter' value='{{ filter_value }}'><button>검색</button><a class='btn gray' href='/?filter={{ filter_value }}'>초기화</a></form>
-<div class='tabs'>{% for f in cats %}<a class='{% if f==filter_value %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section><section class='panel'><h2>문파원 접속 현황</h2><div class='member-grid'>{{ member_html|safe }}</div></section>{{ farm_stats|safe }}<div id='postList'>{{ post_list|safe }}</div>
+<div class='tabs'>{% for f in cats %}<a class='{% if f==filter_value %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section><section class='panel'><h2>문파원 접속 현황</h2><div class='member-grid'>{{ member_html|safe }}</div><h3>직업별 접속현황</h3><div class='member-grid'>{{ member_job_html|safe }}</div></section>{{ boss_timers|safe }}{{ farm_stats|safe }}<div id='postList'>{{ post_list|safe }}</div>
 {% endif %}
 {% if page=='new' or page=='edit' %}
 <section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘는 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
@@ -753,9 +851,15 @@ function pollEvents(){
     eventState=ev;
   }).catch(()=>{});
 }
+
+function formatLeft(ms){if(ms<=0)return '젠 시간';const sec=Math.floor(ms/1000),h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
+function markBossAlert(id,mark){fetch('/api/boss/mark_alert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,mark:mark})}).catch(()=>{})}
+let bossLocalSent={};
+function updateBossTimers(){const now=Date.now();document.querySelectorAll('.boss-timer').forEach(card=>{const id=card.dataset.bossId,name=card.dataset.bossName||'보스',at=new Date(card.dataset.spawnAt).getTime(),left=at-now;const el=card.querySelector('.boss-left');if(el)el.textContent=formatLeft(left);if(!bossLocalSent[id])bossLocalSent[id]={};if(left<=10*60*1000&&left>9*60*1000&&!bossLocalSent[id]['10']){bossLocalSent[id]['10']=true;notifyUser('보스 젠 10분 전',name);markBossAlert(id,'10')}if(left<=5*60*1000&&left>4*60*1000&&!bossLocalSent[id]['5']){bossLocalSent[id]['5']=true;notifyUser('보스 젠 5분 전',name);markBossAlert(id,'5')}if(left<=0&&left>-60*1000&&!bossLocalSent[id]['0']){bossLocalSent[id]['0']=true;notifyUser('보스 젠 시간',name);markBossAlert(id,'0')}})}
+
 function heartbeat(){fetch('/api/heartbeat',{method:'POST'}).then(r=>r.json()).then(x=>{if(qs('onlineCount'))qs('onlineCount').textContent=x.online||1}).catch(()=>{})}
-document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();refreshAlarmStatus();heartbeat();scanAlarms();applyClosedVisibility();pollEvents();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});
-setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);setInterval(pollEvents,2500);
+document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();refreshAlarmStatus();heartbeat();updateBossTimers();scanAlarms();applyClosedVisibility();pollEvents();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});
+setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);setInterval(updateBossTimers,1000);setInterval(pollEvents,2500);
 </script></body></html>
 """
 
@@ -842,7 +946,7 @@ def home():
         posts = [p for p in posts if match_post_query(p, q)]
     posts = sort_posts_for_view(posts)
     open_count = sum(1 for p in posts if status_text(p) in ["모집중","진행중"])
-    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, q=q, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), open_count=open_count, member_html=member_html(d), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION)
+    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, q=q, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), open_count=open_count, member_html=member_html(d), member_job_html=member_job_html(d), boss_timers=boss_timers_html(d, is_admin_user(u)), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION)
 
 @app.route("/api/posts")
 def api_posts():
@@ -1136,6 +1240,7 @@ def party_chat_send(pid):
     save(lambda x: find_post(x,pid).setdefault("party_chat",[]).append(msg)); return jsonify(ok=True)
 
 
+
 @app.route("/api/events")
 def api_events():
     d=load()
@@ -1148,16 +1253,7 @@ def api_events():
             participants = [s.get("uid") or s.get("external") or "" for s in p.get("slots", []) if s.get("uid") or s.get("external")]
         else:
             participants = [x.get("uid") or x.get("label") or "" for x in p.get("participants", [])]
-        posts.append({
-            "id": p.get("id"),
-            "owner": owner,
-            "category": p.get("category"),
-            "place": p.get("place"),
-            "participant_count": len(participants),
-            "participants_key": "|".join(participants),
-            "chat_count": len(p.get("party_chat", [])),
-            "status": status_text(p)
-        })
+        posts.append({"id":p.get("id"),"owner":owner,"category":p.get("category"),"place":p.get("place"),"participant_count":len(participants),"participants_key":"|".join(participants),"chat_count":len(p.get("party_chat", [])),"status":status_text(p)})
     return jsonify({
         "ok": True,
         "now": iso_now(),
@@ -1166,12 +1262,65 @@ def api_events():
         "chat_last_text": d.get("chat", [{}])[-1].get("text", "") if d.get("chat") else "",
         "chat_last_label": d.get("chat", [{}])[-1].get("label", "") if d.get("chat") else "",
         "chat_last_uid": d.get("chat", [{}])[-1].get("uid", "") if d.get("chat") else "",
-        "posts": posts
+        "posts": posts,
+        "boss_timers": [{"id": b.get("id"), "name": b.get("name"), "spawn_at": b.get("spawn_at"), "alerts_sent": b.get("alerts_sent", [])} for b in d.get("boss_timers", [])]
     })
 
 @app.route("/api/heartbeat", methods=["POST"])
 def heartbeat():
     touch(); return jsonify(ok=True, online=online_count())
+
+
+@app.route("/boss/add", methods=["POST"])
+def boss_add():
+    d=load(); u=current_user(d)
+    if not is_admin_user(u):
+        return redirect("/")
+    name = request.form.get("name","").strip()[:30]
+    date_value = request.form.get("date","").strip()
+    time_value = request.form.get("time","").strip()
+    memo = request.form.get("memo","").strip()[:80]
+    if not name or not time_value:
+        return redirect("/")
+    today = kst_now().strftime("%Y-%m-%d")
+    date_value = date_value or today
+    try:
+        dt = datetime.fromisoformat(f"{date_value}T{time_value}").replace(tzinfo=KST)
+        if dt < kst_now() - timedelta(minutes=5):
+            dt = dt + timedelta(days=1)
+    except Exception:
+        return redirect("/")
+    ch = selected_char(u)
+    timer = {"id":new_id(),"name":name,"spawn_at":dt.isoformat(timespec="seconds"),"memo":memo,"created_by":u.get("id"),"created_label":label(ch) or u.get("account"),"created_at":iso_now(),"alerts_sent":[]}
+    save(lambda x: x.setdefault("boss_timers", []).append(timer))
+    return redirect("/")
+
+@app.route("/boss/delete/<bid>", methods=["POST"])
+def boss_delete(bid):
+    d=load(); u=current_user(d)
+    if not is_admin_user(u):
+        return redirect("/")
+    save(lambda x: x.update({"boss_timers": [b for b in x.get("boss_timers", []) if b.get("id") != bid]}))
+    return redirect("/")
+
+@app.route("/api/boss/mark_alert", methods=["POST"])
+def boss_mark_alert():
+    r=request.get_json(force=True)
+    bid = r.get("id")
+    mark = r.get("mark")
+    if mark not in ["10", "5", "0"]:
+        return jsonify(ok=False)
+    def fn(x):
+        for b in x.get("boss_timers", []):
+            if b.get("id") == bid:
+                b.setdefault("alerts_sent", [])
+                if mark not in b["alerts_sent"]:
+                    b["alerts_sent"].append(mark)
+                    text = f"[보스알림] {b.get('name')} 젠 {'10분 전' if mark=='10' else '5분 전' if mark=='5' else '시간입니다'}"
+                    x.setdefault("chat", []).append({"id":new_id(),"uid":"system","label":"보스알림","text":text,"time":time_now(),"created_at":iso_now()})
+                return
+    save(fn)
+    return jsonify(ok=True)
 
 @app.route("/admin")
 def admin():

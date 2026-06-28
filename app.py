@@ -501,6 +501,9 @@ def health():
 
 @app.route("/gate", methods=["GET", "POST"])
 def gate():
+    data0 = load_data()
+    if request.method == "GET" and approved_user(current_user(data0)):
+        return redirect("/")
     error = False
     if request.method == "POST":
         data = load_data()
@@ -513,6 +516,11 @@ def gate():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     data = load_data()
+    existing_user = current_user(data)
+    if request.method == "GET" and approved_user(existing_user):
+        return redirect("/")
+    if request.method == "GET" and existing_user and existing_user.get("status") == "pending":
+        return redirect("/wait")
     if request.method == "POST":
         account = request.form.get("account", "").strip()
         char_name = request.form.get("char_name", "").strip()
@@ -540,7 +548,11 @@ def register():
 
 @app.route("/wait")
 def wait():
-    return render_template_string(WAIT_PAGE, css=CSS, user=current_user(load_data()))
+    data = load_data()
+    user = current_user(data)
+    if approved_user(user):
+        return redirect("/")
+    return render_template_string(WAIT_PAGE, css=CSS, user=user)
 
 @app.route("/logout", methods=["POST"])
 def logout():

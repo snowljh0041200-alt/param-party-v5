@@ -184,6 +184,10 @@ def is_super_user(u):
 def super_count(d):
     return sum(1 for u in d.get("users", []) if approved(u) and role_of(u) == "super")
 
+def bootstrap_admin_ok(d):
+    # 최고관리자가 아직 0명일 때만 기존 관리자 비밀번호 세션을 임시 허용
+    return super_count(d) == 0 and session.get("legacy_admin_ok")
+
 def chars(u):
     return [c for c in (u or {}).get("chars", []) if c.get("status") == "approved"]
 
@@ -944,7 +948,7 @@ def heartbeat():
 def admin():
     d=load()
     u=current_user(d)
-    admin_ok = is_admin_user(u)
+    admin_ok = is_admin_user(u) or bootstrap_admin_ok(d)
     pending=[x for x in d["users"] if x.get("status")=="pending"]
     pc=[]
     for x in d["users"]:
@@ -957,7 +961,7 @@ def admin():
     if u:
         current_label = f"{u.get('account')} / 권한: {role_of(u)} / 상태: {u.get('status')}"
     return render_template_string(
-        ADMIN, css=CSS, admin_ok=admin_ok, super_ok=is_super_user(u),
+        ADMIN, css=CSS, admin_ok=admin_ok, super_ok=(is_super_user(u) or bootstrap_admin_ok(d)),
         pending_users=pending, pending_chars=pc, users=d["users"],
         posts=list(reversed(d["posts"])), notice=d["settings"].get("notice",""),
         farm_items=d["settings"].get("farm_items",FARM_ITEMS),
@@ -968,28 +972,43 @@ def admin():
 def admin_login():
     d=load()
     u=current_user(d)
-    if not approved(u):
-        session["admin_msg"] = "먼저 메인 사이트에서 문파원으로 로그인하고 승인된 계정이어야 합니다."
-        return redirect("/admin")
     if request.form.get("password") != d["settings"].get("admin_password"):
         session["admin_msg"] = "관리자 비밀번호가 맞지 않습니다."
         return redirect("/admin")
-    def fn(x):
-        uu=find_user(x,u["id"])
-        if uu:
-            uu["role"]="super"
-    save(fn)
-    session["admin_msg"] = "현재 로그인 계정이 최고관리자로 등록되었습니다."
+
+    # 최고관리자가 아직 없으면 기존 관리자 비밀번호로 임시 관리자 접속 허용
+    if super_count(d) == 0:
+        session["legacy_admin_ok"] = True
+        if approved(u):
+            def fn(x):
+                uu=find_user(x,u["id"])
+                if uu:
+                    uu["role"]="super"
+            save(fn)
+            session["admin_msg"] = "현재 로그인 계정이 최고관리자로 등록되었습니다."
+        else:
+            session["admin_msg"] = "임시 관리자 모드입니다. 가입 승인을 먼저 한 뒤, 본인 계정으로 로그인해서 최고관리자로 등록하세요."
+        return redirect("/admin")
+
+    # 최고관리자가 이미 있으면 회원 권한 방식만 허용
+    if not approved(u):
+        session["admin_msg"] = "최고관리자가 이미 있습니다. 관리자 권한이 있는 회원 계정으로 로그인해야 합니다."
+        return redirect("/admin")
+    if not is_admin_user(u):
+        session["admin_msg"] = "현재 계정에는 관리자 권한이 없습니다."
+        return redirect("/admin")
+    session["admin_msg"] = "관리자 권한으로 접속했습니다."
     return redirect("/admin")
 
 @app.route("/admin/logout", methods=["POST"])
 def admin_logout():
+    session.pop("legacy_admin_ok", None)
     return redirect("/")
 
 @app.route("/admin/settings", methods=["POST"])
 def admin_settings():
     d=load(); actor=current_user(d)
-    if not is_super_user(actor): return redirect("/admin")
+    if not (is_super_user(actor) or bootstrap_admin_ok(d)): return redirect("/admin")
     ap=request.form.get("access_password","").strip(); ad=request.form.get("admin_password","").strip()
     def fn(d):
         if ap: d["settings"]["access_password"]=ap
@@ -999,13 +1018,13 @@ def admin_settings():
 @app.route("/admin/notice", methods=["POST"])
 def admin_notice():
     d=load(); actor=current_user(d)
-    if not is_admin_user(actor): return redirect("/admin")
+    if not (is_admin_user(actor) or bootstrap_admin_ok(d)): return redirect("/admin")
     save(lambda d: d["settings"].update({"notice":request.form.get("notice","").strip()[:300]})); return redirect("/admin")
 
 @app.route("/admin/farm_items", methods=["POST"])
 def admin_farm_items():
     d=load(); actor=current_user(d)
-    if not is_admin_user(actor): return redirect("/admin")
+    if not (is_admin_user(actor) or bootstrap_admin_ok(d)): return redirect("/admin")
     def parse(n): return [x.strip() for x in request.form.get(n,"").split(",") if x.strip()]
     items={"해골왕":parse("items_해골왕") or ["해뼈"],"어금니":parse("items_어금니") or ["흑룡 어금니","묵룡 어금니","진룡 어금니","감룡 어금니"]}
     save(lambda d: d["settings"].update({"farm_items":items})); return redirect("/admin")
@@ -1014,7 +1033,7 @@ def admin_farm_items():
 @app.route("/admin/role/<uid>/<role>", methods=["POST"])
 def admin_role(uid, role):
     d=load(); actor=current_user(d)
-    if not is_super_user(actor):
+    if not (is_super_user(actor) or bootstrap_admin_ok(d)):
         return redirect("/admin")
     if role not in ["member","admin","super"]:
         return redirect("/admin")
@@ -1033,7 +1052,7 @@ def admin_role(uid, role):
 @app.route("/admin/user/<uid>/<action>", methods=["POST"])
 def admin_user(uid,action):
     d=load(); actor=current_user(d)
-    if not is_admin_user(actor): return redirect("/admin")
+    if not (is_admin_user(actor) or bootstrap_admin_ok(d)): return redirect("/admin")
     def fn(d):
         u=find_user(d,uid)
         if not u: return
@@ -1049,7 +1068,7 @@ def admin_user(uid,action):
 @app.route("/admin/char/<uid>/<cid>/<action>", methods=["POST"])
 def admin_char(uid,cid,action):
     d=load(); actor=current_user(d)
-    if not is_admin_user(actor): return redirect("/admin")
+    if not (is_admin_user(actor) or bootstrap_admin_ok(d)): return redirect("/admin")
     def fn(d):
         u=find_user(d,uid)
         if not u: return
@@ -1060,19 +1079,19 @@ def admin_char(uid,cid,action):
 @app.route("/admin/delete_post/<pid>", methods=["POST"])
 def admin_delete_post(pid):
     d=load(); actor=current_user(d)
-    if not is_admin_user(actor): return redirect("/admin")
+    if not (is_admin_user(actor) or bootstrap_admin_ok(d)): return redirect("/admin")
     save(lambda d: d.update({"posts":[p for p in d["posts"] if p.get("id")!=pid]})); return redirect("/admin")
 
 @app.route("/admin/clear_closed", methods=["POST"])
 def admin_clear_closed():
     d=load(); actor=current_user(d)
-    if not is_admin_user(actor): return redirect("/admin")
+    if not (is_admin_user(actor) or bootstrap_admin_ok(d)): return redirect("/admin")
     save(lambda d: d.update({"posts":[p for p in d["posts"] if not (p.get("category") in ["사냥","600퀘"] and p.get("closed"))]})); return redirect("/admin")
 
 @app.route("/admin/clear_chat", methods=["POST"])
 def admin_clear_chat():
     d=load(); actor=current_user(d)
-    if not is_admin_user(actor): return redirect("/admin")
+    if not (is_admin_user(actor) or bootstrap_admin_ok(d)): return redirect("/admin")
     save(lambda d: d.update({"chat":[]})); return redirect("/admin")
 
 @app.route("/manifest.json")

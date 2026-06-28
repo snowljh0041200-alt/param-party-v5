@@ -9,7 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v16.1"
+APP_VERSION = "v16.2"
 LOCK = threading.Lock()
 
 DEFAULT_ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "moon")
@@ -648,6 +648,10 @@ def chat_rows(rows, uid, allow_delete=True):
             btn = f"<button class='mini danger' onclick=\"deleteGlobalChat('{e(m.get('id'))}')\">삭제</button>"
         out.append(f"<div class='msg{mine}'><div class='msg-meta'>{e(m.get('label'))} · {e(m.get('time'))} {btn}</div><div>{e(m.get('text'))}</div></div>")
     return "".join(out)
+
+
+def chat_html(d):
+    return chat_rows(d.get("chat", []), current_uid(), allow_delete=True)
 
 def post_time(p):
     s = (p.get("start_period","") + " " + p.get("start_time","")).strip()

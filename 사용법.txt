@@ -1,15 +1,14 @@
-v16.1 RUNTIME HOTFIX
+v16.2 CHAT HTML HOTFIX
 
 수정:
 - 메인 접속 500 에러 수정
-- 일정 날짜 처리용 re import 누락 수정
-- 실시간 통합채팅 갱신 안정화
-- 통합채팅이 팝업을 열지 않아도 메인에서 자동 갱신
+- 실시간 통합채팅 표시용 chat_html 함수 누락 수정
+- v16 대시보드 구조 유지
 
 중요:
 - data.json은 절대 덮어쓰지 마세요.
 
 배포:
 git add .
-git commit -m "v16.1 runtime hotfix"
+git commit -m "v16.2 chat html hotfix"
 git push

@@ -9,7 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v15.5"
+APP_VERSION = "v16.0"
 LOCK = threading.Lock()
 
 DEFAULT_ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "moon")
@@ -134,6 +134,7 @@ def migrate_data(d):
         p.setdefault("late_ids", [])
         p.setdefault("early_weight", "1.0")
         p.setdefault("late_weight", "0.88")
+        p.setdefault("schedule_alerts_sent", [])
 
     d.setdefault("chat", [])
     for m in d.get("chat", []):
@@ -540,6 +541,91 @@ def member_summary_html(d):
       <details class='online-detail'><summary>접속자 보기</summary><div class='meta'>{names_text or '현재 온라인 없음'}</div></details>
     </section>
     """
+
+def post_start_dt(p):
+    time_text = (p.get("start_time") or "").strip()
+    if not time_text:
+        return None
+    date_text = (p.get("start_period") or "").strip()
+    today = kst_now().strftime("%Y-%m-%d")
+    date_value = date_text if re.match(r"^\d{4}-\d{2}-\d{2}$", date_text) else today
+    try:
+        dt = datetime.fromisoformat(f"{date_value}T{time_text}").replace(tzinfo=KST)
+        if dt < kst_now() - timedelta(hours=2):
+            dt = dt + timedelta(days=1)
+        return dt
+    except Exception:
+        return None
+
+def schedule_time_left_text(dt):
+    if not dt:
+        return "시간 미정"
+    sec = int((dt - kst_now()).total_seconds())
+    if sec <= 0:
+        return "출발 시간"
+    h = sec // 3600
+    m = (sec % 3600) // 60
+    return f"{h:02d}:{m:02d}"
+
+def today_schedule_html(d):
+    items = []
+    now = kst_now()
+    for p in d.get("posts", []):
+        if p.get("category") not in ["파밍", "600퀘"]:
+            continue
+        if status_text(p) in ["마감", "정산완료"]:
+            continue
+        dt = post_start_dt(p)
+        if not dt or dt < now - timedelta(hours=2) or dt > now + timedelta(hours=24):
+            continue
+        title = p.get("place") or p.get("category")
+        items.append((dt, p, title))
+    items.sort(key=lambda x: x[0])
+    rows = []
+    for dt, p, title in items[:8]:
+        rows.append(f"""
+        <div class='schedule-row post-schedule' data-post-id='{e(p.get('id'))}' data-post-title='{e(title)}' data-start-at='{e(dt.isoformat(timespec='seconds'))}'>
+          <div><b>{e(title)}</b><span>{e(p.get('category'))} · {dt.strftime('%H:%M')}</span></div>
+          <strong class='schedule-left'>{schedule_time_left_text(dt)}</strong>
+        </div>
+        """)
+    if not rows:
+        rows.append("<div class='empty-box small'>오늘 등록된 일정 없음</div>")
+    return f"""
+    <div class='mini-board schedule-board'>
+      <div class='board-head'><h2>📅 오늘 일정</h2><span>자동 알림</span></div>
+      <div class='mini-note'>파밍/600퀘 출발시간 기준 30분 · 15분 · 5분 전 알림</div>
+      <div class='schedule-list'>{''.join(rows)}</div>
+    </div>
+    """
+
+def member_summary_html(d):
+    ids = set(ONLINE.keys())
+    online_users = [u for u in d.get("users", []) if approved(u) and u.get("id") in ids]
+    total = len(online_users)
+    jobs = {}
+    names_by_job = {}
+    for u in online_users:
+        c = selected_char(u)
+        job = c.get("job","기타") if c else "기타"
+        nm = label(c) if c else u.get("account")
+        jobs[job] = jobs.get(job, 0) + 1
+        names_by_job.setdefault(job, []).append(nm)
+    job_badges = "".join(f"<span class='job-chip'>{e(k)} {v}</span>" for k,v in sorted(jobs.items())) or "<span class='job-chip'>온라인 없음</span>"
+    detail_rows = ""
+    for job, names in sorted(names_by_job.items()):
+        detail_rows += f"<div><b>{e(job)}</b> · {', '.join(e(n) for n in names)}</div>"
+    return f"""
+    <section class='online-compact slim-online'>
+      <div class='online-main'>
+        <span class='dot'></span>
+        <div><b>문파원 접속</b><p>{total}명 온라인</p></div>
+      </div>
+      <div class='job-chips'>{job_badges}</div>
+      <details class='online-detail'><summary>접속자 보기</summary><div class='meta'>{detail_rows or '현재 온라인 없음'}</div></details>
+    </section>
+    """
+
 def member_html(d):
     ids = set(ONLINE.keys())
     rows = []
@@ -596,7 +682,6 @@ def farming_stats_html(posts):
     farms = [p for p in posts if p.get("category") == "파밍"]
     total = len(farms)
     drops = sum(1 for p in farms if p.get("farm_result") == "득템")
-    nodrops = sum(1 for p in farms if p.get("farm_result") == "노득")
     amount = 0
     for p in farms:
         try:
@@ -604,14 +689,13 @@ def farming_stats_html(posts):
         except Exception:
             pass
     return f"""
-    <div class='mini-board farm-board'>
-      <div class='board-head'><h2>📊 파밍 통계</h2><span>전체 기록</span></div>
-      <div class='mini-stats'>
-        <div><b>{total}</b><span>총 파밍</span></div>
+    <div class='mini-board farm-board compact-stat'>
+      <div class='board-head'><h2>📊 파밍</h2><span>누적</span></div>
+      <div class='tiny-stats'>
+        <div><b>{total}</b><span>파밍</span></div>
         <div><b>{drops}</b><span>득템</span></div>
-        <div><b>{nodrops}</b><span>노득</span></div>
+        <div><b>{amount_text(amount)}</b><span>판매</span></div>
       </div>
-      <div class='total-money'>총 판매금액 <b>{amount_text(amount)}</b></div>
     </div>
     """
 
@@ -771,7 +855,31 @@ CSS = """
 
 .voice-panel{max-width:520px}.voice-box{display:grid;gap:12px;margin-top:12px}.check-line{display:flex;align-items:center;gap:10px;background:rgba(8,12,24,.45);border:1px solid rgba(255,255,255,.10);padding:12px;border-radius:14px;font-weight:900}.check-line input{width:20px;height:20px}.voice-box input[type=range]{width:100%;accent-color:#66a3ff}
 
-@media(max-width:680px){.online-compact{grid-template-columns:1fr}.dashboard-pair{grid-template-columns:1fr}.boss-form.better{grid-template-columns:1fr}.boss-form.better button{width:100%}.board-head{align-items:flex-start;flex-direction:column}.boss-card{grid-template-columns:1fr}.boss-right-box{text-align:left}.mini-stats b{font-size:28px}.dashboard-pair{grid-template-columns:1fr}.boss-form.compact{grid-template-columns:1fr}.mini-board h2{font-size:20px}.boss-form{grid-template-columns:1fr}.boss-form button{width:100%}.tabs{padding-bottom:8px}.slot{align-items:flex-start;gap:8px}.post-head{gap:8px}.chat-list{height:55vh}.pill.big-done{font-size:15px;padding:9px 15px}.closed-card:before{font-size:16px;padding:7px}.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
+
+.game-alert{position:fixed;right:24px;top:24px;z-index:9999;display:none;max-width:min(440px,calc(100vw - 32px))}
+.game-alert.show{display:block;animation:popAlert .25s ease-out}
+.game-alert-card{display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:center;background:linear-gradient(135deg,rgba(255,80,54,.96),rgba(255,174,54,.94));color:#fff;border:2px solid rgba(255,255,255,.35);border-radius:26px;padding:18px;box-shadow:0 24px 70px rgba(0,0,0,.45)}
+.game-alert-icon{font-size:44px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))}
+.game-alert-title{font-size:24px;font-weight:1000;letter-spacing:-.5px}
+.game-alert-body{font-size:18px;font-weight:900;opacity:.95;margin-top:4px}
+#gameModeBtn.ok{background:linear-gradient(180deg,#ff8a3d,#df5b26);color:white;border-color:rgba(255,255,255,.28)}
+@keyframes popAlert{from{transform:translateY(-12px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+
+
+/* v16.0 schedule + realtime chat dashboard */
+.summary{display:none!important}
+.top-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.slim-online{display:grid;grid-template-columns:190px 1fr 150px;gap:12px;align-items:center;background:linear-gradient(180deg,rgba(22,34,60,.92),rgba(15,24,43,.86));border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:13px 15px;margin:12px 0;box-shadow:0 14px 30px rgba(0,0,0,.16)}
+.slim-online .online-main{display:flex;gap:12px;align-items:center}.slim-online .dot{width:16px;height:16px;border-radius:50%;background:#63ff88;box-shadow:0 0 16px rgba(99,255,136,.7)}.slim-online p{margin:2px 0 0;color:var(--muted);font-size:13px}.job-chips{display:flex;flex-wrap:wrap;gap:8px}.job-chip{background:rgba(79,139,255,.18);border:1px solid rgba(79,139,255,.28);border-radius:999px;padding:7px 11px;font-weight:900;font-size:13px}.online-detail{background:rgba(8,12,24,.45);border-radius:14px;padding:10px}.online-detail summary{cursor:pointer;font-weight:900}
+.dashboard-pair{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;margin:12px 0 16px}.mini-board{background:linear-gradient(180deg,rgba(24,35,61,.96),rgba(16,24,43,.92));border:1px solid rgba(255,255,255,.14);border-radius:24px;padding:16px;box-shadow:0 18px 42px rgba(0,0,0,.20)}.board-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.board-head h2{margin:0;font-size:22px}.board-head span{color:var(--muted);font-weight:900;font-size:13px}.mini-note{background:linear-gradient(90deg,rgba(255,211,106,.22),rgba(255,211,106,.10));border:1px solid rgba(255,211,106,.28);border-radius:14px;padding:9px 11px;margin:10px 0;color:#ffe7a1;font-weight:900}
+.schedule-list{display:grid;gap:8px}.schedule-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;background:rgba(8,12,24,.48);border:1px solid rgba(255,255,255,.10);border-radius:15px;padding:11px}.schedule-row span{display:block;color:var(--muted);font-size:12px;margin-top:3px}.schedule-left{font-size:20px;color:#ffe7a1}.empty-box.small{padding:14px;text-align:center;color:var(--muted);border:1px dashed rgba(255,255,255,.18);border-radius:14px}
+.tiny-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.tiny-stats div{background:rgba(8,12,24,.55);border-radius:15px;padding:12px;text-align:center}.tiny-stats b{display:block;font-size:22px}.tiny-stats span{font-size:12px;color:var(--muted);font-weight:900}
+.main-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}.section-head,.chat-inline-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 10px}.section-head h2,.chat-inline-head h2{margin:0;font-size:24px}.section-head span,.chat-inline-head span{color:var(--muted);font-size:13px;font-weight:900}
+.side-chat{position:sticky;top:12px;background:linear-gradient(180deg,rgba(24,35,61,.96),rgba(16,24,43,.92));border:1px solid rgba(255,255,255,.14);border-radius:24px;padding:15px;box-shadow:0 18px 42px rgba(0,0,0,.22)}
+.inline-chat-list{height:520px;max-height:58vh;overflow:auto;background:rgba(8,12,24,.46);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:12px}.inline-chat-input{margin-top:10px}.inline-chat-input input{height:46px;margin:0}.inline-chat-input button{height:46px}
+@media(max-width:1100px){.main-grid{grid-template-columns:1fr}.side-chat{position:relative;top:auto}.inline-chat-list{height:320px}.dashboard-pair{grid-template-columns:1fr}.slim-online{grid-template-columns:1fr}}
+
+@media(max-width:680px){.main-grid{gap:10px}.section-head h2,.chat-inline-head h2{font-size:21px}.side-chat{padding:13px;border-radius:20px}.inline-chat-list{height:280px}.dashboard-pair{gap:10px}.game-alert{left:12px;right:12px;top:12px;max-width:none}.game-alert-card{grid-template-columns:48px 1fr;gap:10px}.game-alert-card button{grid-column:1/3}.game-alert-icon{font-size:36px}.game-alert-title{font-size:21px}.game-alert-body{font-size:16px}.online-compact{grid-template-columns:1fr}.dashboard-pair{grid-template-columns:1fr}.boss-form.better{grid-template-columns:1fr}.boss-form.better button{width:100%}.board-head{align-items:flex-start;flex-direction:column}.boss-card{grid-template-columns:1fr}.boss-right-box{text-align:left}.mini-stats b{font-size:28px}.dashboard-pair{grid-template-columns:1fr}.boss-form.compact{grid-template-columns:1fr}.mini-board h2{font-size:20px}.boss-form{grid-template-columns:1fr}.boss-form button{width:100%}.tabs{padding-bottom:8px}.slot{align-items:flex-start;gap:8px}.post-head{gap:8px}.chat-list{height:55vh}.pill.big-done{font-size:15px;padding:9px 15px}.closed-card:before{font-size:16px;padding:7px}.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
 """
 
 GATE = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>입장</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔐 문파 전용</h1><div class='sub'>월하 · 연가 · 연희 파티모집</div></header><section class='panel'><h2>입장 비밀번호</h2><form method='post'><input name='password' type='password' placeholder='문파 비밀번호'><button style='width:100%'>입장</button></form>{% if error %}<div class='notice'>비밀번호가 맞지 않습니다.</div>{% endif %}</section></div></body></html>"""
@@ -784,8 +892,20 @@ MAIN = """
 <!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>파티모집</title><style>{{ css }}</style></head><body>
 <div class='wrap'><header class='header'><h1>⚔️ 월하 · 연가 · 연희 파티모집</h1><div class='sub'>Made by 역인(진선) · {{ app_version|default('v15.0') }}</div></header>{% if notice %}<div class='notice'>📢 {{ notice }}</div>{% endif %}
 {% if page=='home' %}
-<section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='openGlobalChat()'>통합채팅</button><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button><button class='gray' onclick='openAlarmCheck()'>알림점검</button><button class='gray' onclick='openVoiceSettings()'>음성설정</button><button class='gray' onclick='toggleClosedPosts()' id='closedToggleBtn'>마감숨김</button></div><div class='summary'><div class='stat'><b>{{ open_count }}</b><span>모집중</span></div><div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div><div class='stat'><b id='myCount'>0</b><span>내 참여</span></div></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안 동작합니다. 알림점검에서 권한과 테스트 알림을 확인하세요.</div>
-<div class='tabs'>{% for f in cats %}<a class='{% if f==filter_value %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section>{{ member_summary|safe }}<section class='dashboard-pair'>{{ boss_timers|safe }}{{ farm_stats|safe }}</section><div id='postList'>{{ post_list|safe }}</div>
+<section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button><button class='gray' onclick='openAlarmCheck()'>알림점검</button><button class='gray' onclick='openVoiceSettings()'>음성설정</button><button class='gray' onclick='toggleGameMode()' id='gameModeBtn'>🎮 게임모드 OFF</button><button class='gray' onclick='toggleClosedPosts()' id='closedToggleBtn'>마감숨김</button></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안 동작합니다. 알림점검에서 권한과 테스트 알림을 확인하세요.</div>
+<div class='tabs'>{% for f in cats %}<a class='{% if f==filter_value %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section>{{ member_summary|safe }}
+<section class='dashboard-pair'>{{ schedule_html|safe }}{{ farm_stats|safe }}</section>
+<section class='main-grid'>
+  <main class='recruit-area'>
+    <div class='section-head'><h2>📌 모집글</h2><span>모집중 우선 표시</span></div>
+    <div id='postList'>{{ post_list|safe }}</div>
+  </main>
+  <aside class='side-chat'>
+    <div class='chat-inline-head'><h2>💬 통합채팅</h2><span>실시간</span></div>
+    <div id='globalChatInline' class='chat-list inline-chat-list'>{{ global_chat|safe }}</div>
+    <div class='quick inline-chat-input'><input id='globalChatText' placeholder='메시지 입력'><button onclick='sendGlobalChat()'>전송</button></div>
+  </aside>
+</section>
 {% endif %}
 {% if page=='new' or page=='edit' %}
 <section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘는 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
@@ -794,7 +914,7 @@ MAIN = """
 <section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>내 캐릭터</h2><form method='post' action='/chars/add'><label>캐릭터명</label><input name='name' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button style='width:100%'>캐릭터 추가 요청</button></form></section><section class='panel'><h2>등록 캐릭터</h2>{% for c in user.chars %}<div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>{% endfor %}</section>
 {% endif %}
 </div>
-<div id='globalModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>💬 통합채팅</b><button class='mini gray' onclick='closeGlobalChat()'>닫기</button></div><div class='alarm-guide'>최근 100개 유지 · 24시간 자동삭제 · 본인 5분 이내 삭제 가능</div><div id='globalChatList' class='chat-list'></div><div class='chat-form'><input id='globalChatText' placeholder='메시지'><button onclick='sendGlobalChat()'>전송</button></div></div></div>
+<div id='globalModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>💬 통합채팅</b><button class='mini gray' onclick='closeGlobalChat()'>닫기</button></div><div class='alarm-guide'>최근 100개 유지 · 24시간 자동삭제 · 본인 5분 이내 삭제 가능</div><div id='globalChatListOld' class='chat-list'></div><div class='chat-form'><input id='globalChatTextOld' placeholder='메시지'><button onclick='sendGlobalChat()'>전송</button></div></div></div>
 <div id='partyModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>💬 채팅</b><button class='mini gray' onclick='closePartyChat()'>닫기</button></div><div id='partyChatList' class='chat-list'></div><div class='chat-form'><input id='partyChatText' placeholder='메시지'><button onclick='sendPartyChat()'>전송</button></div></div></div>
 <div id='charPickModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>참여 캐릭터 선택</b><button class='mini gray' onclick='closeCharPick()'>닫기</button></div><div id='charPickList' class='choice-list'></div></div></div>
 <div id='alarmModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between;align-items:center'><b>🔔 알림 점검</b><button class='mini gray' onclick='closeAlarmCheck()'>닫기</button></div><div id='alarmStatusBox' class='alarm-guide'>상태 확인중...</div><div class='top-actions'><button class='ok' onclick='requestAlarmPermission()'>권한 요청</button><button onclick='sendTestNotification()'>테스트 알림</button><button class='gray' onclick='refreshAlarmStatus()'>새로고침</button></div><div class='notice'>알림은 사이트 탭이 열려 있어야 동작합니다. 주소창 왼쪽 사이트 설정에서 알림이 차단되어 있으면 허용으로 바꿔주세요.</div></div></div>
@@ -813,6 +933,17 @@ MAIN = """
     <div class='notice'>브라우저 정책 때문에 처음 한 번은 버튼을 눌러야 음성이 정상 재생됩니다. 설정은 각 문파원 기기에 따로 저장됩니다.</div>
   </div>
 </div></div>
+
+<div id='gameAlertOverlay' class='game-alert'>
+  <div class='game-alert-card'>
+    <div class='game-alert-icon'>🔥</div>
+    <div>
+      <div id='gameAlertTitle' class='game-alert-title'>보스 알림</div>
+      <div id='gameAlertBody' class='game-alert-body'>젠타임 알림</div>
+    </div>
+    <button class='mini gray' onclick='closeGameAlert()'>닫기</button>
+  </div>
+</div>
 <div id='toast' class='toast'></div>
 <script>
 const CURRENT_USER_ID="{{ user.id if user else '' }}";let globalOpen=false;let partyId=null;let knownPosts=new Set();let firstLoad=true;
@@ -860,7 +991,7 @@ function notifyUser(title, body){
 function toggleAlarm(){
   const turningOff=alarmOn();
   localStorage.setItem('baram_alarm_off',turningOff?'1':'0');
-  updateAlarmBtn();loadVoiceSettings();
+  updateAlarmBtn();updateGameModeBtn();loadVoiceSettings();updateGameModeBtn();
   if(!turningOff && 'Notification' in window && Notification.permission==='default'){
     Notification.requestPermission().then(()=>toast('알림이 켜졌습니다.'));
   }else{
@@ -964,19 +1095,72 @@ function testVoiceAlert(){
 }
 
 function testBossAlert(minText){
-  notifyUser('보스 젠 테스트', '해골왕 젠 '+minText+' 전 알림 테스트입니다.');
-  speakVoice('해골왕 젠까지 '+minText+' 남았습니다.',1);
+  bossFullAlert('보스 젠 테스트','해골왕',minText,1);
   toast('보스 젠 '+minText+' 전 테스트 알림 전송');
+}
+
+
+function gameModeOn(){return localStorage.getItem('baram_game_mode')==='1'}
+function updateGameModeBtn(){
+  const b=qs('gameModeBtn');
+  if(b)b.textContent=gameModeOn()?'🎮 게임모드 ON':'🎮 게임모드 OFF';
+  if(b)b.classList.toggle('ok',gameModeOn());
+}
+function toggleGameMode(){
+  const on=!gameModeOn();
+  localStorage.setItem('baram_game_mode',on?'1':'0');
+  if(on){
+    localStorage.setItem('baram_alarm_off','0');
+    localStorage.setItem('baram_voice_on','1');
+    localStorage.setItem('baram_voice_muted','0');
+    if('Notification' in window && Notification.permission==='default')Notification.requestPermission();
+    toast('게임모드 ON');
+  }else{
+    toast('게임모드 OFF');
+  }
+  updateAlarmBtn();
+  loadVoiceSettings();
+  updateGameModeBtn();
+}
+function showGameAlert(title, body){
+  if(!gameModeOn())return;
+  const o=qs('gameAlertOverlay'), t=qs('gameAlertTitle'), b=qs('gameAlertBody');
+  if(t)t.textContent=title;
+  if(b)b.textContent=body||'';
+  if(o){
+    o.classList.add('show');
+    clearTimeout(window.__gameAlertTimer);
+    window.__gameAlertTimer=setTimeout(()=>o.classList.remove('show'),9000);
+  }
+}
+function closeGameAlert(){const o=qs('gameAlertOverlay');if(o)o.classList.remove('show')}
+function bossFullAlert(title, name, minutesText, repeat){
+  notifyUser(title,name);
+  showGameAlert(title, name+' 젠 '+minutesText+' 전');
+  speakVoice(name+' 젠까지 '+minutesText+' 남았습니다.',repeat||1);
+}
+
+
+function updatePostSchedules(){
+  const now=Date.now();
+  document.querySelectorAll('.post-schedule').forEach(row=>{
+    const id=row.dataset.postId,title=row.dataset.postTitle||'일정',at=new Date(row.dataset.startAt).getTime(),left=at-now;
+    const el=row.querySelector('.schedule-left'); if(el)el.textContent=formatLeft?formatLeft(left):'';
+    if(!bossLocalSent[id])bossLocalSent[id]={};
+    if(left<=30*60*1000&&left>29*60*1000&&!bossLocalSent[id]['30']){bossLocalSent[id]['30']=true;bossFullAlert('일정 30분 전',title,'30분',1)}
+    if(left<=15*60*1000&&left>14*60*1000&&!bossLocalSent[id]['15']){bossLocalSent[id]['15']=true;bossFullAlert('일정 15분 전',title,'15분',1)}
+    if(left<=5*60*1000&&left>4*60*1000&&!bossLocalSent[id]['5']){bossLocalSent[id]['5']=true;bossFullAlert('일정 5분 전',title,'5분',3)}
+  });
 }
 
 function formatLeft(ms){if(ms<=0)return '젠 시간';const sec=Math.floor(ms/1000),h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
 function markBossAlert(id,mark){fetch('/api/boss/mark_alert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,mark:mark})}).catch(()=>{})}
 let bossLocalSent={};
-function updateBossTimers(){const now=Date.now();document.querySelectorAll('.boss-timer').forEach(card=>{const id=card.dataset.bossId,name=card.dataset.bossName||'보스',at=new Date(card.dataset.spawnAt).getTime(),left=at-now;const el=card.querySelector('.boss-left');if(el)el.textContent=formatLeft(left);if(!bossLocalSent[id])bossLocalSent[id]={};if(left<=30*60*1000&&left>29*60*1000&&!bossLocalSent[id]['30']){bossLocalSent[id]['30']=true;notifyUser('보스 젠 30분 전',name);speakVoice(name+' 젠까지 30분 남았습니다.',1);markBossAlert(id,'30')}if(left<=15*60*1000&&left>14*60*1000&&!bossLocalSent[id]['15']){bossLocalSent[id]['15']=true;notifyUser('보스 젠 15분 전',name);speakVoice(name+' 젠까지 15분 남았습니다.',1);markBossAlert(id,'15')}if(left<=5*60*1000&&left>4*60*1000&&!bossLocalSent[id]['5']){bossLocalSent[id]['5']=true;notifyUser('보스 젠 5분 전',name);speakVoice(name+' 젠까지 5분 남았습니다.',3);markBossAlert(id,'5')}})}
+function updateBossTimers(){const now=Date.now();document.querySelectorAll('.boss-timer').forEach(card=>{const id=card.dataset.bossId,name=card.dataset.bossName||'보스',at=new Date(card.dataset.spawnAt).getTime(),left=at-now;const el=card.querySelector('.boss-left');if(el)el.textContent=formatLeft(left);if(!bossLocalSent[id])bossLocalSent[id]={};if(left<=30*60*1000&&left>29*60*1000&&!bossLocalSent[id]['30']){bossLocalSent[id]['30']=true;bossFullAlert('보스 젠 30분 전',name,'30분',1);markBossAlert(id,'30')}if(left<=15*60*1000&&left>14*60*1000&&!bossLocalSent[id]['15']){bossLocalSent[id]['15']=true;bossFullAlert('보스 젠 15분 전',name,'15분',1);markBossAlert(id,'15')}if(left<=5*60*1000&&left>4*60*1000&&!bossLocalSent[id]['5']){bossLocalSent[id]['5']=true;bossFullAlert('보스 젠 5분 전',name,'5분',3);markBossAlert(id,'5')}})}
 
 function heartbeat(){fetch('/api/heartbeat',{method:'POST'}).then(r=>r.json()).then(x=>{if(qs('onlineCount'))qs('onlineCount').textContent=x.online||1}).catch(()=>{})}
-document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();refreshAlarmStatus();heartbeat();updateBossTimers();scanAlarms();applyClosedVisibility();pollEvents();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});
-setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);setInterval(updateBossTimers,1000);setInterval(pollEvents,2500);
+document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();refreshAlarmStatus();heartbeat();updateBossTimers();updatePostSchedules();scanAlarms();applyClosedVisibility();pollEvents();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});
+setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);setInterval(updateBossTimers,1000);setInterval(updatePostSchedules,1000);setInterval(pollEvents,2500);
 </script></body></html>
 """
 
@@ -1060,7 +1244,7 @@ def home():
         posts = [p for p in posts if p.get("category") == filt]
     posts = sort_posts_for_view(posts)
     open_count = sum(1 for p in posts if status_text(p) in ["모집중","진행중"])
-    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), open_count=open_count, member_html=member_html(d), member_job_html=member_job_html(d), member_summary=member_summary_html(d), boss_timers=boss_timers_html(d, is_admin_user(u)), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION)
+    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), global_chat=chat_html(d), open_count=open_count, member_html=member_html(d), member_job_html=member_job_html(d), member_summary=member_summary_html(d), schedule_html=today_schedule_html(d), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION)
 
 @app.route("/api/posts")
 def api_posts():

@@ -421,9 +421,11 @@ MAIN_PAGE = """
 {% endif %}
 
 {% if page=='chars' %}
-<section class='panel'><h2>내 캐릭터</h2><p class='meta'>새 캐릭터는 관리자 승인 후 사용할 수 있습니다.</p>
+<section class='panel'>
+<a class='btn gray' href='/' style='margin-bottom:10px'>← 메인으로</a>
+<h2>내 캐릭터</h2><p class='meta'>새 캐릭터는 관리자 승인 후 사용할 수 있습니다.</p>
 <form method='post' action='/chars/add'><label>캐릭터명</label><input name='name' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button style='width:100%'>캐릭터 추가 요청</button></form></section>
-<section class='panel'><h2>등록 캐릭터</h2>{% for c in user.chars %}<div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>{% endfor %}</section>
+<section class='panel'><h2>등록 캐릭터</h2>{% for c in user.chars %}<div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>{% endfor %}<a class='btn gray' href='/' style='width:100%;margin-top:10px'>메인으로 돌아가기</a></section>
 {% endif %}
 </div>
 

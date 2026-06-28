@@ -1,5 +1,5 @@
 
-from flask import Flask, request, jsonify, render_template_string, redirect, session
+from flask import Flask, request, jsonify, render_template_string, redirect, session, send_file
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, tempfile, html, threading
@@ -9,6 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
+APP_VERSION = "v15.1"
 LOCK = threading.Lock()
 
 DEFAULT_ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "moon")
@@ -71,12 +72,78 @@ def default_data():
             "access_password": DEFAULT_ACCESS_PASSWORD,
             "admin_password": DEFAULT_ADMIN_PASSWORD,
             "notice": "",
-            "farm_items": FARM_ITEMS
+            "farm_items": FARM_ITEMS,
+            "app_version": APP_VERSION,
+            "schema_version": 15
         },
         "users": [],
         "posts": [],
         "chat": []
     }
+
+
+def migrate_data(d):
+    """기존 data.json을 유지하면서 새 버전에 필요한 필드만 자동 추가."""
+    d.setdefault("settings", {})
+    d["settings"].setdefault("access_password", DEFAULT_ACCESS_PASSWORD)
+    d["settings"].setdefault("admin_password", DEFAULT_ADMIN_PASSWORD)
+    d["settings"].setdefault("notice", "")
+    d["settings"].setdefault("farm_items", FARM_ITEMS)
+    d["settings"]["app_version"] = APP_VERSION
+    d["settings"]["schema_version"] = 15
+
+    d.setdefault("users", [])
+    for u in d.get("users", []):
+        u.setdefault("id", new_id())
+        u.setdefault("account", "")
+        u.setdefault("status", "pending")
+        u.setdefault("role", "member")
+        u.setdefault("blocked", False)
+        u.setdefault("chars", [])
+        for c in u.get("chars", []):
+            c.setdefault("id", new_id())
+            c.setdefault("name", "")
+            c.setdefault("job", "")
+            c.setdefault("status", "pending")
+
+    d.setdefault("posts", [])
+    for p in d.get("posts", []):
+        p.setdefault("id", new_id())
+        p.setdefault("owner_uid", "")
+        p.setdefault("owner_label", "")
+        p.setdefault("category", "사냥")
+        p.setdefault("place", "")
+        p.setdefault("channel", "")
+        p.setdefault("start_period", "")
+        p.setdefault("start_time", "")
+        p.setdefault("end_period", "")
+        p.setdefault("end_time", "")
+        p.setdefault("memo", "")
+        p.setdefault("slots", [])
+        p.setdefault("participants", [])
+        p.setdefault("closed", False)
+        p.setdefault("closed_at", "")
+        p.setdefault("party_chat", [])
+        p.setdefault("created", text_now())
+        p.setdefault("farm_status", "진행중")
+        p.setdefault("farm_result", "")
+        p.setdefault("farm_item", "")
+        p.setdefault("sale_amount", "")
+        p.setdefault("share_ids", [])
+        p.setdefault("early_ids", [])
+        p.setdefault("late_ids", [])
+        p.setdefault("early_weight", "1.0")
+        p.setdefault("late_weight", "0.88")
+
+    d.setdefault("chat", [])
+    for m in d.get("chat", []):
+        m.setdefault("id", new_id())
+        m.setdefault("uid", "")
+        m.setdefault("label", "")
+        m.setdefault("text", "")
+        m.setdefault("time", time_now())
+        m.setdefault("created_at", iso_now())
+    return d
 
 def read_data():
     if not os.path.exists(DATA_FILE):
@@ -86,17 +153,7 @@ def read_data():
             d = json.load(f)
     except Exception:
         return default_data()
-    d.setdefault("settings", {})
-    d["settings"].setdefault("access_password", DEFAULT_ACCESS_PASSWORD)
-    d["settings"].setdefault("admin_password", DEFAULT_ADMIN_PASSWORD)
-    d["settings"].setdefault("notice", "")
-    d["settings"].setdefault("farm_items", FARM_ITEMS)
-    d.setdefault("users", [])
-    for u in d.get("users", []):
-        u.setdefault("role", "member")
-    d.setdefault("posts", [])
-    d.setdefault("chat", [])
-    return d
+    return migrate_data(d)
 
 def write_data(d):
     fd, tmp = tempfile.mkstemp(prefix="baram_", suffix=".json", dir=".")
@@ -372,6 +429,62 @@ def post_time(p):
         return f"{s} ~ {t}"
     return s or t or "시간 미정"
 
+
+def match_post_query(p, q):
+    q = (q or "").strip().lower()
+    if not q:
+        return True
+    texts = [
+        p.get("owner_label",""), p.get("category",""), p.get("place",""),
+        p.get("channel",""), p.get("memo","")
+    ]
+    for s in p.get("slots", []):
+        texts += [s.get("job",""), s.get("label",""), s.get("external","")]
+    for a in p.get("participants", []):
+        texts.append(a.get("label",""))
+    return q in " ".join(str(x).lower() for x in texts)
+
+def sort_posts_for_view(posts):
+    def key(p):
+        st = status_text(p)
+        closed = 1 if st in ["마감","정산완료"] else 0
+        return (closed,)
+    return sorted(posts, key=key)
+
+def farming_stats_html(posts):
+    farms = [p for p in posts if p.get("category") == "파밍"]
+    total = len(farms)
+    drops = sum(1 for p in farms if p.get("farm_result") == "득템")
+    nodrops = sum(1 for p in farms if p.get("farm_result") == "노득")
+    amount = 0
+    by_place = {}
+    for p in farms:
+        try:
+            amount += int(p.get("sale_amount") or 0)
+        except Exception:
+            pass
+        place = p.get("place") or "기타"
+        by_place.setdefault(place, {"total":0, "drop":0})
+        by_place[place]["total"] += 1
+        if p.get("farm_result") == "득템":
+            by_place[place]["drop"] += 1
+    place_rows = "".join(
+        f"<div class='member'>🔒 {e(place)} · 총 {v['total']}회 · 득템 {v['drop']}회</div>"
+        for place, v in by_place.items()
+    ) or "<div class='member'>파밍 기록 없음</div>"
+    return f"""
+    <section class='panel farm-stats'>
+      <h2>📊 파밍 통계</h2>
+      <div class='summary'>
+        <div class='stat'><b>{total}</b><span>총 파밍</span></div>
+        <div class='stat'><b>{drops}</b><span>득템</span></div>
+        <div class='stat'><b>{nodrops}</b><span>노득</span></div>
+      </div>
+      <div class='notice'>총 판매금액: <b>{amount_text(amount)}</b></div>
+      <div class='member-grid'>{place_rows}</div>
+    </section>
+    """
+
 def render_posts(posts, u, farm_items=None, admin=False):
     farm_items = farm_items or FARM_ITEMS
     if not posts:
@@ -512,7 +625,7 @@ def render_posts(posts, u, farm_items=None, admin=False):
     return "".join(out)
 
 CSS = """
-*{box-sizing:border-box}body{margin:0;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Malgun Gothic',Arial,sans-serif;background:#0b1020}body:before{content:'';position:fixed;inset:0;background:radial-gradient(circle at 20% 0%,#263c77 0,#111a34 38%,#090d18 78%);z-index:-1}.wrap{max-width:1040px;margin:0 auto;padding:18px 14px 100px}.header{padding:12px 0 16px;border-bottom:1px solid rgba(255,255,255,.11)}h1{font-size:28px;margin:0}.sub{color:#aeb8d7;font-size:13px;margin-top:4px}.panel,.party-card{background:rgba(20,27,48,.88);border:1px solid rgba(150,165,210,.22);box-shadow:0 18px 50px rgba(0,0,0,.32);border-radius:24px;padding:16px;margin:14px 0}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:rgba(7,11,22,.57);border:1px solid rgba(255,255,255,.10);border-radius:18px;text-align:center;padding:14px 8px}.stat b{font-size:28px;display:block}.stat span{font-size:12px;color:#aeb8d7}button,.btn{border:0;border-radius:15px;background:linear-gradient(180deg,#6a86ff,#4163ff);color:#fff;font-weight:900;padding:12px 15px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer}button.gray,.btn.gray{background:linear-gradient(180deg,#4c5571,#363d55)}button.danger,.danger{background:linear-gradient(180deg,#ff6666,#ce4040)}button.ok{background:linear-gradient(180deg,#2bd176,#169851)}input,select,textarea{width:100%;background:#0d1325;color:#f4f6ff;border:1px solid rgba(170,185,230,.25);border-radius:15px;padding:13px;margin:6px 0 13px;font-size:16px}label{font-size:13px;color:#bac4de;font-weight:900}.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tabs a{white-space:nowrap;color:#dce4ff;background:rgba(10,15,30,.55);border:1px solid rgba(255,255,255,.12);text-decoration:none;border-radius:999px;padding:9px 14px;font-weight:900;font-size:14px}.tabs a.on{background:linear-gradient(180deg,#6a86ff,#4163ff)}.empty{border:1px dashed rgba(255,255,255,.25);border-radius:22px;padding:46px;text-align:center;color:#c2c9dd}.post-head{display:flex;justify-content:space-between;align-items:center}.pill{display:inline-flex;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;margin-right:4px}.pill.open{background:#123f2a;color:#9dffc4}.pill.done{background:#4d2020;color:#ffd1d1}.pill.big-done{font-size:16px;padding:10px 18px;background:linear-gradient(180deg,#777,#444);color:#fff;border:2px solid rgba(255,255,255,.25);box-shadow:0 0 0 2px rgba(0,0,0,.15) inset}.closed-card{background:rgba(54,58,70,.82)!important;border-color:rgba(190,195,210,.18)!important;filter:grayscale(.45);opacity:.78}.closed-card h2,.closed-card .meta,.closed-card .memo{color:#c8ccd8!important}.closed-card .slot{background:rgba(40,43,52,.72)!important;border-color:rgba(210,210,220,.13)!important}.closed-card .slot.filled{background:rgba(44,52,45,.66)!important}.closed-card .count{background:#3a3d48;color:#e0e0e0}.closed-card:before{content:'마감';display:block;text-align:center;font-weight:900;font-size:18px;letter-spacing:4px;color:#fff;background:linear-gradient(90deg,#555,#777,#555);border-radius:16px;padding:8px;margin-bottom:10px}.pill.type{background:#242c48;color:#ccd6ff}.count{font-size:18px;background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 12px}h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-height:1.6}.memo{color:#ffd16a;font-size:14px;margin-top:5px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}.slot{display:flex;justify-content:space-between;align-items:center;background:rgba(8,12,24,.62);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px;margin:9px 0}.slot.filled{background:rgba(18,55,33,.58);border-color:rgba(73,190,112,.35)}.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px;margin-top:12px}.simple-action{grid-template-columns:1fr}.owner-only{display:none!important}.post[data-owner='1'] .owner-only{display:inline-flex!important}.hidden{display:none!important}.time-row{display:grid;grid-template-columns:90px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}.mini{font-size:13px;padding:8px 10px;min-height:34px}.notice,.alarm-guide{background:linear-gradient(180deg,rgba(255,211,106,.18),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.30);color:#ffe5a3;border-radius:18px;padding:12px;margin-top:12px;font-size:13px;line-height:1.45}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1e2845;border:1px solid #53648f;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.chat-panel{width:100%;max-width:880px;margin:0 auto;border-radius:22px 22px 0 0}.chat-list{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;height:340px;overflow-y:auto;padding:10px}.msg{background:#202a47;border-radius:13px;padding:9px 11px;margin:7px 0}.msg.mine{background:#173d27;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8b2cc;display:flex;justify-content:space-between}.chat-form{display:grid;grid-template-columns:1fr 74px;gap:7px;margin-top:9px}.chat-form input{margin:0}.member-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.member{background:rgba(8,12,24,.55);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;margin:6px 0}.choice-list{display:grid;gap:8px}.choice-list button{width:100%;justify-content:flex-start;background:linear-gradient(180deg,#4c5571,#363d55)}.check-box{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px;margin-bottom:10px}.check-row{display:block;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)}.check-row input{width:auto;margin-right:8px}.farm-manage{display:block!important;margin-top:12px}@media(max-width:680px){.pill.big-done{font-size:15px;padding:9px 15px}.closed-card:before{font-size:16px;padding:7px}.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
+*{box-sizing:border-box}body{margin:0;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Malgun Gothic',Arial,sans-serif;background:#0b1020}body:before{content:'';position:fixed;inset:0;background:radial-gradient(circle at 20% 0%,#263c77 0,#111a34 38%,#090d18 78%);z-index:-1}.wrap{max-width:1040px;margin:0 auto;padding:18px 14px 100px}.header{padding:12px 0 16px;border-bottom:1px solid rgba(255,255,255,.11)}h1{font-size:28px;margin:0}.sub{color:#aeb8d7;font-size:13px;margin-top:4px}.panel,.party-card{background:rgba(20,27,48,.88);border:1px solid rgba(150,165,210,.22);box-shadow:0 18px 50px rgba(0,0,0,.32);border-radius:24px;padding:16px;margin:14px 0}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:rgba(7,11,22,.57);border:1px solid rgba(255,255,255,.10);border-radius:18px;text-align:center;padding:14px 8px}.stat b{font-size:28px;display:block}.stat span{font-size:12px;color:#aeb8d7}button,.btn{border:0;border-radius:15px;background:linear-gradient(180deg,#6a86ff,#4163ff);color:#fff;font-weight:900;padding:12px 15px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer}button.gray,.btn.gray{background:linear-gradient(180deg,#4c5571,#363d55)}button.danger,.danger{background:linear-gradient(180deg,#ff6666,#ce4040)}button.ok{background:linear-gradient(180deg,#2bd176,#169851)}input,select,textarea{width:100%;background:#0d1325;color:#f4f6ff;border:1px solid rgba(170,185,230,.25);border-radius:15px;padding:13px;margin:6px 0 13px;font-size:16px}label{font-size:13px;color:#bac4de;font-weight:900}.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tabs a{white-space:nowrap;color:#dce4ff;background:rgba(10,15,30,.55);border:1px solid rgba(255,255,255,.12);text-decoration:none;border-radius:999px;padding:9px 14px;font-weight:900;font-size:14px}.tabs a.on{background:linear-gradient(180deg,#6a86ff,#4163ff)}.empty{border:1px dashed rgba(255,255,255,.25);border-radius:22px;padding:46px;text-align:center;color:#c2c9dd}.post-head{display:flex;justify-content:space-between;align-items:center}.pill{display:inline-flex;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;margin-right:4px}.pill.open{background:#123f2a;color:#9dffc4}.pill.done{background:#4d2020;color:#ffd1d1}.pill.big-done{font-size:16px;padding:10px 18px;background:linear-gradient(180deg,#777,#444);color:#fff;border:2px solid rgba(255,255,255,.25);box-shadow:0 0 0 2px rgba(0,0,0,.15) inset}.closed-card{background:rgba(54,58,70,.82)!important;border-color:rgba(190,195,210,.18)!important;filter:grayscale(.45);opacity:.78}.closed-card h2,.closed-card .meta,.closed-card .memo{color:#c8ccd8!important}.closed-card .slot{background:rgba(40,43,52,.72)!important;border-color:rgba(210,210,220,.13)!important}.closed-card .slot.filled{background:rgba(44,52,45,.66)!important}.closed-card .count{background:#3a3d48;color:#e0e0e0}.closed-card:before{content:'마감';display:block;text-align:center;font-weight:900;font-size:18px;letter-spacing:4px;color:#fff;background:linear-gradient(90deg,#555,#777,#555);border-radius:16px;padding:8px;margin-bottom:10px}.pill.type{background:#242c48;color:#ccd6ff}.count{font-size:18px;background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 12px}h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-height:1.6}.memo{color:#ffd16a;font-size:14px;margin-top:5px}.left-time{color:#ffb3b3;font-size:13px;font-weight:900}.slot{display:flex;justify-content:space-between;align-items:center;background:rgba(8,12,24,.62);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px;margin:9px 0}.slot.filled{background:rgba(18,55,33,.58);border-color:rgba(73,190,112,.35)}.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px;margin-top:12px}.simple-action{grid-template-columns:1fr}.owner-only{display:none!important}.post[data-owner='1'] .owner-only{display:inline-flex!important}.hidden{display:none!important}.time-row{display:grid;grid-template-columns:90px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}.search-row{display:grid;grid-template-columns:1fr 80px 90px;gap:8px;margin:12px 0}.search-row input{margin:0}.farm-stats .summary{margin-top:8px}.post{scroll-margin-top:16px}.mini{font-size:13px;padding:8px 10px;min-height:34px}.notice,.alarm-guide{background:linear-gradient(180deg,rgba(255,211,106,.18),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.30);color:#ffe5a3;border-radius:18px;padding:12px;margin-top:12px;font-size:13px;line-height:1.45}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1e2845;border:1px solid #53648f;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.chat-panel{width:100%;max-width:880px;margin:0 auto;border-radius:22px 22px 0 0}.chat-list{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;height:340px;overflow-y:auto;padding:10px}.msg{background:#202a47;border-radius:13px;padding:9px 11px;margin:7px 0}.msg.mine{background:#173d27;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8b2cc;display:flex;justify-content:space-between}.chat-form{display:grid;grid-template-columns:1fr 74px;gap:7px;margin-top:9px}.chat-form input{margin:0}.member-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.member{background:rgba(8,12,24,.55);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;margin:6px 0}.choice-list{display:grid;gap:8px}.choice-list button{width:100%;justify-content:flex-start;background:linear-gradient(180deg,#4c5571,#363d55)}.check-box{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px;margin-bottom:10px}.check-row{display:block;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)}.check-row input{width:auto;margin-right:8px}.farm-manage{display:block!important;margin-top:12px}@media(max-width:680px){.search-row{grid-template-columns:1fr}.search-row button,.search-row .btn{width:100%}.tabs{padding-bottom:8px}.slot{align-items:flex-start;gap:8px}.post-head{gap:8px}.chat-list{height:55vh}.pill.big-done{font-size:15px;padding:9px 15px}.closed-card:before{font-size:16px;padding:7px}.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
 """
 
 GATE = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>입장</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔐 문파 전용</h1><div class='sub'>월하 · 연가 · 연희 파티모집</div></header><section class='panel'><h2>입장 비밀번호</h2><form method='post'><input name='password' type='password' placeholder='문파 비밀번호'><button style='width:100%'>입장</button></form>{% if error %}<div class='notice'>비밀번호가 맞지 않습니다.</div>{% endif %}</section></div></body></html>"""
@@ -523,9 +636,11 @@ WAIT = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name=
 
 MAIN = """
 <!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>파티모집</title><style>{{ css }}</style></head><body>
-<div class='wrap'><header class='header'><h1>⚔️ 월하 · 연가 · 연희 파티모집</h1><div class='sub'>Made by 역인(진선)</div></header>{% if notice %}<div class='notice'>📢 {{ notice }}</div>{% endif %}
+<div class='wrap'><header class='header'><h1>⚔️ 월하 · 연가 · 연희 파티모집</h1><div class='sub'>Made by 역인(진선) · {{ app_version|default('v15.0') }}</div></header>{% if notice %}<div class='notice'>📢 {{ notice }}</div>{% endif %}
 {% if page=='home' %}
-<section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='openGlobalChat()'>통합채팅</button><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button></div><div class='summary'><div class='stat'><b>{{ open_count }}</b><span>모집중</span></div><div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div><div class='stat'><b id='myCount'>0</b><span>내 참여</span></div></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안 동작합니다. 버튼을 눌러 브라우저 알림 권한을 허용하면 새 모집글/참여/채팅 알림을 받을 수 있습니다.</div><div class='tabs'>{% for f in cats %}<a class='{% if f==filter_value %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section><section class='panel'><h2>문파원 접속 현황</h2><div class='member-grid'>{{ member_html|safe }}</div></section><div id='postList'>{{ post_list|safe }}</div>
+<section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='openGlobalChat()'>통합채팅</button><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button><button class='gray' onclick='openAlarmCheck()'>알림점검</button><button class='gray' onclick='toggleClosedPosts()' id='closedToggleBtn'>마감숨김</button></div><div class='summary'><div class='stat'><b>{{ open_count }}</b><span>모집중</span></div><div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div><div class='stat'><b id='myCount'>0</b><span>내 참여</span></div></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안 동작합니다. 알림점검에서 권한과 테스트 알림을 확인하세요.</div>
+<form class='search-row' method='get' action='/'><input name='q' value='{{ q }}' placeholder='닉네임 / 장소 / 직업 검색'><input type='hidden' name='filter' value='{{ filter_value }}'><button>검색</button><a class='btn gray' href='/?filter={{ filter_value }}'>초기화</a></form>
+<div class='tabs'>{% for f in cats %}<a class='{% if f==filter_value %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section><section class='panel'><h2>문파원 접속 현황</h2><div class='member-grid'>{{ member_html|safe }}</div></section>{{ farm_stats|safe }}<div id='postList'>{{ post_list|safe }}</div>
 {% endif %}
 {% if page=='new' or page=='edit' %}
 <section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘는 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
@@ -536,7 +651,9 @@ MAIN = """
 </div>
 <div id='globalModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>💬 통합채팅</b><button class='mini gray' onclick='closeGlobalChat()'>닫기</button></div><div class='alarm-guide'>최근 100개 유지 · 24시간 자동삭제 · 본인 5분 이내 삭제 가능</div><div id='globalChatList' class='chat-list'></div><div class='chat-form'><input id='globalChatText' placeholder='메시지'><button onclick='sendGlobalChat()'>전송</button></div></div></div>
 <div id='partyModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>💬 채팅</b><button class='mini gray' onclick='closePartyChat()'>닫기</button></div><div id='partyChatList' class='chat-list'></div><div class='chat-form'><input id='partyChatText' placeholder='메시지'><button onclick='sendPartyChat()'>전송</button></div></div></div>
-<div id='charPickModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>참여 캐릭터 선택</b><button class='mini gray' onclick='closeCharPick()'>닫기</button></div><div id='charPickList' class='choice-list'></div></div></div><div id='toast' class='toast'></div>
+<div id='charPickModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between'><b>참여 캐릭터 선택</b><button class='mini gray' onclick='closeCharPick()'>닫기</button></div><div id='charPickList' class='choice-list'></div></div></div>
+<div id='alarmModal' class='modal'><div class='panel chat-panel'><div style='display:flex;justify-content:space-between;align-items:center'><b>🔔 알림 점검</b><button class='mini gray' onclick='closeAlarmCheck()'>닫기</button></div><div id='alarmStatusBox' class='alarm-guide'>상태 확인중...</div><div class='top-actions'><button class='ok' onclick='requestAlarmPermission()'>권한 요청</button><button onclick='sendTestNotification()'>테스트 알림</button><button class='gray' onclick='refreshAlarmStatus()'>새로고침</button></div><div class='notice'>알림은 사이트 탭이 열려 있어야 동작합니다. 주소창 왼쪽 사이트 설정에서 알림이 차단되어 있으면 허용으로 바꿔주세요.</div></div></div>
+<div id='toast' class='toast'></div>
 <script>
 const CURRENT_USER_ID="{{ user.id if user else '' }}";let globalOpen=false;let partyId=null;let knownPosts=new Set();let firstLoad=true;
 function qs(id){return document.getElementById(id)}function toast(m){const t=qs('toast');if(!t){alert(m);return}t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}
@@ -549,7 +666,7 @@ function toggleFarmResultBox(sid,bid){const s=qs(sid),b=qs(bid);if(s&&b)b.style.
 function copyPost(t){navigator.clipboard?navigator.clipboard.writeText(t).then(()=>toast('복사됨')):alert(t)}
 function shareKakao(t){const txt='월하 · 연가 · 연희 파티모집\\n\\n'+t+'\\n\\n'+location.origin;if(navigator.share)navigator.share({title:'파티모집',text:txt,url:location.origin}).catch(()=>copyPost(txt));else{copyPost(txt);toast('공유문구 복사됨')}}
 function isEditingPost(){const a=document.activeElement;if(!a)return false;if(a.closest&&a.closest('.farm-manage'))return true;if(['INPUT','SELECT','TEXTAREA'].includes(a.tagName)&&a.closest&&a.closest('.post'))return true;return false}
-function refresh(){if(location.pathname!='/')return;if(isEditingPost())return;fetch('/api/posts'+location.search,{cache:'no-store'}).then(r=>r.text()).then(h=>{qs('postList').innerHTML=h;scanAlarms();countMine()}).catch(()=>{})}
+function refresh(){if(location.pathname!='/')return;if(isEditingPost())return;fetch('/api/posts'+location.search,{cache:'no-store'}).then(r=>r.text()).then(h=>{qs('postList').innerHTML=h;scanAlarms();countMine();applyClosedVisibility()}).catch(()=>{})}
 function countMine(){let c=0;document.querySelectorAll('.post').forEach(p=>{if(p.dataset.owner==='1'||(CURRENT_USER_ID&&(p.dataset.participants||'').includes(CURRENT_USER_ID)))c++});if(qs('myCount'))qs('myCount').textContent=c}
 function closeCharPick(){qs('charPickModal').classList.remove('show')}
 function chooseChar(cb, job){fetch('/api/mychars'+(job?'?job='+encodeURIComponent(job):''),{cache:'no-store'}).then(r=>r.json()).then(d=>{const cs=d.chars||[];if(!cs.length){toast('사용 가능한 캐릭터가 없습니다.');return}if(cs.length===1){cb(cs[0].id);return}const box=qs('charPickList');box.innerHTML='';cs.forEach(c=>{const b=document.createElement('button');b.textContent=c.label+' 으로 참여';b.onclick=()=>{cb(c.id);closeCharPick()};box.appendChild(b)});qs('charPickModal').classList.add('show')})}
@@ -590,6 +707,24 @@ function toggleAlarm(){
     toast(turningOff?'알림 꺼짐':'알림 켜짐');
   }
 }
+function alarmStatusText(){
+  if(!('Notification' in window))return '미지원: 이 브라우저는 알림을 지원하지 않습니다.';
+  if(Notification.permission==='granted')return '허용: 브라우저 알림을 받을 수 있습니다.';
+  if(Notification.permission==='denied')return '차단: 브라우저/사이트 설정에서 알림을 허용으로 바꿔야 합니다.';
+  return '미설정: 권한 요청 버튼을 눌러 허용해주세요.';
+}
+function refreshAlarmStatus(){const b=qs('alarmStatusBox');if(b)b.textContent=alarmStatusText();}
+function openAlarmCheck(){const m=qs('alarmModal');if(m){m.classList.add('show');refreshAlarmStatus();}}
+function closeAlarmCheck(){const m=qs('alarmModal');if(m)m.classList.remove('show');}
+function requestAlarmPermission(){
+  if(!('Notification' in window)){toast('이 브라우저는 알림 미지원');refreshAlarmStatus();return}
+  Notification.requestPermission().then(()=>{refreshAlarmStatus();toast('알림 권한 상태 확인됨')});
+}
+function sendTestNotification(){notifyUser('테스트 알림','알림이 정상 동작합니다.');refreshAlarmStatus();}
+function closedHidden(){return localStorage.getItem('baram_hide_closed')==='1'}
+function applyClosedVisibility(){document.querySelectorAll('.closed-card').forEach(x=>x.style.display=closedHidden()?'none':'');const b=qs('closedToggleBtn');if(b)b.textContent=closedHidden()?'마감표시':'마감숨김'}
+function toggleClosedPosts(){localStorage.setItem('baram_hide_closed',closedHidden()?'0':'1');applyClosedVisibility()}
+
 function scanAlarms(){document.querySelectorAll('.post').forEach(p=>{const id=p.dataset.postId;if(id&&!knownPosts.has(id)){if(!firstLoad&&alarmOn())notifyUser('새 모집글','새 글이 올라왔습니다.');knownPosts.add(id)}});firstLoad=false}
 let eventState=null;
 function pollEvents(){
@@ -619,12 +754,12 @@ function pollEvents(){
   }).catch(()=>{});
 }
 function heartbeat(){fetch('/api/heartbeat',{method:'POST'}).then(r=>r.json()).then(x=>{if(qs('onlineCount'))qs('onlineCount').textContent=x.online||1}).catch(()=>{})}
-document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();heartbeat();scanAlarms();pollEvents();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});
+document.addEventListener('DOMContentLoaded',()=>{updatePlaces();toggleSlotBox();updateAlarmBtn();refreshAlarmStatus();heartbeat();scanAlarms();applyClosedVisibility();pollEvents();countMine();['globalChatText','partyChatText'].forEach(id=>{const i=qs(id);if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();id==='globalChatText'?sendGlobalChat():sendPartyChat()}})})});
 setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);setInterval(pollEvents,2500);
 </script></body></html>
 """
 
-ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>관리자</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if admin_msg %}<div class='notice'>{{ admin_msg }}</div>{% endif %}<section class='panel'><b>현재 로그인</b><br>{{ current_label }}</section>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>현재 계정을 임시 관리자 접속 / 최고관리자 등록</button></form><p class='meta'>먼저 메인 사이트에서 본인 문파원 계정으로 로그인되어 있어야 합니다. 로그인 계정이 없으면 최고관리자로 지정할 대상이 없습니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ {'member':'일반','admin':'관리자/부문파장','super':'최고관리자'}.get(u.role|default('member'), u.role|default('member')) }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form>{% if super_ok %}<form method='post' action='/admin/delete_user/{{ u.id }}' style='display:inline' onsubmit="return confirm('정말 이 회원을 삭제할까요?')"><button class='mini danger'>회원삭제</button></form>{% endif %}</div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div></body></html>"""
+ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>관리자</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if admin_msg %}<div class='notice'>{{ admin_msg }}</div>{% endif %}<section class='panel'><b>현재 로그인</b><br>{{ current_label }}</section>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>현재 계정을 임시 관리자 접속 / 최고관리자 등록</button></form><p class='meta'>먼저 메인 사이트에서 본인 문파원 계정으로 로그인되어 있어야 합니다. 로그인 계정이 없으면 최고관리자로 지정할 대상이 없습니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form><a class='btn ok' href='/admin/backup'>데이터 백업</a></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ {'member':'일반','admin':'관리자/부문파장','super':'최고관리자'}.get(u.role|default('member'), u.role|default('member')) }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form>{% if super_ok %}<form method='post' action='/admin/delete_user/{{ u.id }}' style='display:inline' onsubmit="return confirm('정말 이 회원을 삭제할까요?')"><button class='mini danger'>회원삭제</button></form>{% endif %}</div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div></body></html>"""
 
 @app.before_request
 def gate_guard():
@@ -698,20 +833,29 @@ def home():
     u = current_user(d)
     touch()
     filt = request.args.get("filter","전체")
-    posts = list(reversed(d["posts"]))
+    q = request.args.get("q","").strip()
+    all_posts = list(reversed(d["posts"]))
+    posts = all_posts
     if filt != "전체":
         posts = [p for p in posts if p.get("category") == filt]
+    if q:
+        posts = [p for p in posts if match_post_query(p, q)]
+    posts = sort_posts_for_view(posts)
     open_count = sum(1 for p in posts if status_text(p) in ["모집중","진행중"])
-    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), open_count=open_count, member_html=member_html(d), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES)
+    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, q=q, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), open_count=open_count, member_html=member_html(d), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION)
 
 @app.route("/api/posts")
 def api_posts():
     d = load()
     u = current_user(d)
     filt = request.args.get("filter","전체")
+    q = request.args.get("q","").strip()
     posts = list(reversed(d["posts"]))
     if filt != "전체":
         posts = [p for p in posts if p.get("category") == filt]
+    if q:
+        posts = [p for p in posts if match_post_query(p, q)]
+    posts = sort_posts_for_view(posts)
     return render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u))
 
 @app.route("/new")
@@ -721,7 +865,7 @@ def new_page():
     if not chars(u):
         return redirect("/chars")
     allowed_categories = ["사냥", "600퀘", "파밍"] if is_admin_user(u) else ["사냥", "600퀘"]
-    return render_template_string(MAIN, css=CSS, page="new", post=None, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="")
+    return render_template_string(MAIN, css=CSS, page="new", post=None, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="", app_version=APP_VERSION)
 
 @app.route("/create", methods=["POST"])
 def create():
@@ -749,7 +893,7 @@ def edit(pid):
         return redirect("/")
     if request.method == "GET":
         allowed_categories = ["사냥", "600퀘", "파밍"] if is_admin_user(u) else ["사냥", "600퀘"]
-        return render_template_string(MAIN, css=CSS, page="edit", post=p, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="")
+        return render_template_string(MAIN, css=CSS, page="edit", post=p, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="", app_version=APP_VERSION)
     def fn(x):
         pp = find_post(x, pid)
         if pp and pp.get("owner_uid") == u.get("id"):
@@ -763,7 +907,7 @@ def edit(pid):
 @app.route("/chars")
 def chars_page():
     d=load(); u=current_user(d)
-    return render_template_string(MAIN, css=CSS, page="chars", user=u, jobs=JOBS, places=PLACES, cats_no_all=CATEGORIES[1:], notice="")
+    return render_template_string(MAIN, css=CSS, page="chars", user=u, jobs=JOBS, places=PLACES, cats_no_all=CATEGORIES[1:], notice="", app_version=APP_VERSION)
 
 @app.route("/chars/add", methods=["POST"])
 def char_add():
@@ -1162,6 +1306,17 @@ def admin_char(uid,cid,action):
             if c.get("id")==cid: c["status"]="approved" if action=="approve" else "rejected"
     save(fn); return redirect("/admin")
 
+
+
+@app.route("/admin/backup")
+def admin_backup():
+    d=load(); actor=current_user(d)
+    if not (is_admin_user(actor) or bootstrap_admin_ok(d)):
+        return redirect("/admin")
+    if not os.path.exists(DATA_FILE):
+        write_data(d)
+    filename = f"baram_party_backup_{kst_now().strftime('%Y%m%d_%H%M%S')}.json"
+    return send_file(DATA_FILE, as_attachment=True, download_name=filename, mimetype="application/json")
 
 @app.route("/admin/delete_user/<uid>", methods=["POST"])
 def admin_delete_user(uid):

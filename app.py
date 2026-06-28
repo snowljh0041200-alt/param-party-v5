@@ -117,6 +117,8 @@ def clean_data(d):
         p.setdefault("share_ids", [])
         p.setdefault("early_ids", [])
         p.setdefault("late_ids", [])
+        p.setdefault("early_weight", p.get("early_weight", "1.0"))
+        p.setdefault("late_weight", p.get("late_weight", "0.88"))
         p.setdefault("late_percent", p.get("late_percent", "15"))
         p.setdefault("late_share", "")
         closed_at = parse_dt(p.get("closed_at"))
@@ -260,30 +262,58 @@ def farm_calc(p):
     # 이전 데이터 호환: share_ids만 있으면 전부 선집합으로 처리
     if not early_ids and not late_ids and p.get("share_ids"):
         early_ids = set(p.get("share_ids", []))
+
     early = [x for x in p.get("participants", []) if x.get("id") in early_ids]
     late = [x for x in p.get("participants", []) if x.get("id") in late_ids]
     early_count = len(early)
     late_count = len(late)
-    raw = str(p.get("late_percent") or "15").strip()
-    try:
-        pct = float(raw)
-    except Exception:
-        pct = 15.0
-        raw = "15"
-    pct = max(0.0, min(100.0, pct))
-    if amt <= 0:
-        return {"amount": amt, "early_count": early_count, "late_count": late_count, "early_share": 0, "late_share": 0, "late_total": 0, "early_total": 0, "late_percent": raw}
-    if late_count > 0 and pct > 0:
-        late_total = int(amt * pct / 100)
-        early_total = max(0, amt - late_total)
-        late_share = int(late_total / late_count) if late_count else 0
-        early_share = int(early_total / early_count) if early_count else 0
-    else:
-        late_total = 0
-        early_total = amt
-        late_share = 0
-        early_share = int(early_total / early_count) if early_count else 0
-    return {"amount": amt, "early_count": early_count, "late_count": late_count, "early_share": early_share, "late_share": late_share, "late_total": late_total, "early_total": early_total, "late_percent": raw}
+
+    def to_float(value, default):
+        try:
+            return float(str(value).strip())
+        except Exception:
+            return default
+
+    early_weight_raw = str(p.get("early_weight") or "1.0").strip()
+    late_weight_raw = str(p.get("late_weight") or "0.88").strip()
+    early_weight = max(0.0, to_float(early_weight_raw, 1.0))
+    late_weight = max(0.0, to_float(late_weight_raw, 0.88))
+
+    total_weight = early_count * early_weight + late_count * late_weight
+    if amt <= 0 or total_weight <= 0:
+        return {
+            "amount": amt,
+            "early_count": early_count,
+            "late_count": late_count,
+            "early_share": 0,
+            "late_share": 0,
+            "early_total": 0,
+            "late_total": 0,
+            "early_weight": early_weight_raw,
+            "late_weight": late_weight_raw,
+            "unit_share": 0,
+            "total_weight": total_weight
+        }
+
+    unit_share = amt / total_weight
+    early_share = int(unit_share * early_weight)
+    late_share = int(unit_share * late_weight)
+    early_total = early_share * early_count
+    late_total = late_share * late_count
+
+    return {
+        "amount": amt,
+        "early_count": early_count,
+        "late_count": late_count,
+        "early_share": early_share,
+        "late_share": late_share,
+        "early_total": early_total,
+        "late_total": late_total,
+        "early_weight": early_weight_raw,
+        "late_weight": late_weight_raw,
+        "unit_share": int(unit_share),
+        "total_weight": total_weight
+    }
 
 def can_chat(p, u):
     if not approved(u):
@@ -376,7 +406,7 @@ def render_posts(posts, u, farm_items=None, admin=False):
             if cat == "파밍" and p.get("farm_result") == "득템":
                 ctmp = farm_calc(p)
                 copy_lines.append(f"득템 : {p.get('farm_item')} ({amount_text(p.get('sale_amount'))})")
-                copy_lines.append(f"후집합 비율 : {ctmp['late_percent']}%")
+                copy_lines.append(f"지분 : 선집합 {ctmp['early_weight']} / 후집합 {ctmp['late_weight']}")
                 copy_lines.append(f"선집합인원 : {ctmp['early_count']}명 / 인당 {amount_text(ctmp['early_share'])}")
                 copy_lines.append(f"후집합인원 : {ctmp['late_count']}명 / 인당 {amount_text(ctmp['late_share'])}")
             join_btn = ""
@@ -395,7 +425,7 @@ def render_posts(posts, u, farm_items=None, admin=False):
                 result += f"<div class='notice'>{badge}</div>"
                 if p.get("farm_result") == "득템":
                     c = farm_calc(p)
-                    result += f"<div class='notice'>결과: <b>득템</b><br>아이템: <b>{e(p.get('farm_item'))}</b><br>판매금액: <b>{amount_text(p.get('sale_amount'))}</b><br>후집합 비율: <b>{e(c['late_percent'])}%</b><br><br>선집합 총액: <b>{amount_text(c['early_total'])}</b><br>선집합: <b>{c['early_count']}명</b> / 인당 <b>{amount_text(c['early_share'])}</b><br><br>후집합 총액: <b>{amount_text(c['late_total'])}</b><br>후집합: <b>{c['late_count']}명</b> / 인당 <b>{amount_text(c['late_share'])}</b></div>"
+                    result += f"<div class='notice'>결과: <b>득템</b><br>아이템: <b>{e(p.get('farm_item'))}</b><br>판매금액: <b>{amount_text(p.get('sale_amount'))}</b><br>지분: 선집합 <b>{e(c['early_weight'])}</b> / 후집합 <b>{e(c['late_weight'])}</b><br><br>선집합 총액: <b>{amount_text(c['early_total'])}</b><br>선집합: <b>{c['early_count']}명</b> / 인당 <b>{amount_text(c['early_share'])}</b><br><br>후집합 총액: <b>{amount_text(c['late_total'])}</b><br>후집합: <b>{c['late_count']}명</b> / 인당 <b>{amount_text(c['late_share'])}</b></div>"
                 elif p.get("farm_result") == "노득":
                     result += "<div class='notice'>결과: <b>노득</b></div>"
                 if owner_admin:
@@ -421,7 +451,8 @@ def render_posts(posts, u, farm_items=None, admin=False):
                     <label>판매금액</label><input name='sale_amount' value='{e(p.get('sale_amount'))}' inputmode='numeric' placeholder='예: 26000000'>
                     <label>선집합 체크</label><div class='check-box'>{early_checks}</div>
                     <label>후집합 체크</label><div class='check-box'>{late_checks}</div>
-                    <label>후집합 비율(%)</label><input name='late_percent' value='{e(p.get('late_percent', '15'))}' inputmode='decimal' placeholder='예: 15 또는 22.5'>
+                    <label>선집합 지분</label><input name='early_weight' value='{e(p.get('early_weight', '1.0'))}' inputmode='decimal' placeholder='기본 1.0'>
+                    <label>후집합 지분</label><input name='late_weight' value='{e(p.get('late_weight', '0.88'))}' inputmode='decimal' placeholder='예: 0.88 / 0.85 / 0.9'>
                     </div>
                     <button class='ok'>결과/분배 저장</button>
                     </form>
@@ -815,11 +846,12 @@ def farming_result(pid):
             early_ids = [x for x in request.form.getlist("early_ids") if x not in late_ids]
             p["early_ids"]=early_ids
             p["late_ids"]=late_ids
-            p["late_percent"]="".join(ch for ch in request.form.get("late_percent","15") if ch.isdigit() or ch==".") or "15"
+            p["early_weight"]="".join(ch for ch in request.form.get("early_weight","1.0") if ch.isdigit() or ch==".") or "1.0"
+            p["late_weight"]="".join(ch for ch in request.form.get("late_weight","0.88") if ch.isdigit() or ch==".") or "0.88"
             # 예전 호환용
             p["share_ids"]=list(dict.fromkeys(p.get("early_ids", []) + p.get("late_ids", [])))
         else:
-            p["farm_item"]=""; p["sale_amount"]=""; p["share_ids"]=[]; p["early_ids"]=[]; p["late_ids"]=[]; p["late_percent"]="15"; p["late_share"]=""
+            p["farm_item"]=""; p["sale_amount"]=""; p["share_ids"]=[]; p["early_ids"]=[]; p["late_ids"]=[]; p["early_weight"]="1.0"; p["late_weight"]="0.88"; p["late_percent"]="15"; p["late_share"]=""
         p["farm_status"]="결과입력완료"
     save(fn); return redirect("/")
 

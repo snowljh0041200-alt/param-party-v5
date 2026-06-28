@@ -15,7 +15,7 @@ ONLINE_USERS = {}
 HUNTING = ["도삭산 900층", "흉노족", "선비족"]
 FARMING = ["해골왕", "어금니"]
 QUEST600 = ["800층 600퀘", "900층 600퀘", "선비족 600퀘"]
-FILTERS = ["전체", "사냥", "파밍", "600퀘", "도삭산 900층", "흉노족", "선비족", "해골왕", "어금니"]
+FILTERS = ["전체", "사냥", "파밍", "600퀘"]
 JOBS = ["전사","검객","검제","검황","검성","도적","자객","진검","귀검","태성","주술사","술사","현사","현인","현자","도사","도인","명인","진인","진선"]
 
 def esc(v):
@@ -231,7 +231,7 @@ PAGE = r'''
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>월하 · 연가 · 연희 파티모집 v8</title>
+<title>월하 · 연가 · 연희 파티모집 v9</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",Arial,sans-serif;background:#0b1020}
@@ -252,17 +252,16 @@ h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-heig
 .slot{display:flex;justify-content:space-between;align-items:center;background:rgba(8,12,24,.62);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px;margin:9px 0}.slot.filled{background:rgba(18,55,33,.58);border-color:rgba(73,190,112,.35)}
 .actions{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:12px}.owner-action,.participant-action,.party-action{display:none!important}.owner-action.show,.participant-action.show,.party-action.show{display:inline-flex!important}
 .hidden{display:none!important}.time-row{display:grid;grid-template-columns:90px 1fr;gap:8px}.quick{display:grid;grid-template-columns:1fr auto;gap:8px}.small{font-size:13px;padding:8px 10px;min-height:34px}
-.fab{position:fixed;right:18px;bottom:18px;border-radius:50%;width:62px;height:62px;font-size:30px}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1e2845;border:1px solid #53648f;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}
+.fab{position:fixed;right:18px;bottom:18px;border-radius:50%;width:62px;height:62px;font-size:30px}.alarm-toggle{position:fixed;left:14px;bottom:20px;z-index:50;background:linear-gradient(180deg,#4c5571,#363d55);box-shadow:0 8px 22px rgba(0,0,0,.25)}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1e2845;border:1px solid #53648f;border-radius:999px;padding:10px 16px;opacity:0;transition:.2s;z-index:999;font-weight:900}.toast.show{opacity:1}
 .my-only .post:not(.mine){display:none}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:100}.modal.show{display:flex}.panel.chat-panel{width:100%;max-width:820px;margin:0 auto;border-radius:22px 22px 0 0}.chat-list{background:#0d1325;border:1px solid rgba(255,255,255,.12);border-radius:16px;height:330px;overflow-y:auto;padding:10px}.msg{background:#202a47;border-radius:13px;padding:9px 11px;margin:7px 0}.msg.mine{background:#173d27;border:1px solid #2e7146}.msg-meta{font-size:12px;color:#a8b2cc}.chat-form{display:grid;grid-template-columns:95px 1fr 74px;gap:7px;margin-top:9px}.chat-form input{margin:0}
-.notice{background:linear-gradient(180deg,rgba(255,211,106,.18),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.30);color:#ffe5a3;border-radius:18px;padding:12px;margin-top:12px}
+.notice{background:linear-gradient(180deg,rgba(255,211,106,.18),rgba(255,211,106,.08));border:1px solid rgba(255,211,106,.30);color:#ffe5a3;border-radius:18px;padding:12px;margin-top:12px}.alarm-guide{margin-top:10px;background:rgba(10,15,30,.55);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:11px 12px;color:#c8d2ef;font-size:13px;line-height:1.4}
 @media(max-width:640px){.wrap{padding:12px 10px 90px}.header{display:block}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.chat-form{grid-template-columns:1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header class="header">
-  <div><h1>🏹 월하 · 연가 · 연희 파티모집</h1><div class="sub">바람의나라 클래식 통합 파티 모집 · v8 ADMIN</div></div>
-  <a class="admin-link" href="/admin">관리자</a>
+  <div><h1>⚔️ 월하 · 연가 · 연희 파티모집</h1><div class="sub">Made by 역인(진선)</div></div>
 </header>
 
 {% if notice %}<div class="notice">📢 {{ notice }}</div>{% endif %}
@@ -271,6 +270,7 @@ h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-heig
 <section class="panel">
   <div class="top-actions"><a class="btn" href="/new">+ 모집글</a><a class="btn gray" href="/profile">내 캐릭터</a><button class="gray" onclick="toggleMy()">내 참여/내 글</button></div>
   <div class="summary"><div class="stat"><b>{{ open_count }}</b><span>모집중</span></div><div class="stat"><b id="onlineCount">1</b><span>접속중</span></div><div class="stat"><b id="myCount">0</b><span>내 글/참여</span></div></div>
+  <div class="alarm-guide">🔔 알림은 사이트가 열려있는 동안에만 동작합니다. 새 모집글, 참여, 채팅을 알려드립니다.</div>
   <div class="tabs">{% for f in filters %}<a class="{% if filter_value == f %}on{% endif %}" href="/?filter={{ f }}">{{ f }}</a>{% endfor %}</div>
 </section>
 <div id="postList">{{ post_list|safe }}</div><a class="btn fab" href="/new">+</a>
@@ -301,6 +301,7 @@ h2{font-size:24px;margin:12px 0 5px}.meta{color:#b5bfd9;font-size:14px;line-heig
 </div>
 
 <div id="chatModal" class="modal" onclick="if(event.target.id==='chatModal')closeChat()"><div class="panel chat-panel"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>💬 파티채팅</b><button class="small gray" onclick="closeChat()">닫기</button></div><div id="chatList" class="chat-list"></div><div class="chat-form"><input id="chatName" placeholder="닉네임" maxlength="12"><input id="chatText" placeholder="메시지" maxlength="120" onkeydown="if(event.key==='Enter')sendChat()"><button onclick="sendChat()">전송</button></div></div></div>
+<button id="alarmBtn" class="alarm-toggle" onclick="toggleAlarm()">🔔 알림 ON</button>
 <div id="toast" class="toast"></div>
 <script>
 function id(){let v=localStorage.getItem("baram_client_id");if(!v){v=(crypto&&crypto.randomUUID)?crypto.randomUUID():"id_"+Date.now()+"_"+Math.random();localStorage.setItem("baram_client_id",v)}return v}
@@ -315,7 +316,7 @@ function delChar(i){let c=chars();c.splice(i,1);setChars(c)}
 function renderChars(){let b=document.getElementById("charList");if(!b)return;let c=chars();b.innerHTML=c.length?c.map((x,i)=>"<div class='slot'><div><b>"+x.name+"</b><br>"+x.job+"</div><button class='small danger' onclick='delChar("+i+")'>삭제</button></div>").join(""):"<div class='panel'>등록된 캐릭터 없음</div>"}
 function apply(){let cid=id();document.querySelectorAll(".post").forEach(p=>{let owner=p.dataset.ownerId===cid;let parts=(p.dataset.participantIds||"").split("|").filter(Boolean);let inParty=owner||parts.includes(cid);p.classList.toggle("mine",inParty);p.querySelectorAll(".owner-action").forEach(b=>b.classList.toggle("show",owner));p.querySelectorAll(".party-action").forEach(b=>b.classList.toggle("show",inParty));p.querySelectorAll(".slot").forEach(s=>{let can=owner||(s.dataset.participantId===cid);s.querySelectorAll(".participant-action").forEach(b=>b.classList.toggle("show",can))})});let mc=document.getElementById("myCount");if(mc)mc.textContent=document.querySelectorAll(".post.mine").length}
 function toggleMy(){document.body.classList.toggle("my-only");apply()}
-function refresh(){if(location.pathname!=="/")return;fetch("/api/posts"+location.search).then(r=>r.text()).then(h=>{document.getElementById("postList").innerHTML=h;apply()})}
+function refresh(){if(location.pathname!=="/")return;fetch("/api/posts"+location.search).then(r=>r.text()).then(h=>{document.getElementById("postList").innerHTML=h;apply();scanAlarms()})}
 function copyPost(t){navigator.clipboard?navigator.clipboard.writeText(t).then(()=>toast("복사됨")):alert(t)}
 function joinSlot(pid,sid,job){let m=chars().filter(c=>c.job===job);let name=m.length===1?m[0].name:prompt(job+" 참여 캐릭터명");if(!name)return;fetch("/join",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({post_id:pid,slot_id:sid,char:name,participant_id:id()})}).then(()=>{toast("참여됨");refresh()})}
 function leaveSlot(pid,sid){if(!confirm("비울까?"))return;fetch("/leave",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({post_id:pid,slot_id:sid,client_id:id()})}).then(()=>refresh())}
@@ -325,8 +326,59 @@ function openChat(pid){currentChat=pid;document.getElementById("chatModal").clas
 function closeChat(){currentChat=null;document.getElementById("chatModal").classList.remove("show")}
 function refreshChat(){if(!currentChat)return;fetch("/api/chat/"+currentChat+"?client_id="+encodeURIComponent(id())).then(r=>r.text()).then(h=>{let b=document.getElementById("chatList");b.innerHTML=h;b.scrollTop=b.scrollHeight})}
 function sendChat(){if(!currentChat)return;let n=document.getElementById("chatName");let t=document.getElementById("chatText");if(!t.value.trim())return;if(n.value.trim())localStorage.setItem("baram_chat_name",n.value.trim());fetch("/chat/"+currentChat,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:id(),name:n.value.trim()||"익명",text:t.value.trim()})}).then(r=>r.json()).then(x=>{if(!x.ok)return toast("참여자만 이용 가능");t.value="";refreshChat();refresh()})}
+
+let knownPostIds=new Set();
+let knownChatCounts={};
+let knownFilledCounts={};
+let firstAlarmLoad=true;
+function alarmOn(){return localStorage.getItem("baram_alarm_off")!=="1"}
+function updateAlarmBtn(){let b=document.getElementById("alarmBtn");if(b)b.textContent=alarmOn()?"🔔 알림 ON":"🔕 알림 OFF"}
+function toggleAlarm(){
+    localStorage.setItem("baram_alarm_off", alarmOn() ? "1" : "0");
+    updateAlarmBtn();
+    if(alarmOn() && "Notification" in window && Notification.permission==="default"){Notification.requestPermission()}
+    toast(alarmOn() ? "알림 켜짐" : "알림 꺼짐");
+}
+function notifyUser(title, body){
+    if(!alarmOn())return;
+    toast(body || title);
+    if("Notification" in window && Notification.permission==="granted"){
+        new Notification(title,{body:body||""});
+    }
+}
+function scanAlarms(){
+    if(location.pathname!=="/")return;
+    let posts=[...document.querySelectorAll(".post")];
+    let cid=id();
+    for(let p of posts){
+        let pid=p.dataset.postId;
+        let participants=(p.dataset.participantIds||"").split("|").filter(Boolean);
+        let owner=p.dataset.ownerId===cid;
+        let joined=participants.includes(cid);
+        let inParty=owner||joined;
+        let chatBtn=p.querySelector(".party-action");
+        let chatText=chatBtn?chatBtn.textContent:"";
+        let chatCount=parseInt((chatText.match(/\d+/)||["0"])[0]);
+        let countText=(p.querySelector(".count")||{}).textContent||"0/0";
+        let filled=parseInt((countText.split("/")[0]||"0").trim());
+        if(!knownPostIds.has(pid)){
+            if(!firstAlarmLoad){notifyUser("새 모집글", "새 파티 모집글이 올라왔습니다.");}
+            knownPostIds.add(pid);
+        }
+        if(inParty && knownChatCounts[pid]!==undefined && chatCount>knownChatCounts[pid]){
+            notifyUser("새 채팅", "참여 중인 파티에 새 채팅이 있습니다.");
+        }
+        if(owner && knownFilledCounts[pid]!==undefined && filled>knownFilledCounts[pid]){
+            notifyUser("새 참여자", "내 모집글에 새 참여자가 들어왔습니다.");
+        }
+        knownChatCounts[pid]=chatCount;
+        knownFilledCounts[pid]=filled;
+    }
+    firstAlarmLoad=false;
+}
+
 function heartbeat(){fetch("/api/heartbeat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:id()})}).then(r=>r.json()).then(x=>{let o=document.getElementById("onlineCount");if(o)o.textContent=x.online||1}).catch(()=>{})}
-setInterval(refresh,2500);setInterval(refreshChat,1800);setInterval(heartbeat,15000);renderChars();updatePlaces();apply();heartbeat();
+setInterval(refresh,2500);setInterval(refreshChat,1800);setInterval(heartbeat,15000);renderChars();updatePlaces();apply();heartbeat();updateAlarmBtn();scanAlarms();
 </script>
 </body>
 </html>
@@ -336,9 +388,9 @@ ADMIN_PAGE = r'''
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>관리자</title>
 <style>
 body{margin:0;background:#0b1020;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",Arial,sans-serif}.wrap{max-width:900px;margin:0 auto;padding:18px}.box{background:#151b30;border:1px solid #38425f;border-radius:20px;padding:16px;margin:12px 0}input,textarea{width:100%;background:#0d1325;color:white;border:1px solid #4b5575;border-radius:12px;padding:12px;margin:8px 0}button,.btn{border:0;border-radius:12px;background:#5574ff;color:white;font-weight:900;padding:10px 13px;text-decoration:none}button.danger{background:#d64a4a}.row{display:flex;gap:8px;flex-wrap:wrap}.post{border-top:1px solid #313a56;padding:12px 0}.muted{color:#aeb8d7}
-</style></head><body><div class="wrap"><h1>🔒 관리자 페이지</h1><a class="btn" href="/">메인으로</a>
+</style></head><body><div class="wrap"><h1>🔒 관리자</h1><a class="btn" href="/">메인으로</a>
 {% if not admin_ok %}
-<div class="box"><form method="post" action="/admin/login"><label>관리자 비밀번호</label><input name="password" type="password" autofocus><button>로그인</button></form><p class="muted">기본 비밀번호는 1234입니다. Render 환경변수 ADMIN_PASSWORD로 변경 가능합니다.</p></div>
+<div class="box"><form method="post" action="/admin/login"><label>관리자 비밀번호</label><input name="password" type="password" autofocus><button>로그인</button></form><p class="muted">관리자만 접근 가능한 페이지입니다.</p></div>
 {% else %}
 <div class="box"><div class="row"><form method="post" action="/admin/logout"><button>로그아웃</button></form><form method="post" action="/admin/clear_closed"><button>마감글 정리</button></form></div></div>
 <div class="box"><h2>공지</h2><form method="post" action="/admin/notice"><textarea name="notice" rows="3">{{ notice }}</textarea><button>공지 저장</button></form></div>
@@ -544,7 +596,7 @@ def admin_clear_closed():
 
 @app.route("/manifest.json")
 def manifest():
-    return jsonify({"name": "월하 연가 연희 파티모집 v8", "short_name": "파티모집", "start_url": "/", "display": "standalone", "background_color": "#0b1020", "theme_color": "#0b1020", "icons": []})
+    return jsonify({"name": "월하 연가 연희 파티모집 v9", "short_name": "파티모집", "start_url": "/", "display": "standalone", "background_color": "#0b1020", "theme_color": "#0b1020", "icons": []})
 
 @app.route("/sw.js")
 def sw():

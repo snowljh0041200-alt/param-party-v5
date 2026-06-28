@@ -1,4 +1,17 @@
-월하 · 연가 · 연희 파티모집 v8 ADMIN
+월하 · 연가 · 연희 파티모집 v9 PRACTICAL
+
+최종 확정 내용:
+- 메인 관리자 링크 제거
+- /admin 직접 입력으로만 관리자 접근
+- 관리자 페이지 비밀번호 안내 문구 제거
+- 메인 제목: 월하 · 연가 · 연희 파티모집
+- Made by 역인(진선)
+- 필터: 전체 / 사냥 / 파밍 / 600퀘
+- 접속중 / 모집중 / 내 글·참여 표시
+- 알림 ON/OFF 복구
+- 알림 안내 문구 표시
+- 새 모집글 / 새 채팅 / 새 참여자 알림
+- 모집글 작성, 참여, 비우기, 본인글 삭제, 참여자 채팅 유지
 
 일반 사용자 주소:
 https://너의주소.onrender.com/
@@ -8,18 +21,10 @@ https://너의주소.onrender.com/admin
 
 관리자 기본 비밀번호:
 1234
+※ 배포 후 Render > Environment 에서 ADMIN_PASSWORD를 원하는 비밀번호로 변경 권장.
 
-일반 사용자는 관리자 아님:
-- 일반 링크만 알면 모집/참여만 가능
-- 본인 글만 삭제 가능
-- /admin 에 들어가도 비밀번호 없으면 관리자 기능 사용 불가
-
-권장:
-Render > Environment 에서 ADMIN_PASSWORD 를 원하는 비밀번호로 추가하면 관리자 비밀번호가 바뀝니다.
-
-업데이트 방법:
+업데이트:
 1. 기존 param-party-v5 폴더에 ZIP 내용 전부 덮어쓰기
-2. 업데이트.bat 실행
-3. GitHub에서 app.py 최신 확인
-4. Render Deploy live 확인
-5. 사이트 Ctrl + Shift + R
+2. PowerShell에서 git add . / git commit -m "v9 practical" / git push
+3. Render Deploy live 확인
+4. 사이트 Ctrl + Shift + R

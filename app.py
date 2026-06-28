@@ -19,6 +19,7 @@ CHAT_LIMIT = 100
 CHAT_RETENTION_HOURS = 24
 CHAT_DELETE_MINUTES = 5
 AUTO_DELETE_HOURS = 1
+QUEST_MAX_PARTICIPANTS = 10
 ONLINE = {}
 
 JOBS = ["검성","검황","검제","전사","검객","태성","귀검","진검","도적","자객","현자","현인","현사","주술사","술사","진선","진인","명인","도사","도인"]
@@ -115,7 +116,7 @@ def clean_data(d):
         p.setdefault("sale_amount", "")
         p.setdefault("share_ids", [])
         closed_at = parse_dt(p.get("closed_at"))
-        if p.get("category") == "사냥" and p.get("closed") and closed_at and closed_at <= cutoff:
+        if p.get("category") in ["사냥","600퀘"] and p.get("closed") and closed_at and closed_at <= cutoff:
             continue
         p["party_chat"] = p.get("party_chat", [])[-CHAT_LIMIT:]
         posts.append(p)
@@ -234,6 +235,10 @@ def status_text(p):
         if p.get("closed") or (t and f >= t):
             return "마감"
         return "모집중"
+    if p.get("category") == "600퀘":
+        if p.get("closed") or len(p.get("participants", [])) >= QUEST_MAX_PARTICIPANTS:
+            return "마감"
+        return "모집중"
     if p.get("category") == "파밍":
         return p.get("farm_status", "진행중")
     return "모집중"
@@ -309,7 +314,7 @@ def render_posts(posts, u, farm_items=None, admin=False):
             cnt_text = f"{f}/{total}"
         else:
             data_part = "|".join(x.get("uid","") for x in p.get("participants", []) if x.get("uid"))
-            cnt_text = str(participant_count(p))
+            cnt_text = f"{participant_count(p)}/{QUEST_MAX_PARTICIPANTS}" if cat == "600퀘" else str(participant_count(p))
 
         copy_lines = [f"[{cat}] {p.get('place')}", f"채널 {p.get('channel') or '미정'}", post_time(p), f"작성자 {p.get('owner_label')}"]
 
@@ -332,12 +337,19 @@ def render_posts(posts, u, farm_items=None, admin=False):
         else:
             ps = p.get("participants", [])
             joined = any(x.get("uid") == uid for x in ps)
-            part_html = "".join(f"<div class='member'>🟢 {e(x.get('label'))}</div>" for x in ps) or "<p class='meta'>아직 참여자가 없습니다.</p>"
+            part_items = []
+            for x in ps:
+                remove_btn = f"<button class='mini danger' onclick=\"removeSimple('{pid}','{e(x.get('id'))}')\">삭제</button>" if owner_admin else ""
+                part_items.append(f"<div class='member'>🟢 {e(x.get('label'))} {remove_btn}</div>")
+            part_html = "".join(part_items) or "<p class='meta'>아직 참여자가 없습니다.</p>"
             for x in ps:
                 copy_lines.append(f"참여 - {x.get('label')}")
             join_btn = ""
+            simple_closed = (cat == "600퀘" and (p.get("closed") or participant_count(p) >= QUEST_MAX_PARTICIPANTS))
             if cat == "파밍" and p.get("farm_status") == "정산완료":
                 join_btn = ""
+            elif simple_closed and not joined:
+                join_btn = "<button class='gray' disabled>모집완료</button>"
             else:
                 join_btn = f"<button class='gray' onclick=\"leaveSimple('{pid}')\">참여취소</button>" if joined else f"<button class='ok' onclick=\"joinSimple('{pid}')\">참여하기</button>"
 
@@ -371,16 +383,17 @@ def render_posts(posts, u, farm_items=None, admin=False):
                     <label>판매금액</label><input name='sale_amount' value='{e(p.get('sale_amount'))}' inputmode='numeric' placeholder='예: 26000000'>
                     <label>분배 대상자 체크</label><div class='check-box'>{share_checks}</div>
                     </div>
-                    <button>결과/분배 저장</button>
+                    <button class='ok'>결과/분배 저장</button>
                     </form>
                     <form method='post' action='/farming/settle/{pid}' onsubmit="return confirm('정산완료 처리할까요?')"><button class='ok' style='width:100%;margin-top:8px'>정산완료</button></form>
                     </div>
                     """
-            body = result + "<h3>참여자</h3>" + part_html + f"<div class='actions simple-action'>{join_btn}</div>" + manage
+            manual_btn = f"<button class='gray' onclick=\"addSimpleManual('{pid}')\">수동 참여자 추가</button>" if owner_admin else ""
+            body = result + "<h3>참여자</h3>" + part_html + f"<div class='actions simple-action'>{join_btn}{manual_btn}</div>" + manage
 
         memo = f"<div class='memo'>📝 {e(p.get('memo'))}</div>" if p.get("memo") else ""
         left = ""
-        if cat == "사냥" and p.get("closed"):
+        if cat in ["사냥","600퀘"] and p.get("closed"):
             dt = parse_dt(p.get("closed_at"))
             if dt:
                 mins = int(((dt + timedelta(hours=AUTO_DELETE_HOURS)) - kst_now()).total_seconds() // 60)
@@ -388,7 +401,10 @@ def render_posts(posts, u, farm_items=None, admin=False):
         copy_text = e("\n".join(copy_lines))
         owner_buttons = ""
         if owner_admin:
-            owner_buttons = f"<a class='btn gray' href='/edit/{pid}'>수정</a><button class='danger' onclick=\"deletePost('{pid}')\">삭제</button>"
+            complete_btn = ""
+            if cat in ["사냥", "600퀘"] and not p.get("closed"):
+                complete_btn = f"<button class='ok' onclick=\"completePost('{pid}')\">모집완료</button>"
+            owner_buttons = complete_btn + f"<a class='btn gray' href='/edit/{pid}'>수정</a><button class='danger' onclick=\"deletePost('{pid}')\">삭제</button>"
         out.append(f"""
         <article class='party-card post' data-post-id='{pid}' data-owner='{"1" if owner else "0"}' data-participants='{e(data_part)}'>
           <div class='post-head'><div><span class='pill {"done" if st in ["마감","정산완료"] else "open"}'>{e(st)}</span><span class='pill type'>{e(cat)}</span></div><b class='count'>{cnt_text}</b></div>
@@ -443,16 +459,20 @@ function addSlot(){const job=qs('slotJob')?.value, box=qs('slotsBox');if(!job||!
 function toggleFarmResultBox(sid,bid){const s=qs(sid),b=qs(bid);if(s&&b)b.style.display=s.value==='득템'?'block':'none'}
 function copyPost(t){navigator.clipboard?navigator.clipboard.writeText(t).then(()=>toast('복사됨')):alert(t)}
 function shareKakao(t){const txt='월하 · 연가 · 연희 파티모집\\n\\n'+t+'\\n\\n'+location.origin;if(navigator.share)navigator.share({title:'파티모집',text:txt,url:location.origin}).catch(()=>copyPost(txt));else{copyPost(txt);toast('공유문구 복사됨')}}
-function refresh(){if(location.pathname!='/')return;fetch('/api/posts'+location.search,{cache:'no-store'}).then(r=>r.text()).then(h=>{qs('postList').innerHTML=h;scanAlarms();countMine()}).catch(()=>{})}
+function isEditingPost(){const a=document.activeElement;if(!a)return false;if(a.closest&&a.closest('.farm-manage'))return true;if(['INPUT','SELECT','TEXTAREA'].includes(a.tagName)&&a.closest&&a.closest('.post'))return true;return false}
+function refresh(){if(location.pathname!='/')return;if(isEditingPost())return;fetch('/api/posts'+location.search,{cache:'no-store'}).then(r=>r.text()).then(h=>{qs('postList').innerHTML=h;scanAlarms();countMine()}).catch(()=>{})}
 function countMine(){let c=0;document.querySelectorAll('.post').forEach(p=>{if(p.dataset.owner==='1'||(CURRENT_USER_ID&&(p.dataset.participants||'').includes(CURRENT_USER_ID)))c++});if(qs('myCount'))qs('myCount').textContent=c}
 function closeCharPick(){qs('charPickModal').classList.remove('show')}
 function chooseChar(cb, job){fetch('/api/mychars'+(job?'?job='+encodeURIComponent(job):''),{cache:'no-store'}).then(r=>r.json()).then(d=>{const cs=d.chars||[];if(!cs.length){toast('사용 가능한 캐릭터가 없습니다.');return}if(cs.length===1){cb(cs[0].id);return}const box=qs('charPickList');box.innerHTML='';cs.forEach(c=>{const b=document.createElement('button');b.textContent=c.label+' 으로 참여';b.onclick=()=>{cb(c.id);closeCharPick()};box.appendChild(b)});qs('charPickModal').classList.add('show')})}
 function joinSlot(pid,sid,job){chooseChar(cid=>fetch('/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid,slot_id:sid,char_id:cid})}).then(()=>refresh()), job)}
 function joinSimple(pid){chooseChar(cid=>fetch('/simple/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid,char_id:cid})}).then(()=>refresh()))}
 function leaveSimple(pid){if(!confirm('참여를 취소할까?'))return;fetch('/simple/leave',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid})}).then(()=>refresh())}
+function removeSimple(pid,participantId){if(!confirm('이 참여자를 목록에서 뺄까?'))return;fetch('/simple/remove',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid,participant_id:participantId})}).then(()=>refresh())}
+function addSimpleManual(pid){const name=prompt('수동으로 추가할 참여자 이름을 입력해줘');if(!name)return;fetch('/simple/add_manual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid,name:name})}).then(()=>refresh())}
 function addExternal(pid,sid){const name=prompt('외부인 닉네임');if(!name)return;fetch('/external',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid,slot_id:sid,name:name})}).then(()=>refresh())}
 function leaveSlot(pid,sid){if(!confirm('비울까?'))return;fetch('/leave',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid,slot_id:sid})}).then(()=>refresh())}
 function deletePost(pid){if(!confirm('삭제할까?'))return;fetch('/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid})}).then(r=>r.json()).then(x=>{toast(x.ok?'삭제됨':x.reason||'삭제 실패');refresh()})}
+function completePost(pid){if(!confirm('모집완료 처리할까?'))return;fetch('/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid})}).then(r=>r.json()).then(x=>{toast(x.ok?'모집완료됨':x.reason||'실패');refresh()})}
 function openGlobalChat(){globalOpen=true;qs('globalModal').classList.add('show');refreshGlobalChat()}function closeGlobalChat(){globalOpen=false;qs('globalModal').classList.remove('show')}
 function refreshGlobalChat(){if(!globalOpen)return;fetch('/api/global_chat',{cache:'no-store'}).then(r=>r.text()).then(h=>{const b=qs('globalChatList');b.innerHTML=h;b.scrollTop=b.scrollHeight})}
 function sendGlobalChat(){const i=qs('globalChatText');if(!i.value.trim())return;fetch('/global_chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:i.value.trim()})}).then(r=>r.json()).then(x=>{if(!x.ok)toast(x.reason||'실패');else{i.value='';refreshGlobalChat()}})}
@@ -676,10 +696,13 @@ def simple_join():
     def fn(x):
         p=find_post(x,r.get("post_id"))
         if not p or p.get("category") not in ["600퀘","파밍"]: return
+        if p.get("category")=="600퀘" and (p.get("closed") or len(p.get("participants", [])) >= QUEST_MAX_PARTICIPANTS): return
         if p.get("category")=="파밍" and p.get("farm_status")=="정산완료": return
         if any(a.get("uid")==u["id"] for a in p["participants"]): return
         pid=new_id()
         p["participants"].append({"id":pid,"uid":u["id"],"char_id":c["id"],"label":label(c)})
+        if p.get("category")=="600퀘" and len(p.get("participants", [])) >= QUEST_MAX_PARTICIPANTS:
+            p["closed"]=True; p["closed_at"]=iso_now()
         if p.get("category")=="파밍":
             p.setdefault("share_ids",[]).append(pid)
     save(fn); return jsonify(ok=True)
@@ -694,6 +717,39 @@ def simple_leave():
         rem=[a.get("id") for a in p["participants"] if a.get("uid")==u["id"]]
         p["participants"]=[a for a in p["participants"] if a.get("uid")!=u["id"]]
         p["share_ids"]=[i for i in p.get("share_ids",[]) if i not in rem]
+    save(fn); return jsonify(ok=True)
+
+
+@app.route("/simple/remove", methods=["POST"])
+def simple_remove():
+    r=request.get_json(force=True); d=load(); u=current_user(d)
+    def fn(x):
+        p=find_post(x,r.get("post_id"))
+        if not p or p.get("category") not in ["600퀘","파밍"] or p.get("owner_uid")!=u.get("id"):
+            return
+        rid=r.get("participant_id")
+        p["participants"]=[a for a in p.get("participants",[]) if a.get("id")!=rid]
+        p["share_ids"]=[i for i in p.get("share_ids",[]) if i!=rid]
+    save(fn); return jsonify(ok=True)
+
+@app.route("/simple/add_manual", methods=["POST"])
+def simple_add_manual():
+    r=request.get_json(force=True); d=load(); u=current_user(d)
+    name=(r.get("name") or "").strip()[:24]
+    if not name:
+        return jsonify(ok=False)
+    def fn(x):
+        p=find_post(x,r.get("post_id"))
+        if not p or p.get("category") not in ["600퀘","파밍"] or p.get("owner_uid")!=u.get("id"):
+            return
+        if p.get("category")=="600퀘" and (p.get("closed") or len(p.get("participants", [])) >= QUEST_MAX_PARTICIPANTS):
+            return
+        pid=new_id()
+        p.setdefault("participants",[]).append({"id":pid,"uid":"","char_id":"","label":name+"(수동)"})
+        if p.get("category")=="600퀘" and len(p.get("participants", [])) >= QUEST_MAX_PARTICIPANTS:
+            p["closed"]=True; p["closed_at"]=iso_now()
+        if p.get("category")=="파밍":
+            p.setdefault("share_ids",[]).append(pid)
     save(fn); return jsonify(ok=True)
 
 @app.route("/farming/result/<pid>", methods=["POST"])
@@ -718,6 +774,19 @@ def farming_settle(pid):
     d=load(); u=current_user(d)
     save(lambda x: (find_post(x,pid) or {}).update({"farm_status":"정산완료"}) if (find_post(x,pid) and find_post(x,pid).get("owner_uid")==u.get("id")) else None)
     return redirect("/")
+
+
+@app.route("/complete", methods=["POST"])
+def complete_post():
+    r=request.get_json(force=True); d=load(); u=current_user(d); result={"ok":False,"reason":"작성자만 가능"}
+    def fn(x):
+        p=find_post(x,r.get("post_id"))
+        if not p or p.get("owner_uid")!=u.get("id") or p.get("category") not in ["사냥","600퀘"]:
+            return
+        p["closed"]=True
+        p["closed_at"]=iso_now()
+        result["ok"]=True
+    save(fn); return jsonify(result)
 
 @app.route("/delete", methods=["POST"])
 def delete():
@@ -847,7 +916,7 @@ def admin_delete_post(pid):
 @app.route("/admin/clear_closed", methods=["POST"])
 def admin_clear_closed():
     if not session.get("admin_ok"): return redirect("/admin")
-    save(lambda d: d.update({"posts":[p for p in d["posts"] if not (p.get("category")=="사냥" and p.get("closed"))]})); return redirect("/admin")
+    save(lambda d: d.update({"posts":[p for p in d["posts"] if not (p.get("category") in ["사냥","600퀘"] and p.get("closed"))]})); return redirect("/admin")
 
 @app.route("/admin/clear_chat", methods=["POST"])
 def admin_clear_chat():

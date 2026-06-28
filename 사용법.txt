@@ -1,14 +1,15 @@
-v13.1 OWNER BUTTONS HOTFIX
+v13.3 QUEST LIMIT COMPLETE
 
 수정 내용:
-- 작성자에게 수정 버튼 표시
-- 작성자에게 삭제 버튼 표시
-- 파밍 작성자에게 결과/분배 수정창 표시
-- 파밍 노득/득템 변경 및 금액 저장 유지
-- 사냥 외부인 추가 유지
-- 600퀘 참여 방식 유지
+- 600퀘 참여자 최대 10명
+- 600퀘 10명 달성 시 자동 마감
+- 600퀘 작성자가 모집완료 가능
+- 사냥 작성자도 모집완료 가능
+- 마감된 600퀘/사냥은 추가 참여 불가
+- 마감된 사냥/600퀘는 1시간 뒤 자동삭제
+- 파밍 정산 흐름 유지
 
 배포:
 git add .
-git commit -m "v13.1 owner buttons hotfix"
+git commit -m "v13.3 quest limit complete"
 git push

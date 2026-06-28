@@ -1,14 +1,19 @@
-v16.2 CHAT HTML HOTFIX
+v16.4 TIME / SHARE HOTFIX
 
 수정:
-- 메인 접속 500 에러 수정
-- 실시간 통합채팅 표시용 chat_html 함수 누락 수정
-- v16 대시보드 구조 유지
+- 파밍 등록 시 오전/오후 선택이 정확히 적용되도록 수정
+- 시간 입력 자동 콜론 적용
+  예: 1107 -> 11:07
+  예: 930 -> 09:30
+- 오늘 일정에는 파밍만 표시
+- 카톡 공유 제목: 월하 · 연가 · 연희 파티모집
+- og:title / description 추가
 
 중요:
 - data.json은 절대 덮어쓰지 마세요.
+- 카톡 미리보기는 카카오 캐시 때문에 바로 안 바뀔 수 있습니다.
 
 배포:
 git add .
-git commit -m "v16.2 chat html hotfix"
+git commit -m "v16.4 time share hotfix"
 git push

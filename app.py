@@ -9,7 +9,9 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v16.2"
+APP_VERSION = "v16.4"
+SITE_TITLE = "월하 · 연가 · 연희 파티모집"
+SITE_DESC = "월하 · 연가 · 연희 문파 파티모집, 파밍일정, 실시간 채팅"
 LOCK = threading.Lock()
 
 DEFAULT_ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "moon")
@@ -542,6 +544,50 @@ def member_summary_html(d):
     </section>
     """
 
+
+def normalize_time_input(value):
+    """1107 -> 11:07, 930 -> 09:30, 11:07 -> 11:07"""
+    s = (value or "").strip()
+    s = re.sub(r"[^0-9:]", "", s)
+    if ":" in s:
+        a, b = s.split(":", 1)
+        if not a or not b:
+            return ""
+        try:
+            h = int(a)
+            m = int(b[:2])
+        except Exception:
+            return ""
+    else:
+        if len(s) <= 2:
+            try:
+                h = int(s)
+                m = 0
+            except Exception:
+                return ""
+        elif len(s) == 3:
+            h = int(s[0])
+            m = int(s[1:])
+        else:
+            h = int(s[:2])
+            m = int(s[2:4])
+    if h < 0 or h > 23 or m < 0 or m > 59:
+        return ""
+    return f"{h:02d}:{m:02d}"
+
+def period_time_to_24(period, value):
+    t = normalize_time_input(value)
+    if not t:
+        return ""
+    h, m = map(int, t.split(":"))
+    p = (period or "").strip()
+    if p == "오후" and h < 12:
+        h += 12
+    if p == "오전" and h == 12:
+        h = 0
+    return f"{h:02d}:{m:02d}"
+
+
 def post_start_dt(p):
     time_text = (p.get("start_time") or "").strip()
     if not time_text:
@@ -571,7 +617,7 @@ def today_schedule_html(d):
     items = []
     now = kst_now()
     for p in d.get("posts", []):
-        if p.get("category") not in ["파밍", "600퀘"]:
+        if p.get("category") != "파밍":
             continue
         if status_text(p) in ["마감", "정산완료"]:
             continue
@@ -594,7 +640,7 @@ def today_schedule_html(d):
     return f"""
     <div class='mini-board schedule-board'>
       <div class='board-head'><h2>📅 오늘 일정</h2><span>자동 알림</span></div>
-      <div class='mini-note'>파밍/600퀘 출발시간 기준 30분 · 15분 · 5분 전 알림</div>
+      <div class='mini-note'>파밍 출발시간 기준 30분 · 15분 · 5분 전 알림</div>
       <div class='schedule-list'>{''.join(rows)}</div>
     </div>
     """
@@ -886,14 +932,14 @@ CSS = """
 @media(max-width:680px){.main-grid{gap:10px}.section-head h2,.chat-inline-head h2{font-size:21px}.side-chat{padding:13px;border-radius:20px}.inline-chat-list{height:280px}.dashboard-pair{gap:10px}.game-alert{left:12px;right:12px;top:12px;max-width:none}.game-alert-card{grid-template-columns:48px 1fr;gap:10px}.game-alert-card button{grid-column:1/3}.game-alert-icon{font-size:36px}.game-alert-title{font-size:21px}.game-alert-body{font-size:16px}.online-compact{grid-template-columns:1fr}.dashboard-pair{grid-template-columns:1fr}.boss-form.better{grid-template-columns:1fr}.boss-form.better button{width:100%}.board-head{align-items:flex-start;flex-direction:column}.boss-card{grid-template-columns:1fr}.boss-right-box{text-align:left}.mini-stats b{font-size:28px}.dashboard-pair{grid-template-columns:1fr}.boss-form.compact{grid-template-columns:1fr}.mini-board h2{font-size:20px}.boss-form{grid-template-columns:1fr}.boss-form button{width:100%}.tabs{padding-bottom:8px}.slot{align-items:flex-start;gap:8px}.post-head{gap:8px}.chat-list{height:55vh}.pill.big-done{font-size:15px;padding:9px 15px}.closed-card:before{font-size:16px;padding:7px}.wrap{padding:12px 10px 90px}h1{font-size:22px}.summary{grid-template-columns:repeat(3,1fr);gap:7px}.stat{padding:10px 4px}.stat b{font-size:21px}.actions{grid-template-columns:1fr 1fr}.top-actions>*{flex:1}.panel,.party-card{border-radius:20px;padding:13px}button,.btn{font-size:14px;padding:10px 11px}}
 """
 
-GATE = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>입장</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔐 문파 전용</h1><div class='sub'>월하 · 연가 · 연희 파티모집</div></header><section class='panel'><h2>입장 비밀번호</h2><form method='post'><input name='password' type='password' placeholder='문파 비밀번호'><button style='width:100%'>입장</button></form>{% if error %}<div class='notice'>비밀번호가 맞지 않습니다.</div>{% endif %}</section></div></body></html>"""
+GATE = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔐 문파 전용</h1><div class='sub'>월하 · 연가 · 연희 파티모집</div></header><section class='panel'><h2>입장 비밀번호</h2><form method='post'><input name='password' type='password' placeholder='문파 비밀번호'><button style='width:100%'>입장</button></form>{% if error %}<div class='notice'>비밀번호가 맞지 않습니다.</div>{% endif %}</section></div></body></html>"""
 
-REGISTER = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>등록</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>👤 문파원 등록</h1><div class='sub'>처음 한 번만 등록하면 됩니다.</div></header><section class='panel'><form method='post'><label>계정명</label><input name='account' value='{{ form.account }}' placeholder='예: 역인' required><label>대표 캐릭터명</label><input name='char_name' value='{{ form.char_name }}' placeholder='예: 역인' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option {% if form.job==job %}selected{% endif %}>{{ job }}</option>{% endfor %}</select><button style='width:100%'>승인 요청</button></form>{% if error %}<div class='notice'>{{ error }}</div>{% endif %}<p class='meta'>관리자 승인 후 이용 가능합니다.</p></section></div></body></html>"""
+REGISTER = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>👤 문파원 등록</h1><div class='sub'>처음 한 번만 등록하면 됩니다.</div></header><section class='panel'><form method='post'><label>계정명</label><input name='account' value='{{ form.account }}' placeholder='예: 역인' required><label>대표 캐릭터명</label><input name='char_name' value='{{ form.char_name }}' placeholder='예: 역인' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option {% if form.job==job %}selected{% endif %}>{{ job }}</option>{% endfor %}</select><button style='width:100%'>승인 요청</button></form>{% if error %}<div class='notice'>{{ error }}</div>{% endif %}<p class='meta'>관리자 승인 후 이용 가능합니다.</p></section></div></body></html>"""
 
-WAIT = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>대기</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>⏳ 승인 대기중</h1></header><section class='panel'><p>{{ user.account if user else "승인 대기중" }} 계정이 승인 대기중입니다.</p><div class='top-actions'><a class='btn' href='/admin'>관리자 페이지</a><form method='post' action='/logout'><button class='gray'>로그아웃</button></form></div><p class='meta'>최초 세팅이면 관리자 페이지에서 기존 관리자 비밀번호로 임시 관리자 모드에 들어가 승인할 수 있습니다.</p></section></div></body></html>"""
+WAIT = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>⏳ 승인 대기중</h1></header><section class='panel'><p>{{ user.account if user else "승인 대기중" }} 계정이 승인 대기중입니다.</p><div class='top-actions'><a class='btn' href='/admin'>관리자 페이지</a><form method='post' action='/logout'><button class='gray'>로그아웃</button></form></div><p class='meta'>최초 세팅이면 관리자 페이지에서 기존 관리자 비밀번호로 임시 관리자 모드에 들어가 승인할 수 있습니다.</p></section></div></body></html>"""
 
 MAIN = """
-<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>파티모집</title><style>{{ css }}</style></head><body>
+<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body>
 <div class='wrap'><header class='header'><h1>⚔️ 월하 · 연가 · 연희 파티모집</h1><div class='sub'>Made by 역인(진선) · {{ app_version|default('v15.0') }}</div></header>{% if notice %}<div class='notice'>📢 {{ notice }}</div>{% endif %}
 {% if page=='home' %}
 <section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button><button class='gray' onclick='openAlarmCheck()'>알림점검</button><button class='gray' onclick='openVoiceSettings()'>음성설정</button><button class='gray' onclick='toggleGameMode()' id='gameModeBtn'>🎮 게임모드 OFF</button><button class='gray' onclick='toggleClosedPosts()' id='closedToggleBtn'>마감숨김</button></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안 동작합니다. 알림점검에서 권한과 테스트 알림을 확인하세요.</div>
@@ -912,7 +958,7 @@ MAIN = """
 </section>
 {% endif %}
 {% if page=='new' or page=='edit' %}
-<section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘는 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
+<section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>{% if page=='edit' %}수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();bindTimeAutoColon();toggleSlotBox()'>{% for c in cats_no_all %}<option {% if post and post.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select hidden'>{% for p in vals %}<option {% if post and post.place==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' value='{{ post.channel if post else "" }}' placeholder='예: 3385' oninput='numbersOnly(this)'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 1107 또는 11:07' value='{{ post.start_time if post else "" }}' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' placeholder='예: 2314 또는 23:14' value='{{ post.end_time if post else "" }}' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo'>{{ post.memo if post else "" }}</textarea><div class='panel' id='slotPanel'><label>사냥 직업 자리 추가</label><div class='quick'><select id='slotJob'>{% for j in jobs %}<option>{{ j }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><div class='notice hidden' id='simpleNotice'>600퀘는 참여 버튼 방식입니다. 파밍은 관리자/부문파장만 생성할 수 있습니다.</div><button style='width:100%'>저장</button></form></section>
 {% endif %}
 {% if page=='chars' %}
 <section class='panel'><a class='btn gray' href='/'>← 메인</a><h2>내 캐릭터</h2><form method='post' action='/chars/add'><label>캐릭터명</label><input name='name' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button style='width:100%'>캐릭터 추가 요청</button></form></section><section class='panel'><h2>등록 캐릭터</h2>{% for c in user.chars %}<div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>{% endfor %}</section>
@@ -954,6 +1000,24 @@ const CURRENT_USER_ID="{{ user.id if user else '' }}";let globalOpen=false;let p
 function qs(id){return document.getElementById(id)}function toast(m){const t=qs('toast');if(!t){alert(m);return}t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}
 function numbersOnly(el){el.value=(el.value||'').replace(/[^0-9]/g,'').slice(0,4)}function prepareSubmit(){const cat=qs('typeSelect')?.value;const ch=qs('channelInput');if(ch){numbersOnly(ch);if(ch.value.length!==4){alert('채널은 숫자 4자리로 입력해줘.');return false}}if(cat==='사냥'&&document.querySelectorAll('#slotsBox input[name="slots"]').length===0&&location.pathname==='/new'){alert('사냥은 모집 자리를 하나 이상 추가해줘.');return false}return true}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function formatTimeInput(v){
+  v=(v||'').replace(/[^0-9]/g,'').slice(0,4);
+  if(v.length>=3)return v.slice(0,v.length-2)+':'+v.slice(v.length-2);
+  return v;
+}
+function bindTimeAutoColon(){
+  document.querySelectorAll("input[name='start_time' placeholder='예: 1107 또는 11:07'],input[name='end_time' placeholder='예: 2314 또는 23:14']").forEach(i=>{
+    i.setAttribute('inputmode','numeric');
+    i.addEventListener('input',()=>{i.value=formatTimeInput(i.value)});
+    i.addEventListener('blur',()=>{
+      let v=i.value.replace(/[^0-9]/g,'');
+      if(v.length===3)v='0'+v;
+      if(v.length===4)i.value=v.slice(0,2)+':'+v.slice(2);
+    });
+  });
+}
+
 function updatePlaces(){const cat=qs('typeSelect')?.value;document.querySelectorAll('.place-select').forEach(x=>x.classList.add('hidden'));const t=qs('place_'+cat);if(t)t.classList.remove('hidden')}
 function toggleSlotBox(){const cat=qs('typeSelect')?.value;const p=qs('slotPanel'), n=qs('simpleNotice');if(!p||!n)return;if(cat==='사냥'){p.classList.remove('hidden');n.classList.add('hidden')}else{p.classList.add('hidden');n.classList.remove('hidden')}}
 function addSlot(){const job=qs('slotJob')?.value, box=qs('slotsBox');if(!job||!box)return;const d=document.createElement('div');d.className='slot';d.innerHTML='<div><b>'+escapeHtml(job)+'</b><br>빈자리</div><button type="button" class="mini danger" onclick="this.parentElement.remove()">삭제</button><input type="hidden" name="slots" value="'+escapeHtml(job)+'">';box.appendChild(d)}
@@ -1168,7 +1232,7 @@ setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refres
 </script></body></html>
 """
 
-ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>관리자</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if admin_msg %}<div class='notice'>{{ admin_msg }}</div>{% endif %}<section class='panel'><b>현재 로그인</b><br>{{ current_label }}</section>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>현재 계정을 임시 관리자 접속 / 최고관리자 등록</button></form><p class='meta'>먼저 메인 사이트에서 본인 문파원 계정으로 로그인되어 있어야 합니다. 로그인 계정이 없으면 최고관리자로 지정할 대상이 없습니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form><a class='btn ok' href='/admin/backup'>데이터 백업</a></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ {'member':'일반','admin':'관리자/부문파장','super':'최고관리자'}.get(u.role|default('member'), u.role|default('member')) }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form>{% if super_ok %}<form method='post' action='/admin/delete_user/{{ u.id }}' style='display:inline' onsubmit="return confirm('정말 이 회원을 삭제할까요?')"><button class='mini danger'>회원삭제</button></form>{% endif %}</div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div></body></html>"""
+ADMIN = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ site_title|default('월하 · 연가 · 연희 파티모집') }}</title><meta property="og:title" content="{{ site_title|default('월하 · 연가 · 연희 파티모집') }}"><meta property="og:description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><meta name="description" content="{{ site_desc|default('월하 · 연가 · 연희 문파 파티모집') }}"><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔒 관리자</h1></header><a class='btn gray' href='/'>메인</a>{% if admin_msg %}<div class='notice'>{{ admin_msg }}</div>{% endif %}<section class='panel'><b>현재 로그인</b><br>{{ current_label }}</section>{% if not admin_ok %}<section class='panel'><form method='post' action='/admin/login'><label>최초 최고관리자 비밀번호</label><input name='password' type='password'><button>현재 계정을 임시 관리자 접속 / 최고관리자 등록</button></form><p class='meta'>먼저 메인 사이트에서 본인 문파원 계정으로 로그인되어 있어야 합니다. 로그인 계정이 없으면 최고관리자로 지정할 대상이 없습니다.</p></section>{% else %}<section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_chat'><button class='danger'>통합채팅 삭제</button></form><a class='btn ok' href='/admin/backup'>데이터 백업</a></div></section><section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>입장 비밀번호</label><input name='access_password'><label>관리자 비밀번호</label><input name='admin_password'><button>저장</button></form></section><section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice'>{{ notice }}</textarea><button>저장</button></form></section><section class='panel'><h2>파밍 아이템</h2><form method='post' action='/admin/farm_items'><label>해골왕</label><input name='items_해골왕' value='{{ farm_items.get("해골왕", [])|join(", ") }}'><label>어금니</label><input name='items_어금니' value='{{ farm_items.get("어금니", [])|join(", ") }}'><button>저장</button></form></section><section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p>대기 없음</p>{% endfor %}</section><section class='panel'><h2>권한 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · 권한: {{ {'member':'일반','admin':'관리자/부문파장','super':'최고관리자'}.get(u.role|default('member'), u.role|default('member')) }} · {{ u.status }}{% if u.blocked %} · 차단{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}{% if super_ok %}<form method='post' action='/admin/role/{{ u.id }}/member' style='display:inline'><button class='mini gray'>일반</button></form><form method='post' action='/admin/role/{{ u.id }}/admin' style='display:inline'><button class='mini ok'>관리자</button></form><form method='post' action='/admin/role/{{ u.id }}/super' style='display:inline'><button class='mini'>최고관리자</button></form>{% endif %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form>{% if super_ok %}<form method='post' action='/admin/delete_user/{{ u.id }}' style='display:inline' onsubmit="return confirm('정말 이 회원을 삭제할까요?')"><button class='mini danger'>회원삭제</button></form>{% endif %}</div>{% endfor %}</section><section class='panel'><h2>글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.category }} / {{ p.owner_label }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% endfor %}</section>{% endif %}</div></body></html>"""
 
 @app.before_request
 def gate_guard():
@@ -1248,7 +1312,7 @@ def home():
         posts = [p for p in posts if p.get("category") == filt]
     posts = sort_posts_for_view(posts)
     open_count = sum(1 for p in posts if status_text(p) in ["모집중","진행중"])
-    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), global_chat=chat_html(d), open_count=open_count, member_html=member_html(d), member_job_html=member_job_html(d), member_summary=member_summary_html(d), schedule_html=today_schedule_html(d), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION)
+    return render_template_string(MAIN, css=CSS, page="home", user=u, cats=CATEGORIES, cats_no_all=CATEGORIES[1:], filter_value=filt, post_list=render_posts(posts,u,d["settings"].get("farm_items", FARM_ITEMS), admin=is_admin_user(u)), global_chat=chat_html(d), open_count=open_count, member_html=member_html(d), member_job_html=member_job_html(d), member_summary=member_summary_html(d), schedule_html=today_schedule_html(d), farm_stats=farming_stats_html(all_posts), notice=d["settings"].get("notice",""), jobs=JOBS, places=PLACES, app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
 
 @app.route("/api/posts")
 def api_posts():
@@ -1268,7 +1332,7 @@ def new_page():
     if not chars(u):
         return redirect("/chars")
     allowed_categories = ["사냥", "600퀘", "파밍"] if is_admin_user(u) else ["사냥", "600퀘"]
-    return render_template_string(MAIN, css=CSS, page="new", post=None, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="", app_version=APP_VERSION)
+    return render_template_string(MAIN, css=CSS, page="new", post=None, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="", app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
 
 @app.route("/create", methods=["POST"])
 def create():
@@ -1296,7 +1360,7 @@ def edit(pid):
         return redirect("/")
     if request.method == "GET":
         allowed_categories = ["사냥", "600퀘", "파밍"] if is_admin_user(u) else ["사냥", "600퀘"]
-        return render_template_string(MAIN, css=CSS, page="edit", post=p, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="", app_version=APP_VERSION)
+        return render_template_string(MAIN, css=CSS, page="edit", post=p, chars=chars(u), user=u, cats_no_all=allowed_categories, jobs=JOBS, places=PLACES, notice="", app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
     def fn(x):
         pp = find_post(x, pid)
         if pp and pp.get("owner_uid") == u.get("id"):
@@ -1310,7 +1374,7 @@ def edit(pid):
 @app.route("/chars")
 def chars_page():
     d=load(); u=current_user(d)
-    return render_template_string(MAIN, css=CSS, page="chars", user=u, jobs=JOBS, places=PLACES, cats_no_all=CATEGORIES[1:], notice="", app_version=APP_VERSION)
+    return render_template_string(MAIN, css=CSS, page="chars", user=u, jobs=JOBS, places=PLACES, cats_no_all=CATEGORIES[1:], notice="", app_version=APP_VERSION, site_title=SITE_TITLE, site_desc=SITE_DESC)
 
 @app.route("/chars/add", methods=["POST"])
 def char_add():

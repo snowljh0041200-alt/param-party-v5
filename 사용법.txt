@@ -1,9 +1,9 @@
-v20.0 OFFICIAL CLEAN PROJECT
+v21.0 MINIMAL STABLE
 
-완전 새 구조입니다.
-기존 꼬인 app.py를 사용하지 않습니다.
+복잡한 구조를 버리고 단일 app.py로 다시 만든 최소 안정판입니다.
+먼저 열리고, 회원가입/관리자/모집/참여가 되는 것을 목표로 했습니다.
 
 배포:
 git add .
-git commit -m "v20.0 official clean project"
+git commit -m "v21.0 minimal stable"
 git push

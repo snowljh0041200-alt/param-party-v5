@@ -9,7 +9,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v13-final-secret")
 
 KST = ZoneInfo("Asia/Seoul")
 DATA_FILE = "data.json"
-APP_VERSION = "v17.2"
+APP_VERSION = "v17.3"
 SITE_TITLE = "월하 · 연가 · 연희 파티모집"
 SITE_DESC = "월하 · 연가 · 연희 문파 파티모집, 파밍일정, 실시간 채팅"
 LOCK = threading.Lock()
@@ -585,6 +585,23 @@ def period_time_to_24(period, value):
         h = 0
     return f"{h:02d}:{m:02d}"
 
+def split_time12_from_24(value):
+    """23:07 -> ('오후','11:07'), 00:30 -> ('오전','12:30')"""
+    t = normalize_time_input(value)
+    if not t:
+        return ("오전", "")
+    h, m = map(int, t.split(":"))
+    period = "오후" if h >= 12 else "오전"
+    hour12 = h % 12
+    if hour12 == 0:
+        hour12 = 12
+    return (period, f"{hour12:02d}:{m:02d}")
+
+def display_period_time(value):
+    period, t = split_time12_from_24(value)
+    return f"{period} {t}" if t else ""
+
+
 
 def post_start_dt(p):
     time_text = (p.get("start_time") or "").strip()
@@ -629,7 +646,7 @@ def today_schedule_html(d):
     for dt, p, title in items[:8]:
         rows.append(f"""
         <div class='schedule-row post-schedule' data-post-id='{e(p.get('id'))}' data-post-title='{e(title)}' data-start-at='{e(dt.isoformat(timespec='seconds'))}'>
-          <div><b>{e(title)}</b><span>{e(p.get('category'))} · {dt.strftime('%H:%M')}</span></div>
+          <div><b>{e(title)}</b><span>{e(p.get('category'))} · {display_period_time(dt.strftime('%H:%M'))}</span></div>
           <strong class='schedule-left'>{schedule_time_left_text(dt)}</strong>
         </div>
         """)
@@ -1559,8 +1576,8 @@ def edit(pid):
         pp = find_post(x, pid)
         if pp and pp.get("owner_uid") == u.get("id"):
             pp["channel"] = digits(request.form.get("channel"),4)
-            pp["start_time"] = request.form.get("start_time","").strip()
-            pp["end_time"] = request.form.get("end_time","").strip()
+            pp["start_time"] = period_time_to_24(request.form.get("start_period",""), request.form.get("start_time","")).strip()
+            pp["end_time"] = period_time_to_24(request.form.get("end_period",""), request.form.get("end_time","")).strip()
             pp["memo"] = request.form.get("memo","").strip()
     save(fn)
     return redirect("/")

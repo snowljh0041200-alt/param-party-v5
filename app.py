@@ -181,7 +181,7 @@ def render_posts(posts,user):
           <div class="meta">👑 {esc(p.get('owner_label'))} · {esc(p.get('created'))}</div>
           {memo}{left}
           <div class="slots">{''.join(slot_html)}</div>
-          <div class="actions"><button onclick="copyPost(`{copy_text}`)">복사</button><button onclick="shareKakao(`{copy_text}`)">카톡공유</button><button onclick="openPartyChat('{pid}')">파티채팅 {chat_count}</button><button class="owner-only danger" onclick="deletePost('{pid}')">삭제</button></div>
+          <div class="actions"><button type="button" onclick="copyPost(`{copy_text}`)">복사</button><button type="button" onclick="shareKakao(`{copy_text}`)">카톡공유</button><button type="button" onclick="openPartyChat('{pid}')">파티채팅 {chat_count}</button><button type="button" class="owner-only danger" onclick="deletePost('{pid}')">삭제</button></div>
         </article>""")
     return "\n".join(out)
 
@@ -190,20 +190,362 @@ BASE_CSS = """
 """
 
 GATE_PAGE = """
-<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>문파 입장</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>🔐 문파 전용 파티모집</h1><div class='sub'>월하 · 연가 · 연희 파티모집</div></header><section class='panel'><h2>입장 비밀번호</h2><p class='meta'>문파원만 이용할 수 있습니다.</p><form method='post' action='/gate'><input name='password' type='password' placeholder='문파 비밀번호' autofocus><button style='width:100%'>입장</button></form>{% if error %}<div class='notice'>비밀번호가 맞지 않습니다.</div>{% endif %}</section></div></body></html>
-"""
+<!doctype html>
+<html lang='ko'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>월하 · 연가 · 연희 파티모집</title>
+<style>{{ css }}</style>
+</head>
+<body>
+<div class='wrap'>
+  <header class='header'>
+    <h1>⚔️ 월하 · 연가 · 연희 파티모집</h1>
+    <div class='sub'>Made by 역인(진선)</div>
+  </header>
 
-REGISTER_PAGE = """
-<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>가입</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>👤 문파원 등록</h1><div class='sub'>처음 한 번만 등록하면 됩니다.</div></header><section class='panel'><form method='post' action='/register'><label>계정명</label><input name='account' required placeholder='예: 역인'><label>대표 캐릭터명</label><input name='char_name' required placeholder='예: 역인'><label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button style='width:100%'>승인 요청</button></form><p class='meta'>관리자 승인 후 사이트 이용이 가능합니다.</p>{% if error %}<div class='notice'>{{ error }}</div>{% endif %}</section></div></body></html>
-"""
+  {% if notice %}<div class='notice'>📢 {{ notice }}</div>{% endif %}
 
-WAIT_PAGE = """
-<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>승인 대기</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>⏳ 승인 대기중</h1><div class='sub'>관리자가 승인하면 이용할 수 있습니다.</div></header><section class='panel'><p>{{ user.account }} 계정이 승인 대기중입니다.</p><form method='post' action='/logout'><button class='gray'>로그아웃</button></form></section></div></body></html>
-"""
+  {% if page=='home' %}
+  <section class='panel'>
+    <div class='top-actions'>
+      <a class='btn' href='/new'>+ 모집글</a>
+      <a class='btn gray' href='/chars'>내 캐릭터</a>
+      <button type='button' class='gray' onclick='openGlobalChat()'>통합채팅</button>
+      <button type='button' class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button>
+    </div>
+    <div class='summary'>
+      <div class='stat'><b>{{ open_count }}</b><span>모집중</span></div>
+      <div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div>
+      <div class='stat'><b id='myCount'>0</b><span>내 참여</span></div>
+    </div>
+    <div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안에만 동작합니다. 새 모집글, 참여, 채팅을 알려드립니다.</div>
+    <div class='tabs'>
+      {% for f in filters %}
+      <a class='{% if filter_value==f %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>
+      {% endfor %}
+    </div>
+  </section>
+  <section class='panel'><h2>문파원 접속 현황</h2><div class='member-grid'>{{ member_html|safe }}</div></section>
+  <div id='postList'>{{ post_list|safe }}</div>
+  {% endif %}
 
-# To keep this manageable, use a compact single PAGE template
-PAGE = """
-<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>월하 · 연가 · 연희 파티모집</title><style>{{ css }}</style></head><body><div class='wrap'><header class='header'><h1>⚔️ 월하 · 연가 · 연희 파티모집</h1><div class='sub'>Made by 역인(진선)</div></header>{% if notice %}<div class='notice'>📢 {{ notice }}</div>{% endif %}{% if page=='home' %}<section class='panel'><div class='top-actions'><a class='btn' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a><button class='gray' onclick='openGlobalChat()'>통합채팅</button><button class='gray' onclick='toggleAlarm()' id='alarmBtn'>🔔 알림 ON</button></div><div class='summary'><div class='stat'><b>{{ open_count }}</b><span>모집중</span></div><div class='stat'><b id='onlineCount'>1</b><span>접속중</span></div><div class='stat'><b id='myCount'>0</b><span>내 참여</span></div></div><div class='alarm-guide'>🔔 알림은 사이트가 열려있는 동안에만 동작합니다. 새 모집글, 참여, 채팅을 알려드립니다.</div><div class='tabs'>{% for f in filters %}<a class='{% if filter_value==f %}on{% endif %}' href='/?filter={{ f }}'>{{ f }}</a>{% endfor %}</div></section><section class='panel'><h2>문파원 접속 현황</h2><div class='member-grid'>{{ member_html|safe }}</div></section><div id='postList'>{{ post_list|safe }}</div>{% endif %}{% if page in ['new','edit'] %}<section class='panel'><h2>{% if page=='edit' %}모집글 수정{% else %}모집글 올리기{% endif %}</h2><form method='post' action='{% if page=='edit' %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'><label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select><label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces()'>{% for t in ['사냥','파밍','600퀘'] %}<option>{{ t }}</option>{% endfor %}</select><label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select {% if cat!='사냥' %}hidden{% endif %}'>{% for p in vals %}<option>{{ p }}</option>{% endfor %}</select>{% endfor %}<label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' placeholder='예: 3385' oninput=\"this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)\"><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 09:00'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' placeholder='예: 11:00'></div><label>메모</label><textarea name='memo' rows='2'></textarea><div class='panel'><label>모집 자리 추가</label><div class='quick'><select id='slotJob'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slotsBox'></div></div><button style='width:100%' type='submit'>저장</button><a class='btn gray' style='width:100%;margin-top:8px' href='/'>취소</a></form></section>{% endif %}{% if page=='chars' %}<section class='panel'><h2>내 캐릭터</h2><p class='meta'>새 캐릭터는 관리자 승인 후 사용할 수 있습니다.</p><form method='post' action='/chars/add'><label>캐릭터명</label><input name='name' required><label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select><button style='width:100%'>캐릭터 추가 요청</button></form></section><section class='panel'><h2>등록 캐릭터</h2>{% for c in user.chars %}<div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>{% endfor %}</section>{% endif %}</div><div id='globalModal' class='modal' onclick=\"if(event.target.id==='globalModal')closeGlobalChat()\"><div class='panel chat-panel'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'><b>💬 통합채팅</b><button class='mini gray' onclick='closeGlobalChat()'>닫기</button></div><div class='alarm-guide'>최근 100개 메시지만 유지됩니다. 24시간이 지난 메시지는 자동 삭제됩니다. 본인이 작성한 메시지는 5분 이내 삭제 가능합니다.</div><div id='globalChatList' class='chat-list'></div><div class='chat-form'><input id='globalChatText' placeholder='메시지' maxlength='150' onkeydown=\"if(event.key==='Enter')sendGlobalChat()\"><button onclick='sendGlobalChat()'>전송</button></div></div></div><div id='partyModal' class='modal' onclick=\"if(event.target.id==='partyModal')closePartyChat()\"><div class='panel chat-panel'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'><b>💬 파티채팅</b><button class='mini gray' onclick='closePartyChat()'>닫기</button></div><div id='partyChatList' class='chat-list'></div><div class='chat-form'><input id='partyChatText' placeholder='메시지' maxlength='150' onkeydown=\"if(event.key==='Enter')sendPartyChat()\"><button onclick='sendPartyChat()'>전송</button></div></div></div><div id='charPickModal' class='modal' onclick="if(event.target.id==='charPickModal')closeCharPick()"><div class='panel chat-panel'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'><b>참여 캐릭터 선택</b><button class='mini gray' onclick='closeCharPick()'>닫기</button></div><div id='charPickList' class='choice-list'></div></div></div><div id='toast' class='toast'></div><script>function toast(m){let t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}function prepareSubmit(){let ch=document.getElementById('channelInput');ch.value=(ch.value||'').replace(/[^0-9]/g,'').slice(0,4);if(ch.value.length!==4){alert('채널은 숫자 4자리로 입력해줘.');return false}return true}function updatePlaces(){let t=document.getElementById('typeSelect');if(!t)return;document.querySelectorAll('.place-select').forEach(x=>x.classList.add('hidden'));let x=document.getElementById('place_'+t.value);if(x)x.classList.remove('hidden')}function addSlot(){let j=document.getElementById('slotJob').value,b=document.getElementById('slotsBox'),d=document.createElement('div');d.className='slot';d.innerHTML='<div><b>'+j+'</b><br><span>빈자리</span></div><button type=\"button\" class=\"mini danger\" onclick=\"this.parentElement.remove()\">삭제</button><input type=\"hidden\" name=\"slots\" value=\"'+j+'\">';b.appendChild(d)}function copyPost(t){navigator.clipboard?navigator.clipboard.writeText(t).then(()=>toast('복사됨')):alert(t)}function shareKakao(t){let text='월하 · 연가 · 연희 파티모집\n\n'+t+'\n\n'+location.origin;if(navigator.share){navigator.share({title:'파티모집',text:text,url:location.origin}).catch(()=>copyPost(text))}else{copyPost(text);toast('공유문구가 복사됐습니다. 카톡에 붙여넣어 주세요.')}}function refresh(){if(location.pathname!='/')return;fetch('/api/posts'+location.search).then(r=>r.text()).then(h=>{document.getElementById('postList').innerHTML=h;scanAlarms();countMine()})}function countMine(){let c=0;document.querySelectorAll('.post').forEach(p=>{if(p.dataset.owner==='1'||p.dataset.participants.includes('{{ user.id if user else '' }}'))c++});let m=document.getElementById('myCount');if(m)m.textContent=c}let pickTarget=null;function doJoin(pid,sid,cid){fetch('/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid,slot_id:sid,char_id:cid})}).then(()=>{toast('참여됨');closeCharPick();refresh()})}function closeCharPick(){let m=document.getElementById('charPickModal');if(m)m.classList.remove('show');pickTarget=null}function joinSlot(pid,sid,job){fetch('/api/mychars?job='+encodeURIComponent(job)).then(r=>r.json()).then(d=>{if(!d.chars.length){toast('승인된 해당 직업 캐릭터가 없습니다.');return}if(d.chars.length===1){doJoin(pid,sid,d.chars[0].id);return}let box=document.getElementById('charPickList');box.innerHTML='';d.chars.forEach(c=>{let b=document.createElement('button');b.textContent=c.label+' 으로 참여';b.onclick=()=>doJoin(pid,sid,c.id);box.appendChild(b)});document.getElementById('charPickModal').classList.add('show')})}function leaveSlot(pid,sid){if(!confirm('비울까?'))return;fetch('/leave',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid,slot_id:sid})}).then(()=>refresh())}function deletePost(pid){if(!confirm('정말 삭제하시겠습니까?'))return;fetch('/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:pid})}).then(r=>r.json()).then(x=>{toast(x.ok?'삭제됨':x.reason);refresh()})}let globalOpen=false;function openGlobalChat(){globalOpen=true;document.getElementById('globalModal').classList.add('show');refreshGlobalChat()}function closeGlobalChat(){globalOpen=false;document.getElementById('globalModal').classList.remove('show')}function refreshGlobalChat(){if(!globalOpen)return;fetch('/api/global_chat').then(r=>r.text()).then(h=>{let b=document.getElementById('globalChatList');b.innerHTML=h;b.scrollTop=b.scrollHeight})}function sendGlobalChat(){let t=document.getElementById('globalChatText');if(!t.value.trim())return;fetch('/global_chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t.value.trim()})}).then(r=>r.json()).then(x=>{if(!x.ok)return toast(x.reason||'전송 실패');t.value='';refreshGlobalChat()})}function deleteGlobalChat(mid){if(!confirm('이 메시지를 삭제할까요?'))return;fetch('/global_chat/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:mid})}).then(r=>r.json()).then(x=>{toast(x.ok?'삭제됨':x.reason);refreshGlobalChat()})}let partyId=null;function openPartyChat(pid){partyId=pid;document.getElementById('partyModal').classList.add('show');refreshPartyChat()}function closePartyChat(){partyId=null;document.getElementById('partyModal').classList.remove('show')}function refreshPartyChat(){if(!partyId)return;fetch('/api/party_chat/'+partyId).then(r=>r.text()).then(h=>{let b=document.getElementById('partyChatList');b.innerHTML=h;b.scrollTop=b.scrollHeight})}function sendPartyChat(){if(!partyId)return;let t=document.getElementById('partyChatText');if(!t.value.trim())return;fetch('/party_chat/'+partyId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t.value.trim()})}).then(r=>r.json()).then(x=>{if(!x.ok)return toast(x.reason||'전송 실패');t.value='';refreshPartyChat();refresh()})}function alarmOn(){return localStorage.getItem('baram_alarm_off')!=='1'}function updateAlarmBtn(){let b=document.getElementById('alarmBtn');if(b)b.textContent=alarmOn()?'🔔 알림 ON':'🔕 알림 OFF'}function toggleAlarm(){localStorage.setItem('baram_alarm_off',alarmOn()?'1':'0');updateAlarmBtn();toast(alarmOn()?'알림 켜짐':'알림 꺼짐')}let knownPosts=new Set(),firstLoad=true;function scanAlarms(){let posts=[...document.querySelectorAll('.post')];for(let p of posts){let id=p.dataset.postId;if(!knownPosts.has(id)){if(!firstLoad&&alarmOn())toast('새 모집글이 올라왔습니다.');knownPosts.add(id)}}firstLoad=false}function heartbeat(){fetch('/api/heartbeat',{method:'POST'}).then(r=>r.json()).then(x=>{let o=document.getElementById('onlineCount');if(o)o.textContent=x.online||1}).catch(()=>{})}setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);updatePlaces();updateAlarmBtn();heartbeat();scanAlarms();countMine();</script></body></html>
+  {% if page in ['new','edit'] %}
+  <section class='panel'>
+    <h2>{% if page=='edit' %}모집글 수정{% else %}모집글 올리기{% endif %}</h2>
+    <form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'>
+      <label>작성 캐릭터</label>
+      <select name='owner_char_id'>
+        {% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}
+      </select>
+
+      <label>종류</label>
+      <select name='category' id='typeSelect' onchange='updatePlaces()'>
+        {% for t in ['사냥','파밍','600퀘'] %}<option>{{ t }}</option>{% endfor %}
+      </select>
+
+      <label>장소</label>
+      {% for cat, vals in places.items() %}
+      <select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select {% if cat!="사냥" %}hidden{% endif %}'>
+        {% for p in vals %}<option>{{ p }}</option>{% endfor %}
+      </select>
+      {% endfor %}
+
+      <label>채널 4자리</label>
+      <input name='channel' id='channelInput' maxlength='4' inputmode='numeric' placeholder='예: 3385' oninput='numbersOnly(this)'>
+
+      <label>시작시간</label>
+      <div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 09:00'></div>
+
+      <label>종료시간</label>
+      <div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' placeholder='예: 11:00'></div>
+
+      <label>메모</label>
+      <textarea name='memo' rows='2'></textarea>
+
+      <div class='panel'>
+        <label>모집 자리 추가</label>
+        <div class='quick'>
+          <select id='slotJob'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select>
+          <button type='button' class='ok' onclick='addSlot()'>추가</button>
+        </div>
+        <div id='slotsBox'></div>
+      </div>
+
+      <button style='width:100%' type='submit'>저장</button>
+      <a class='btn gray' style='width:100%;margin-top:8px' href='/'>취소</a>
+    </form>
+  </section>
+  {% endif %}
+
+  {% if page=='chars' %}
+  <section class='panel'>
+    <h2>내 캐릭터</h2>
+    <p class='meta'>새 캐릭터는 관리자 승인 후 사용할 수 있습니다.</p>
+    <form method='post' action='/chars/add'>
+      <label>캐릭터명</label><input name='name' required>
+      <label>직업/차수</label><select name='job'>{% for job in jobs %}<option>{{ job }}</option>{% endfor %}</select>
+      <button style='width:100%'>캐릭터 추가 요청</button>
+    </form>
+  </section>
+  <section class='panel'>
+    <h2>등록 캐릭터</h2>
+    {% for c in user.chars %}
+    <div class='member'>{{ c.name }}({{ c.job }}) · {{ c.status }} {% if c.status=='approved' %}<form method='post' action='/chars/select/{{ c.id }}' style='display:inline'><button class='mini'>대표선택</button></form>{% endif %}</div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</div>
+
+<div id='globalModal' class='modal'>
+  <div class='panel chat-panel'>
+    <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'><b>💬 통합채팅</b><button type='button' class='mini gray' onclick='closeGlobalChat()'>닫기</button></div>
+    <div class='alarm-guide'>최근 100개 메시지만 유지됩니다. 24시간이 지난 메시지는 자동 삭제됩니다. 본인이 작성한 메시지는 5분 이내 삭제 가능합니다.</div>
+    <div id='globalChatList' class='chat-list'></div>
+    <div class='chat-form'><input id='globalChatText' placeholder='메시지' maxlength='150'><button type='button' onclick='sendGlobalChat()'>전송</button></div>
+  </div>
+</div>
+
+<div id='partyModal' class='modal'>
+  <div class='panel chat-panel'>
+    <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'><b>💬 파티채팅</b><button type='button' class='mini gray' onclick='closePartyChat()'>닫기</button></div>
+    <div id='partyChatList' class='chat-list'></div>
+    <div class='chat-form'><input id='partyChatText' placeholder='메시지' maxlength='150'><button type='button' onclick='sendPartyChat()'>전송</button></div>
+  </div>
+</div>
+
+<div id='charPickModal' class='modal'>
+  <div class='panel chat-panel'>
+    <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'><b>참여 캐릭터 선택</b><button type='button' class='mini gray' onclick='closeCharPick()'>닫기</button></div>
+    <div id='charPickList' class='choice-list'></div>
+  </div>
+</div>
+
+<div id='toast' class='toast'></div>
+
+<script>
+const CURRENT_USER_ID = "{{ user.id if user else '' }}";
+let globalOpen = false;
+let partyId = null;
+let knownPosts = new Set();
+let firstLoad = true;
+
+function qs(id){ return document.getElementById(id); }
+function toast(msg){
+  const t = qs("toast");
+  if(!t){ alert(msg); return; }
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(function(){ t.classList.remove("show"); }, 1600);
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
+}
+function numbersOnly(el){ el.value = (el.value || "").replace(/[^0-9]/g, "").slice(0,4); }
+function prepareSubmit(){
+  const ch = qs("channelInput");
+  if(ch){
+    numbersOnly(ch);
+    if(ch.value.length !== 4){
+      alert("채널은 숫자 4자리로 입력해줘.");
+      ch.focus();
+      return false;
+    }
+  }
+  return true;
+}
+function updatePlaces(){
+  const t = qs("typeSelect");
+  if(!t) return;
+  document.querySelectorAll(".place-select").forEach(function(x){ x.classList.add("hidden"); });
+  const target = qs("place_" + t.value);
+  if(target) target.classList.remove("hidden");
+}
+function addSlot(){
+  const jobSelect = qs("slotJob");
+  const box = qs("slotsBox");
+  if(!jobSelect || !box) return;
+  const job = jobSelect.value;
+  const d = document.createElement("div");
+  d.className = "slot";
+  d.innerHTML = "<div><b>"+escapeHtml(job)+"</b><br><span>빈자리</span></div><button type='button' class='mini danger' onclick='this.parentElement.remove()'>삭제</button><input type='hidden' name='slots' value='"+escapeHtml(job)+"'>";
+  box.appendChild(d);
+}
+function copyPost(text){
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(function(){ toast("복사됨"); }).catch(function(){ alert(text); });
+  } else {
+    alert(text);
+  }
+}
+function shareKakao(text){
+  const shareText = "월하 · 연가 · 연희 파티모집\\n\\n" + text + "\\n\\n" + location.origin;
+  if(navigator.share){
+    navigator.share({title:"파티모집", text:shareText, url:location.origin}).catch(function(){ copyPost(shareText); });
+  } else {
+    copyPost(shareText);
+    toast("공유문구가 복사됐습니다. 카톡에 붙여넣어 주세요.");
+  }
+}
+function refresh(){
+  if(location.pathname !== "/") return;
+  fetch("/api/posts" + location.search, {cache:"no-store"}).then(function(r){ return r.text(); }).then(function(html){
+    const list = qs("postList");
+    if(list) list.innerHTML = html;
+    scanAlarms();
+    countMine();
+  }).catch(function(){});
+}
+function countMine(){
+  let c = 0;
+  document.querySelectorAll(".post").forEach(function(p){
+    if(p.dataset.owner === "1" || (CURRENT_USER_ID && (p.dataset.participants || "").indexOf(CURRENT_USER_ID) >= 0)) c++;
+  });
+  const m = qs("myCount");
+  if(m) m.textContent = c;
+}
+function doJoin(pid, sid, cid){
+  fetch("/join", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({post_id:pid, slot_id:sid, char_id:cid})})
+    .then(function(){ toast("참여됨"); closeCharPick(); refresh(); });
+}
+function closeCharPick(){
+  const m = qs("charPickModal");
+  if(m) m.classList.remove("show");
+}
+function joinSlot(pid, sid, job){
+  fetch("/api/mychars?job=" + encodeURIComponent(job), {cache:"no-store"}).then(function(r){ return r.json(); }).then(function(data){
+    const chars = data.chars || [];
+    if(chars.length === 0){ toast("승인된 해당 직업 캐릭터가 없습니다."); return; }
+    if(chars.length === 1){ doJoin(pid, sid, chars[0].id); return; }
+    const box = qs("charPickList");
+    if(!box) return;
+    box.innerHTML = "";
+    chars.forEach(function(c){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = c.label + " 으로 참여";
+      b.onclick = function(){ doJoin(pid, sid, c.id); };
+      box.appendChild(b);
+    });
+    qs("charPickModal").classList.add("show");
+  }).catch(function(){ toast("참여 처리 중 오류"); });
+}
+function leaveSlot(pid, sid){
+  if(!confirm("비울까?")) return;
+  fetch("/leave", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({post_id:pid, slot_id:sid})}).then(function(){ refresh(); });
+}
+function deletePost(pid){
+  if(!confirm("정말 삭제하시겠습니까?")) return;
+  fetch("/delete", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({post_id:pid})})
+    .then(function(r){ return r.json(); }).then(function(x){ toast(x.ok ? "삭제됨" : (x.reason || "삭제 실패")); refresh(); });
+}
+function openGlobalChat(){
+  globalOpen = true;
+  const m = qs("globalModal");
+  if(m) m.classList.add("show");
+  refreshGlobalChat();
+}
+function closeGlobalChat(){
+  globalOpen = false;
+  const m = qs("globalModal");
+  if(m) m.classList.remove("show");
+}
+function refreshGlobalChat(){
+  if(!globalOpen) return;
+  fetch("/api/global_chat", {cache:"no-store"}).then(function(r){ return r.text(); }).then(function(html){
+    const box = qs("globalChatList");
+    if(box){ box.innerHTML = html; box.scrollTop = box.scrollHeight; }
+  }).catch(function(){});
+}
+function sendGlobalChat(){
+  const input = qs("globalChatText");
+  if(!input || !input.value.trim()) return;
+  fetch("/global_chat", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text:input.value.trim()})})
+    .then(function(r){ return r.json(); }).then(function(x){
+      if(!x.ok){ toast(x.reason || "전송 실패"); return; }
+      input.value = "";
+      refreshGlobalChat();
+    });
+}
+function deleteGlobalChat(mid){
+  if(!confirm("이 메시지를 삭제할까요?")) return;
+  fetch("/global_chat/delete", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:mid})})
+    .then(function(r){ return r.json(); }).then(function(x){ toast(x.ok ? "삭제됨" : (x.reason || "삭제 실패")); refreshGlobalChat(); });
+}
+function openPartyChat(pid){
+  partyId = pid;
+  const m = qs("partyModal");
+  if(m) m.classList.add("show");
+  refreshPartyChat();
+}
+function closePartyChat(){
+  partyId = null;
+  const m = qs("partyModal");
+  if(m) m.classList.remove("show");
+}
+function refreshPartyChat(){
+  if(!partyId) return;
+  fetch("/api/party_chat/" + partyId, {cache:"no-store"}).then(function(r){ return r.text(); }).then(function(html){
+    const box = qs("partyChatList");
+    if(box){ box.innerHTML = html; box.scrollTop = box.scrollHeight; }
+  }).catch(function(){});
+}
+function sendPartyChat(){
+  const input = qs("partyChatText");
+  if(!partyId || !input || !input.value.trim()) return;
+  fetch("/party_chat/" + partyId, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text:input.value.trim()})})
+    .then(function(r){ return r.json(); }).then(function(x){
+      if(!x.ok){ toast(x.reason || "전송 실패"); return; }
+      input.value = "";
+      refreshPartyChat();
+      refresh();
+    });
+}
+function alarmOn(){ return localStorage.getItem("baram_alarm_off") !== "1"; }
+function updateAlarmBtn(){
+  const b = qs("alarmBtn");
+  if(b) b.textContent = alarmOn() ? "🔔 알림 ON" : "🔕 알림 OFF";
+}
+function toggleAlarm(){
+  localStorage.setItem("baram_alarm_off", alarmOn() ? "1" : "0");
+  updateAlarmBtn();
+  toast(alarmOn() ? "알림 켜짐" : "알림 꺼짐");
+}
+function scanAlarms(){
+  document.querySelectorAll(".post").forEach(function(p){
+    const id = p.dataset.postId;
+    if(id && !knownPosts.has(id)){
+      if(!firstLoad && alarmOn()) toast("새 모집글이 올라왔습니다.");
+      knownPosts.add(id);
+    }
+  });
+  firstLoad = false;
+}
+function heartbeat(){
+  fetch("/api/heartbeat", {method:"POST"}).then(function(r){ return r.json(); }).then(function(x){
+    const o = qs("onlineCount");
+    if(o) o.textContent = x.online || 1;
+  }).catch(function(){});
+}
+document.addEventListener("DOMContentLoaded", function(){
+  const g = qs("globalChatText");
+  if(g) g.addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); sendGlobalChat(); }});
+  const p = qs("partyChatText");
+  if(p) p.addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); sendPartyChat(); }});
+  updatePlaces();
+  updateAlarmBtn();
+  heartbeat();
+  scanAlarms();
+  countMine();
+});
+setInterval(refresh, 2500);
+setInterval(refreshGlobalChat, 1600);
+setInterval(refreshPartyChat, 1600);
+setInterval(heartbeat, 15000);
+</script>
+</body>
+</html>
 """
 
 ADMIN_PAGE = """

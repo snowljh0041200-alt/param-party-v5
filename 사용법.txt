@@ -1,11 +1,19 @@
-월하 · 연가 · 연희 파티모집 v10.2.1 ADMIN HOTFIX
+월하 · 연가 · 연희 파티모집 v10.2.2 ADMIN TIMEFIX
 
 수정 내용:
-- 관리자 페이지 통합채팅 전체삭제 경로 누락 수정
-- 기존 통합채팅 메시지에 id/created_at이 없어도 오류 안 나게 보강
-- v10.2 기능 유지
+- /admin 500 에러 원인 수정
+- online_count 시간 비교 오류 수정
+- 기존 접속자 기록이 timezone 없는 값이어도 오류 안 나게 보강
+- /health 점검 주소 추가
+- v10.2.1 기능 유지
 
 배포:
 git add .
-git commit -m "v10.2.1 admin hotfix"
+git commit -m "v10.2.2 admin timefix"
 git push
+
+배포 후 확인:
+1. Render Deploy live 확인
+2. 사이트 Ctrl + Shift + R
+3. /admin 접속
+4. 그래도 오류가 나면 /health 접속 확인

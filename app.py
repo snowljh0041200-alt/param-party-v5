@@ -96,10 +96,17 @@ def touch_online():
     session["guest_id"]=key
     ONLINE_USERS[key]=datetime.now(KST)
 def online_count():
-    cutoff=datetime.now()-timedelta(seconds=80)
-    for k,v in list(ONLINE_USERS.items()):
-        if v<cutoff: ONLINE_USERS.pop(k,None)
-    return max(1,len(ONLINE_USERS))
+    cutoff = datetime.now(KST) - timedelta(seconds=80)
+    for k, v in list(ONLINE_USERS.items()):
+        try:
+            if getattr(v, "tzinfo", None) is None:
+                v = v.replace(tzinfo=KST)
+            if v < cutoff:
+                ONLINE_USERS.pop(k, None)
+        except Exception:
+            ONLINE_USERS.pop(k, None)
+    return max(1, len(ONLINE_USERS))
+
 def find_post(data,pid):
     for p in data.get("posts",[]):
         if p.get("id")==pid: return p
@@ -447,6 +454,9 @@ def admin_clear_global_chat():
 def admin_clear_closed():
     if not session.get("admin_ok"): return redirect("/admin")
     mutate(lambda d:d.update({"posts":[p for p in d.get("posts",[]) if not p.get("closed")]})); return redirect("/admin")
+@app.route("/health")
+def health(): return jsonify(ok=True, time=now_text(), online=online_count())
+
 @app.route("/manifest.json")
 def manifest(): return jsonify({"name":"월하 연가 연희 파티모집","short_name":"파티모집","start_url":"/","display":"standalone","background_color":"#0b1020","theme_color":"#0b1020","icons":[]})
 @app.route("/sw.js")

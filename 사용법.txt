@@ -1,12 +1,9 @@
-v18.3 ADMIN 500 HOTFIX
+v20.0 OFFICIAL CLEAN PROJECT
 
-수정:
-- /admin 500 에러 수정
-- ADMIN 템플릿 누락 문제 수정
-- 관리자 승인 화면 안전 템플릿 추가
-- 기존 v18.2 사냥 참여 수정 유지
+완전 새 구조입니다.
+기존 꼬인 app.py를 사용하지 않습니다.
 
 배포:
 git add .
-git commit -m "v18.3 admin 500 hotfix"
+git commit -m "v20.0 official clean project"
 git push

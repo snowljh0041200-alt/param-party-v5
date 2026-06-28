@@ -35,6 +35,11 @@ PLACES = {
     "600퀘": ["800층 600퀘", "900층 600퀘", "선비족 600퀘"]
 }
 
+DEFAULT_FARMING_ITEMS = {
+    "해골왕": ["해뼈"],
+    "어금니": ["흑룡 어금니", "묵룡 어금니", "진룡 어금니", "감룡 어금니"]
+}
+
 def now():
     return datetime.now(KST)
 
@@ -69,7 +74,8 @@ def default_data():
         "settings": {
             "access_password": DEFAULT_ACCESS_PASSWORD,
             "admin_password": DEFAULT_ADMIN_PASSWORD,
-            "notice": ""
+            "notice": "",
+            "farming_items": DEFAULT_FARMING_ITEMS
         },
         "users": [],
         "posts": [],
@@ -89,6 +95,7 @@ def read_data():
     data["settings"].setdefault("access_password", DEFAULT_ACCESS_PASSWORD)
     data["settings"].setdefault("admin_password", DEFAULT_ADMIN_PASSWORD)
     data["settings"].setdefault("notice", "")
+    data["settings"].setdefault("farming_items", DEFAULT_FARMING_ITEMS)
     data.setdefault("users", [])
     data.setdefault("posts", [])
     data.setdefault("global_chat", [])
@@ -106,7 +113,7 @@ def cleanup_data(data):
     cutoff_post = now() - timedelta(hours=POST_AUTO_DELETE_HOURS)
     for post in data.get("posts", []):
         closed_at = parse_dt(post.get("closed_at"))
-        if post.get("closed") and closed_at and closed_at <= cutoff_post:
+        if post.get("category") != "파밍" and post.get("closed") and closed_at and closed_at <= cutoff_post:
             continue
         post["party_chat"] = post.get("party_chat", [])[-100:]
         keep_posts.append(post)
@@ -156,6 +163,9 @@ def current_user(data):
 
 def approved_user(user):
     return bool(user and user.get("status") == "approved" and not user.get("blocked"))
+
+def is_guild_member(user):
+    return approved_user(user) and user.get("role", "public") in ["guild", "admin"]
 
 def approved_chars(user):
     return [c for c in (user or {}).get("chars", []) if c.get("status") == "approved"]
@@ -252,6 +262,30 @@ def closed_left_text(post):
         return "곧 자동삭제"
     return f"{left}분 뒤 자동삭제"
 
+
+def farming_calc(post):
+    try:
+        amount = int(post.get("sale_amount") or 0)
+        early = int(post.get("early_count") or 0)
+        late = int(post.get("late_count") or 0)
+        late_rate = int(post.get("late_rate") or 75)
+    except Exception:
+        return None
+    if amount <= 0 or (early + late) <= 0:
+        return None
+    weight = early + (late * late_rate / 100)
+    if weight <= 0:
+        return None
+    early_share = int(amount / weight)
+    late_share = int(early_share * late_rate / 100)
+    return {"amount": amount, "early": early, "late": late, "late_rate": late_rate, "early_share": early_share, "late_share": late_share}
+
+def money_text(value):
+    try:
+        return f"{int(value):,}전"
+    except Exception:
+        return "0전"
+
 def can_party_chat(post, user):
     if not approved_user(user):
         return False
@@ -281,6 +315,8 @@ def render_posts(posts, user):
     uid = user.get("id") if user else ""
     html_rows = []
     for post in posts:
+        if post.get("category") == "파밍" and not is_guild_member(user):
+            continue
         pid = esc(post.get("id"))
         status = post_status(post)
         filled, total = filled_total(post)
@@ -308,6 +344,18 @@ def render_posts(posts, user):
                 slot_rows.append(f"<div class='slot'><div><b>{job}</b><br><span>⭕ 모집중</span></div><button type='button' class='mini ok' {disabled} onclick=\"joinSlot('{pid}','{sid}','{job}')\">참여</button></div>")
 
         memo = f"<div class='memo'>📝 {esc(post.get('memo'))}</div>" if post.get("memo") else ""
+        farm_html = ""
+        if post.get("category") == "파밍":
+            result = post.get("farming_result", "노득")
+            item = post.get("farming_item", "")
+            calc = farming_calc(post)
+            if result == "득템":
+                farm_html = f"<div class='notice'>🔒 파밍 결과: <b>득템</b><br>아이템: <b>{esc(item)}</b><br>판매금액: <b>{money_text(post.get('sale_amount'))}</b>"
+                if calc:
+                    farm_html += f"<br>선입 {calc['early']}명: 1인당 <b>{money_text(calc['early_share'])}</b><br>후입 {calc['late']}명({calc['late_rate']}%): 1인당 <b>{money_text(calc['late_share'])}</b>"
+                farm_html += "</div>"
+            else:
+                farm_html = "<div class='notice'>🔒 파밍 결과: <b>노득</b></div>"
         left = closed_left_text(post)
         left_html = f"<div class='left-time'>{esc(left)}</div>" if left else ""
         owner_flag = "1" if post.get("owner_uid") == uid else "0"
@@ -325,7 +373,7 @@ def render_posts(posts, user):
           <h2>{esc(post.get("place"))}</h2>
           <div class='meta'>📍 채널 <b>{esc(post.get("channel") or "미정")}</b> · ⏰ {esc(post_time_text(post))}</div>
           <div class='meta'>👑 {esc(post.get("owner_label"))} · {esc(post.get("created"))}</div>
-          {memo}{left_html}
+          {memo}{farm_html}{left_html}
           <div class='slots'>{''.join(slot_rows)}</div>
           <div class='actions'>
             <button type='button' onclick="copyPost(`{copy_text}`)">복사</button>
@@ -409,8 +457,9 @@ MAIN_PAGE = """
 <section class='panel'><h2>{% if page=='edit' %}모집글 수정{% else %}모집글 올리기{% endif %}</h2>
 <form method='post' action='{% if page=="edit" %}/edit/{{ post.id }}{% else %}/create{% endif %}' onsubmit='return prepareSubmit()'>
 <label>작성 캐릭터</label><select name='owner_char_id'>{% for c in chars %}<option value='{{ c.id }}'>{{ c.name }}({{ c.job }})</option>{% endfor %}</select>
-<label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces()'>{% for t in ['사냥','파밍','600퀘'] %}<option>{{ t }}</option>{% endfor %}</select>
-<label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select {% if cat!="사냥" %}hidden{% endif %}'>{% for p in vals %}<option>{{ p }}</option>{% endfor %}</select>{% endfor %}
+<label>종류</label><select name='category' id='typeSelect' onchange='updatePlaces();updateFarmingItems();toggleFarmingBox()'>{% for t in category_options %}<option>{{ t }}</option>{% endfor %}</select>
+<label>장소</label>{% for cat, vals in places.items() %}<select name='place_{{ cat }}' id='place_{{ cat }}' class='place-select {% if cat!="사냥" %}hidden{% endif %}' onchange='updateFarmingItems()'>{% for p in vals %}<option>{{ p }}</option>{% endfor %}</select>{% endfor %}
+<div id='farmingBox' class='panel hidden'><label>🔒 파밍 결과</label><select name='farming_result' id='farmingResult' onchange='toggleDropBox()'><option>노득</option><option>득템</option></select><div id='dropBox' class='hidden'><label>득템 아이템</label><select name='farming_item' id='farmingItem'></select><label>판매금액</label><input name='sale_amount' id='saleAmount' inputmode='numeric' placeholder='예: 26000000' oninput='numOnly(this);calcFarmShare()'><div class='time-row'><div><label>선입 인원</label><input name='early_count' id='earlyCount' inputmode='numeric' value='0' oninput='numOnly(this);calcFarmShare()'></div><div><label>후입 인원</label><input name='late_count' id='lateCount' inputmode='numeric' value='0' oninput='numOnly(this);calcFarmShare()'></div></div><label>후입 비율</label><select name='late_rate' id='lateRate' onchange='calcFarmShare()'><option value='100'>100%</option><option value='75' selected>75%</option><option value='50'>50%</option></select><div class='notice' id='shareResult'>판매금액과 인원을 입력하면 자동 계산됩니다.</div></div></div>
 <label>채널 4자리</label><input name='channel' id='channelInput' maxlength='4' inputmode='numeric' placeholder='예: 3385' oninput='numbersOnly(this)'>
 <label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' placeholder='예: 09:00'></div>
 <label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option selected>오후</option></select><input name='end_time' placeholder='예: 11:00'></div>
@@ -435,11 +484,11 @@ MAIN_PAGE = """
 <div id='toast' class='toast'></div>
 
 <script>
-const CURRENT_USER_ID="{{ user.id if user else '' }}";let globalOpen=false;let partyId=null;let knownPosts=new Set();let firstLoad=true;
+const CURRENT_USER_ID="{{ user.id if user else '' }}";const FARMING_ITEMS={{ farming_items|default({}, true)|tojson }};let globalOpen=false;let partyId=null;let knownPosts=new Set();let firstLoad=true;
 function qs(id){return document.getElementById(id)}function toast(m){const t=qs('toast');if(!t){alert(m);return}t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}
-function numbersOnly(el){el.value=(el.value||'').replace(/[^0-9]/g,'').slice(0,4)}function prepareSubmit(){const ch=qs('channelInput');if(ch){numbersOnly(ch);if(ch.value.length!==4){alert('채널은 숫자 4자리로 입력해줘.');ch.focus();return false}}return true}
+function numbersOnly(el){el.value=(el.value||'').replace(/[^0-9]/g,'').slice(0,4)}function numOnly(el){el.value=(el.value||'').replace(/[^0-9]/g,'')}function prepareSubmit(){const ch=qs('channelInput');if(ch){numbersOnly(ch);if(ch.value.length!==4){alert('채널은 숫자 4자리로 입력해줘.');ch.focus();return false}}return true}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function updatePlaces(){const t=qs('typeSelect');if(!t)return;document.querySelectorAll('.place-select').forEach(x=>x.classList.add('hidden'));const target=qs('place_'+t.value);if(target)target.classList.remove('hidden')}
+function updatePlaces(){const t=qs('typeSelect');if(!t)return;document.querySelectorAll('.place-select').forEach(x=>x.classList.add('hidden'));const target=qs('place_'+t.value);if(target)target.classList.remove('hidden')}function toggleFarmingBox(){const t=qs('typeSelect');const box=qs('farmingBox');if(!t||!box)return;if(t.value==='파밍')box.classList.remove('hidden');else box.classList.add('hidden');toggleDropBox()}function toggleDropBox(){const r=qs('farmingResult');const box=qs('dropBox');if(!r||!box)return;if(r.value==='득템')box.classList.remove('hidden');else box.classList.add('hidden')}function updateFarmingItems(){const placeSelect=qs('place_파밍');const itemSelect=qs('farmingItem');if(!placeSelect||!itemSelect)return;const items=FARMING_ITEMS[placeSelect.value]||[];itemSelect.innerHTML='';items.forEach(x=>{const o=document.createElement('option');o.textContent=x;o.value=x;itemSelect.appendChild(o)})}function calcFarmShare(){const amount=parseInt(qs('saleAmount')?.value||'0');const early=parseInt(qs('earlyCount')?.value||'0');const late=parseInt(qs('lateCount')?.value||'0');const rate=parseInt(qs('lateRate')?.value||'75');const out=qs('shareResult');if(!out)return;if(!amount||early+late<=0){out.textContent='판매금액과 인원을 입력하면 자동 계산됩니다.';return}const weight=early+(late*rate/100);const earlyShare=Math.floor(amount/weight);const lateShare=Math.floor(earlyShare*rate/100);out.innerHTML='총 '+amount.toLocaleString()+'전<br>선입 '+early+'명: 1인당 <b>'+earlyShare.toLocaleString()+'전</b><br>후입 '+late+'명('+rate+'%): 1인당 <b>'+lateShare.toLocaleString()+'전</b>'}
 function addSlot(){const job=qs('slotJob')?.value;const box=qs('slotsBox');if(!job||!box)return;const d=document.createElement('div');d.className='slot';d.innerHTML='<div><b>'+escapeHtml(job)+'</b><br><span>빈자리</span></div><button type="button" class="mini danger" onclick="this.parentElement.remove()">삭제</button><input type="hidden" name="slots" value="'+escapeHtml(job)+'">';box.appendChild(d)}
 function copyPost(text){if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>toast('복사됨')).catch(()=>alert(text))}else alert(text)}
 function shareKakao(text){const shareText='월하 · 연가 · 연희 파티모집\\n\\n'+text+'\\n\\n'+location.origin;if(navigator.share){navigator.share({title:'파티모집',text:shareText,url:location.origin}).catch(()=>copyPost(shareText))}else{copyPost(shareText);toast('공유문구가 복사됐습니다. 카톡에 붙여넣어 주세요.')}}
@@ -460,7 +509,7 @@ function sendPartyChat(){const i=qs('partyChatText');if(!partyId||!i||!i.value.t
 function alarmOn(){return localStorage.getItem('baram_alarm_off')!=='1'}function updateAlarmBtn(){const b=qs('alarmBtn');if(b)b.textContent=alarmOn()?'🔔 알림 ON':'🔕 알림 OFF'}function toggleAlarm(){localStorage.setItem('baram_alarm_off',alarmOn()?'1':'0');updateAlarmBtn();toast(alarmOn()?'알림 켜짐':'알림 꺼짐')}
 function scanAlarms(){document.querySelectorAll('.post').forEach(p=>{const id=p.dataset.postId;if(id&&!knownPosts.has(id)){if(!firstLoad&&alarmOn())toast('새 모집글이 올라왔습니다.');knownPosts.add(id)}});firstLoad=false}
 function heartbeat(){fetch('/api/heartbeat',{method:'POST'}).then(r=>r.json()).then(x=>{const o=qs('onlineCount');if(o)o.textContent=x.online||1}).catch(()=>{})}
-document.addEventListener('DOMContentLoaded',()=>{const g=qs('globalChatText');if(g)g.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendGlobalChat()}});const p=qs('partyChatText');if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendPartyChat()}});updatePlaces();updateAlarmBtn();heartbeat();scanAlarms();countMine()});
+document.addEventListener('DOMContentLoaded',()=>{const g=qs('globalChatText');if(g)g.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendGlobalChat()}});const p=qs('partyChatText');if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendPartyChat()}});updatePlaces();updateFarmingItems();toggleFarmingBox();updateAlarmBtn();heartbeat();scanAlarms();countMine()});
 setInterval(refresh,2500);setInterval(refreshGlobalChat,1600);setInterval(refreshPartyChat,1600);setInterval(heartbeat,15000);
 </script>
 </body></html>
@@ -474,10 +523,10 @@ ADMIN_PAGE = """
 {% else %}
 <section class='panel'><div class='top-actions'><form method='post' action='/admin/logout'><button class='gray'>로그아웃</button></form><form method='post' action='/admin/clear_closed'><button>마감글 정리</button></form><form method='post' action='/admin/clear_global_chat'><button class='danger'>통합채팅 전체삭제</button></form></div></section>
 <section class='panel'><h2>문파 설정</h2><form method='post' action='/admin/settings'><label>문파 입장 비밀번호 변경</label><input name='access_password' placeholder='새 입장 비밀번호'><label>관리자 비밀번호 변경</label><input name='admin_password' placeholder='새 관리자 비밀번호'><button>저장</button></form></section>
-<section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice' rows='3'>{{ notice }}</textarea><button>공지 저장</button></form></section>
+<section class='panel'><h2>공지</h2><form method='post' action='/admin/notice'><textarea name='notice' rows='3'>{{ notice }}</textarea><button>공지 저장</button></form></section><section class='panel'><h2>🔒 파밍 아이템 설정</h2><form method='post' action='/admin/farming_items'><label>해골왕 아이템</label><input name='items_해골왕' value='{{ farming_items.get("해골왕", [])|join(", ") }}'><label>어금니 아이템</label><input name='items_어금니' value='{{ farming_items.get("어금니", [])|join(", ") }}'><button>파밍 아이템 저장</button></form><p class='meta'>쉼표로 구분해서 입력하세요.</p></section>
 <section class='panel'><h2>가입 승인</h2>{% for u in pending_users %}<div class='member'><b>{{ u.account }}</b> / {% for c in u.chars %}{{ c.name }}({{ c.job }}) {% endfor %}<form method='post' action='/admin/user/{{ u.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/user/{{ u.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p class='meta'>대기 없음</p>{% endfor %}</section>
 <section class='panel'><h2>캐릭터 승인</h2>{% for item in pending_chars %}<div class='member'><b>{{ item.user.account }}</b> / {{ item.char.name }}({{ item.char.job }})<form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/approve' style='display:inline'><button class='mini ok'>승인</button></form><form method='post' action='/admin/char/{{ item.user.id }}/{{ item.char.id }}/reject' style='display:inline'><button class='mini danger'>거부</button></form></div>{% else %}<p class='meta'>대기 없음</p>{% endfor %}</section>
-<section class='panel'><h2>회원 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · {{ u.status }}{% if u.blocked %} · 차단됨{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}<form method='post' action='/admin/user/{{ u.id }}/toggle_block'><button class='mini danger'>차단/해제</button></form></div>{% else %}<p class='meta'>회원 없음</p>{% endfor %}</section>
+<section class='panel'><h2>회원 관리</h2>{% for u in users %}<div class='member'><b>{{ u.account }}</b> · {{ u.status }} · 권한: {{ u.role|default('public') }}{% if u.blocked %} · 차단됨{% endif %}<br>{% for c in u.chars %}{{ c.name }}({{ c.job }}) - {{ c.status }}<br>{% endfor %}<form method='post' action='/admin/user/{{ u.id }}/make_public' style='display:inline'><button class='mini gray'>일반유저</button></form><form method='post' action='/admin/user/{{ u.id }}/make_guild' style='display:inline'><button class='mini ok'>문파원</button></form><form method='post' action='/admin/user/{{ u.id }}/toggle_block' style='display:inline'><button class='mini danger'>차단/해제</button></form></div>{% else %}<p class='meta'>회원 없음</p>{% endfor %}</section>
 <section class='panel'><h2>모집글 관리</h2>{% for p in posts %}<div class='member'><b>{{ p.place }}</b> / {{ p.channel }} / {{ p.owner_label }} / {{ p.created }}<form method='post' action='/admin/delete_post/{{ p.id }}'><button class='mini danger'>삭제</button></form></div>{% else %}<p class='meta'>글 없음</p>{% endfor %}</section>
 {% endif %}
 </div></body></html>
@@ -537,6 +586,7 @@ def register():
             "id": uid,
             "account": account,
             "status": "pending",
+            "role": "public",
             "blocked": False,
             "selected_char_id": cid,
             "created": now_text(),
@@ -566,15 +616,20 @@ def home():
     data = load_data()
     user = current_user(data)
     touch_online()
+    allowed_filters = FILTERS if is_guild_member(user) else [f for f in FILTERS if f != "파밍"]
     filt = request.args.get("filter", "전체")
+    if filt == "파밍" and not is_guild_member(user):
+        filt = "전체"
     posts = list(reversed(data.get("posts", [])))
+    if not is_guild_member(user):
+        posts = [p for p in posts if p.get("category") != "파밍"]
     if filt != "전체":
         posts = [p for p in posts if p.get("category") == filt]
     open_count = sum(1 for p in posts if post_status(p) == "모집중")
     return render_template_string(
-        MAIN_PAGE, css=CSS, page="home", user=user, filters=FILTERS, filter_value=filt,
+        MAIN_PAGE, css=CSS, page="home", user=user, filters=allowed_filters, filter_value=filt,
         post_list=render_posts(posts, user), open_count=open_count, member_html=member_html(data),
-        notice=data["settings"].get("notice", ""), jobs=JOBS, places=PLACES
+        notice=data["settings"].get("notice", ""), jobs=JOBS, places=PLACES, farming_items=data["settings"].get("farming_items", DEFAULT_FARMING_ITEMS), category_options=allowed_filters
     )
 
 @app.route("/api/posts")
@@ -582,7 +637,11 @@ def api_posts():
     data = load_data()
     user = current_user(data)
     filt = request.args.get("filter", "전체")
+    if filt == "파밍" and not is_guild_member(user):
+        filt = "전체"
     posts = list(reversed(data.get("posts", [])))
+    if not is_guild_member(user):
+        posts = [p for p in posts if p.get("category") != "파밍"]
     if filt != "전체":
         posts = [p for p in posts if p.get("category") == filt]
     return render_posts(posts, user)
@@ -594,7 +653,7 @@ def new_post_page():
     chars = approved_chars(user)
     if not chars:
         return redirect("/chars")
-    return render_template_string(MAIN_PAGE, css=CSS, page="new", post=None, chars=chars, user=user, jobs=JOBS, places=PLACES, notice="")
+    return render_template_string(MAIN_PAGE, css=CSS, page="new", post=None, chars=chars, user=user, jobs=JOBS, places=PLACES, notice="", category_options=(["사냥","파밍","600퀘"] if is_guild_member(user) else ["사냥","600퀘"]), farming_items=data["settings"].get("farming_items", DEFAULT_FARMING_ITEMS))
 
 @app.route("/create", methods=["POST"])
 def create_post():
@@ -604,6 +663,8 @@ def create_post():
     if not owner_char:
         return redirect("/chars")
     category = request.form.get("category", "사냥")
+    if category == "파밍" and not is_guild_member(user):
+        return redirect("/")
     place = request.form.get(f"place_{category}", "")
     slots = [{"id": str(uuid.uuid4()), "job": job, "char_id": "", "uid": "", "char_label": ""} for job in request.form.getlist("slots")]
     post = {
@@ -623,7 +684,13 @@ def create_post():
         "closed": False,
         "closed_at": "",
         "party_chat": [],
-        "created": now_text()
+        "created": now_text(),
+        "farming_result": request.form.get("farming_result", "노득"),
+        "farming_item": request.form.get("farming_item", ""),
+        "sale_amount": "".join(ch for ch in request.form.get("sale_amount", "") if ch.isdigit()),
+        "early_count": "".join(ch for ch in request.form.get("early_count", "") if ch.isdigit()),
+        "late_count": "".join(ch for ch in request.form.get("late_count", "") if ch.isdigit()),
+        "late_rate": "".join(ch for ch in request.form.get("late_rate", "75") if ch.isdigit()) or "75"
     }
     ensure_closed_if_full(post)
     mutate(lambda d: d["posts"].append(post))
@@ -637,7 +704,7 @@ def edit_post(post_id):
     if not post or post.get("owner_uid") != user.get("id"):
         return redirect("/")
     if request.method == "GET":
-        return render_template_string(MAIN_PAGE, css=CSS, page="edit", post=post, chars=approved_chars(user), user=user, jobs=JOBS, places=PLACES, notice="")
+        return render_template_string(MAIN_PAGE, css=CSS, page="edit", post=post, chars=approved_chars(user), user=user, jobs=JOBS, places=PLACES, notice="", category_options=(["사냥","파밍","600퀘"] if is_guild_member(user) else ["사냥","600퀘"]), farming_items=data["settings"].get("farming_items", DEFAULT_FARMING_ITEMS))
     def fn(d):
         p = find_post(d, post_id)
         if p:
@@ -650,7 +717,7 @@ def edit_post(post_id):
 def chars_page():
     data = load_data()
     user = current_user(data)
-    return render_template_string(MAIN_PAGE, css=CSS, page="chars", user=user, jobs=JOBS, notice="", places=PLACES)
+    return render_template_string(MAIN_PAGE, css=CSS, page="chars", user=user, jobs=JOBS, notice="", places=PLACES, farming_items=data["settings"].get("farming_items", DEFAULT_FARMING_ITEMS), category_options=(["사냥","파밍","600퀘"] if is_guild_member(user) else ["사냥","600퀘"]))
 
 @app.route("/chars/add", methods=["POST"])
 def add_char():
@@ -830,7 +897,7 @@ def admin():
     return render_template_string(
         ADMIN_PAGE, css=CSS, admin_ok=bool(session.get("admin_ok")),
         posts=list(reversed(data["posts"])), notice=data["settings"].get("notice", ""),
-        pending_users=pending_users, pending_chars=pending_chars, users=data["users"]
+        pending_users=pending_users, pending_chars=pending_chars, users=data["users"], farming_items=data["settings"].get("farming_items", DEFAULT_FARMING_ITEMS)
     )
 
 @app.route("/admin/login", methods=["POST"])
@@ -866,6 +933,20 @@ def admin_notice():
     mutate(lambda d: d["settings"].update({"notice": request.form.get("notice", "").strip()[:300]}))
     return redirect("/admin")
 
+
+@app.route("/admin/farming_items", methods=["POST"])
+def admin_farming_items():
+    if not session.get("admin_ok"):
+        return redirect("/admin")
+    def parse_items(name):
+        return [x.strip() for x in request.form.get(name, "").split(",") if x.strip()]
+    items = {
+        "해골왕": parse_items("items_해골왕") or ["해뼈"],
+        "어금니": parse_items("items_어금니") or ["흑룡 어금니", "묵룡 어금니", "진룡 어금니", "감룡 어금니"]
+    }
+    mutate(lambda d: d["settings"].update({"farming_items": items}))
+    return redirect("/admin")
+
 @app.route("/admin/user/<uid>/<action>", methods=["POST"])
 def admin_user_action(uid, action):
     if not session.get("admin_ok"):
@@ -883,6 +964,10 @@ def admin_user_action(uid, action):
             user["status"] = "rejected"
         elif action == "toggle_block":
             user["blocked"] = not user.get("blocked", False)
+        elif action == "make_guild":
+            user["role"] = "guild"
+        elif action == "make_public":
+            user["role"] = "public"
     mutate(fn)
     return redirect("/admin")
 

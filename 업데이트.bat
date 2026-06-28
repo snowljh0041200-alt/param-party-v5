@@ -2,12 +2,9 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 echo.
-echo ===== v17.0 생성폼/파밍 구조 개편 =====
-echo 중요: data.json 파일은 절대 덮어쓰지 마세요.
+echo ===== v17.1 폼 강제 수정 =====
 echo.
 git add .
-git commit -m "v17.0 form farming rework"
+git commit -m "v17.1 force form fix"
 git push
-echo.
-echo ===== 완료. Render 자동배포를 기다리세요. =====
 pause

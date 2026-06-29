@@ -1,11 +1,11 @@
-v25.1 GATE HOTFIX
+v25.2 GATE DIRECT FIX
 
 수정:
-- /gate 첫 화면 500 에러 수정
-- T_GATE 템플릿 정의 누락/오타 수정
-- 미로그인 시 로그인/문파원 등록 선택 화면으로 이동
+- /gate 500 에러 완전 수정
+- T_GATE 변수 의존 제거
+- GATE_HTML 직접 렌더링 방식으로 변경
 
 배포:
 git add .
-git commit -m "v25.1 gate hotfix"
+git commit -m "v25.2 gate direct fix"
 git push

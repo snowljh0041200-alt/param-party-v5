@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v25.1"
+APP_VERSION = "v25.2"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -579,6 +579,21 @@ button:disabled,.btn[disabled]{
   .toolbar .btn,.toolbar button{flex:1}
 }
 """
+
+
+GATE_HTML = """
+<section class='panel auth-panel'>
+  <div class='auth-logo'>⚔</div>
+  <h1>월하 · 연가 · 연희</h1>
+  <p class='meta'>문파 파티모집 보드</p>
+  <div class='auth-actions'>
+    <a class='btn ok full' href='/login'>로그인</a>
+    <a class='btn gray full' href='/register'>문파원 등록</a>
+  </div>
+</section>
+"""
+
+
 
 def now():
     return datetime.now(KST)
@@ -1366,7 +1381,7 @@ T_INDEX = """
 
 @app.route("/gate")
 def gate():
-    return render(T_GATE)
+    return render(GATE_HTML)
 
 @app.route("/login", methods=["GET","POST"])
 def login():

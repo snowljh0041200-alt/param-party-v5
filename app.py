@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v36.5-final"
+APP_VERSION = "v36.7-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2431,6 +2431,46 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
   }
 }
 
+
+/* v36.6 character edit + online limit */
+.header-online-v365{
+  max-width:620px!important;
+}
+.header-online-list-v365{
+  max-width:430px!important;
+}
+.more-online-v366{
+  background:rgba(255,215,90,.15)!important;
+  color:#ffe27a!important;
+  border-color:rgba(255,215,90,.35)!important;
+  flex:0 0 auto!important;
+}
+.stack-form{
+  display:grid!important;
+  gap:10px!important;
+}
+.stack-form input,
+.stack-form select{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+
+/* v36.7 online admin only */
+.header-online-list-v365{
+  max-width:520px!important;
+}
+.staff-online-v367{
+  background:rgba(28,210,120,.16)!important;
+  border-color:rgba(28,210,120,.35)!important;
+}
+.normal-online-v367{
+  background:rgba(120,150,210,.18)!important;
+  border-color:rgba(120,150,210,.35)!important;
+  color:#dce7ff!important;
+  flex:0 0 auto!important;
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -3556,6 +3596,31 @@ def index():
 def nl2br_filter(s):
     return h(s or "").replace("\n", "<br>")
 
+
+@app.template_filter("online_staff")
+def online_staff_filter(online):
+    staff = []
+    for o in online or []:
+        role = str(o.get("role") or "")
+        if role in ("최고관리자", "관리자", "super", "admin"):
+            staff.append(o)
+    return staff
+
+@app.template_filter("normal_online_count")
+def normal_online_count_filter(online):
+    total = len(online or [])
+    staff = len(online_staff_filter(online))
+    return max(0, total - staff)
+
+@app.template_filter("role_label")
+def role_label_filter(role):
+    r = str(role or "")
+    if r == "super":
+        return "최고관리자"
+    if r == "admin":
+        return "관리자"
+    return r
+
 T_INDEX = """
 <header class='header'>
   <div class='title-online-v365'>
@@ -3567,14 +3632,16 @@ T_INDEX = """
       <span class='online-dot-v365'></span>
       <b>접속중 {{ online|length }}명</b>
       <div class='header-online-list-v365'>
-        {% for o in online %}
-          <span class='pill mini-online-v365'>
+        {% for o in online|online_staff %}
+          <span class='pill mini-online-v365 staff-online-v367'>
             {{o.label}}
-            {% if o.role %}
-              <small class='group-badge role-badge-v365'>{{o.role}}</small>
-            {% endif %}
+            <small class='group-badge role-badge-v365'>{{o.role|role_label}}</small>
           </span>
         {% endfor %}
+        {% set normal_count = online|normal_online_count %}
+        {% if normal_count > 0 %}
+          <span class='pill mini-online-v365 normal-online-v367'>일반 {{ normal_count }}명</span>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -4455,6 +4522,48 @@ def chat(pid):
         if txt and c: p["chat"].append({"name":char_label(c),"text":txt,"time":now_text()}); save(d)
         return redirect(f"/chat/{pid}")
     return render("<section class='panel'><a class='btn gray' href='/'>← 메인으로</a><h1>채팅</h1><div class='chatbox'>{% for m in p.chat %}<div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}</div>{% else %}<div class='empty'>메시지 없음</div>{% endfor %}</div><form method='post' class='toolbar'><input name='text'><button>전송</button></form></section>", p=p)
+
+
+T_EDIT_CHAR = """
+<section class='panel'>
+  <a class='btn gray' href='/chars'>← 캐릭터</a>
+  <h1>캐릭터 수정</h1>
+  <form method='post' class='stack-form'>
+    <label>캐릭터명</label>
+    <input name='name' value='{{ch.name}}' required>
+    <label>직업/차수</label>
+    <select name='job'>
+      {% for j in jobs %}
+        <option value='{{j}}' {% if ch.job==j %}selected{% endif %}>{{j}}</option>
+      {% endfor %}
+    </select>
+    <button class='ok'>저장</button>
+  </form>
+</section>
+"""
+
+@app.route("/edit_char/<cid>", methods=["GET","POST"])
+def edit_char(cid):
+    d = load()
+    u = current_user()
+    ch = None
+    for c in u.get("chars", []):
+        if str(c.get("id")) == str(cid):
+            ch = c
+            break
+    if not ch:
+        return redirect("/chars")
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        job = (request.form.get("job") or "").strip()
+        if name:
+            ch["name"] = name
+        if job:
+            ch["job"] = job
+        save(d)
+        return redirect("/chars")
+    return render_template_string(BASE_HEAD + T_EDIT_CHAR + BASE_TAIL, d=d, u=u, c=selected_char(u), ch=ch, jobs=JOBS, app_version=APP_VERSION)
+
 
 @app.route("/chars", methods=["GET","POST"])
 def chars():

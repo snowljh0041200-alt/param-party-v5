@@ -1,14 +1,14 @@
-v36.5 ONLINE HEADER CHAT EXPAND
+v36.7 ONLINE ADMIN ONLY
 
 수정:
-- 접속중을 상단 제목 옆에 작게 표시
-- 접속자 이름 옆 관리자/최고관리자 배지 복구
-- 오른쪽 접속중 패널 제거
-- 통합채팅 공간 확장
-- 기존 외부 버튼 오류 수정 유지
+- 상단 접속중은 전체 인원수 표시
+- 최고관리자/관리자만 이름과 배지 표시
+- 일반 문원은 이름 대신 '일반 n명'으로 표시
+- 접속자가 많아도 UI 깨짐 방지
+- 기존 캐릭터 수정/외부 버튼/알림 수정 유지
 - 컴파일 통과
 
 배포:
 git add .
-git commit -m "v36.5 online header chat expand"
+git commit -m "v36.7 online admin only"
 git push

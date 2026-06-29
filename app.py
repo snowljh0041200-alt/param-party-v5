@@ -5,7 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v21.5"
+APP_VERSION = "v22.0"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -30,160 +30,243 @@ PLACES = {
 
 CSS = """
 :root{
-  --bg:#060b18;
-  --bg2:#0a1224;
-  --panel:#111b34;
-  --panel2:#0c152b;
-  --line:#2b3d66;
-  --line2:#3e5aa0;
-  --text:#f5f8ff;
-  --muted:#9fb0d1;
-  --blue:#5d78ff;
+  --bg:#050914;
+  --bg-soft:#091225;
+  --panel:#101a31;
+  --panel-2:#0b1326;
+  --card:#0e1930;
+  --line:#263a64;
+  --line-soft:#1d2d4d;
+  --text:#f4f7ff;
+  --muted:#96a7c8;
+  --blue:#5874ff;
+  --blue2:#3d5df0;
   --green:#19c46f;
+  --green2:#0ea85a;
   --red:#ef4444;
-  --gold:#f6d36b;
+  --gray:#43506d;
+  --gold:#f4d47a;
 }
 *{box-sizing:border-box}
 body{
   margin:0;
-  background:
-    radial-gradient(circle at top left, rgba(93,120,255,.18), transparent 34%),
-    radial-gradient(circle at top right, rgba(25,196,111,.10), transparent 28%),
-    linear-gradient(180deg,#060b18,#081126 55%,#050914);
   color:var(--text);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(88,116,255,.14), transparent 28%),
+    radial-gradient(circle at 90% 10%, rgba(25,196,111,.09), transparent 24%),
+    linear-gradient(180deg,#050914 0%,#071023 55%,#050914 100%);
   font-family:Arial,'Malgun Gothic',sans-serif;
   font-weight:700;
 }
-.wrap{max-width:1180px;margin:0 auto;padding:18px}
+.wrap{max-width:1240px;margin:0 auto;padding:16px}
 .header{
-  padding:22px 18px;
-  margin:0 0 16px;
-  border:1px solid var(--line);
-  border-radius:24px;
-  background:linear-gradient(135deg,rgba(93,120,255,.22),rgba(17,27,52,.92));
-  box-shadow:0 18px 40px rgba(0,0,0,.28);
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:16px;
+  padding:18px 4px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  margin-bottom:14px;
 }
-.header h1{margin:0;font-size:30px;letter-spacing:-.5px}
-.sub,.meta{color:var(--muted);font-size:14px}
+.header h1{margin:0;font-size:28px;letter-spacing:-.7px}
+.sub,.meta{color:var(--muted);font-size:13px}
 .panel,.card{
-  background:linear-gradient(180deg,rgba(17,27,52,.96),rgba(10,18,36,.96));
-  border:1px solid var(--line);
-  border-radius:22px;
-  padding:18px;
-  margin:14px 0;
-  box-shadow:0 14px 32px rgba(0,0,0,.24);
+  background:linear-gradient(180deg,rgba(16,26,49,.96),rgba(9,18,37,.96));
+  border:1px solid var(--line-soft);
+  border-radius:20px;
+  padding:16px;
+  margin:12px 0;
+  box-shadow:0 14px 34px rgba(0,0,0,.24);
 }
-.card{position:relative;overflow:hidden}
+.card{
+  position:relative;
+  overflow:hidden;
+  transition:.15s ease;
+}
+.card:hover{border-color:#3c5590;transform:translateY(-1px)}
 .card:before{
   content:"";
   position:absolute;
-  left:0;top:0;bottom:0;width:5px;
+  left:0;top:0;bottom:0;width:4px;
   background:linear-gradient(180deg,var(--blue),var(--green));
 }
-.card h2,.panel h2{margin-top:8px}
+.card h2{margin:10px 0 7px;font-size:25px;letter-spacing:-.6px}
+.panel h2{margin:0 0 10px;font-size:20px}
 input,select,textarea{
   width:100%;
   background:#081126;
-  border:1px solid #344466;
+  border:1px solid #304466;
   color:var(--text);
-  border-radius:14px;
-  padding:13px;
-  font-size:16px;
+  border-radius:13px;
+  padding:12px 13px;
+  font-size:15px;
   font-weight:800;
   outline:none;
 }
-input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(93,120,255,.16)}
-label{display:block;margin:12px 0 6px;color:#c9d7ff}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(88,116,255,.15)}
+label{display:block;margin:12px 0 6px;color:#c5d4ff;font-size:14px}
 .btn,button{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  background:linear-gradient(180deg,#647dff,#4d66ee);
+  gap:6px;
   color:#fff;
-  border:0;
-  border-radius:14px;
-  padding:11px 15px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:13px;
+  padding:10px 14px;
+  background:linear-gradient(180deg,var(--blue),var(--blue2));
   text-decoration:none;
   font-weight:900;
   cursor:pointer;
-  box-shadow:0 8px 18px rgba(0,0,0,.22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 8px 18px rgba(0,0,0,.22);
 }
 .btn:hover,button:hover{filter:brightness(1.08)}
-.ok{background:linear-gradient(180deg,#22d983,#16b966)!important}
-.danger{background:linear-gradient(180deg,#ff5b5b,#e23d3d)!important}
-.gray{background:linear-gradient(180deg,#586783,#43506c)!important}
-.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.ok{background:linear-gradient(180deg,#24d985,var(--green2))!important}
+.danger{background:linear-gradient(180deg,#ff5b5b,#df3636)!important}
+.gray{background:linear-gradient(180deg,#56637e,#3d4863)!important}
+.mini{padding:8px 11px;border-radius:11px;font-size:13px}
+.full{width:100%;margin-top:10px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.app-shell{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 360px;
+  gap:16px;
+  align-items:start;
+}
+.left-stack{min-width:0}
+.side-stack{position:sticky;top:12px}
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin:12px 0;
+}
+.summary-card{
+  background:linear-gradient(180deg,rgba(15,27,53,.96),rgba(7,16,34,.96));
+  border:1px solid var(--line-soft);
+  border-radius:18px;
+  padding:15px;
+}
+.summary-card strong{display:block;font-size:26px;margin-top:6px}
+.summary-card span{color:var(--muted);font-size:13px}
+.quickbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin:12px 0;
+}
+.category-bar{display:flex;gap:8px;flex-wrap:wrap}
 .slot{
   display:flex;
   justify-content:space-between;
   gap:12px;
   align-items:center;
-  background:rgba(8,17,38,.92);
-  border:1px solid #26365c;
-  border-radius:17px;
+  background:rgba(8,17,38,.88);
+  border:1px solid #23375f;
+  border-radius:16px;
   padding:13px;
-  margin:10px 0;
+  margin:9px 0;
 }
 .slot b{font-size:16px}
-.mini{padding:8px 12px;border-radius:12px;font-size:14px}
+.slot .meta{margin-top:3px}
 .tag{
   display:inline-flex;
   align-items:center;
-  background:#24345f;
+  background:#203156;
   border:1px solid rgba(255,255,255,.05);
   border-radius:999px;
-  padding:7px 11px;
+  padding:6px 10px;
   margin-right:5px;
-  font-size:13px;
+  font-size:12px;
 }
-.tag.ok{background:rgba(25,196,111,.22);border-color:rgba(25,196,111,.35)}
+.tag.ok{background:rgba(25,196,111,.18);border-color:rgba(25,196,111,.32);color:#9ff5c7}
 .count{
   float:right;
-  border:1px solid var(--line2);
-  background:rgba(93,120,255,.12);
+  border:1px solid #3d5693;
+  background:rgba(88,116,255,.12);
   border-radius:999px;
-  padding:8px 13px;
-  color:#dbe5ff;
+  padding:8px 12px;
+  color:#dce5ff;
+  font-weight:900;
 }
 .notice{
-  background:rgba(246,211,107,.13);
-  border:1px solid rgba(246,211,107,.28);
-  color:#ffe7a1;
-  border-radius:14px;
-  padding:12px;
-  margin:12px 0;
+  background:rgba(244,212,122,.12);
+  border:1px solid rgba(244,212,122,.25);
+  color:#ffe5a0;
+  border-radius:13px;
+  padding:11px;
+  margin:10px 0;
 }
 .closed{opacity:.55;filter:grayscale(.35)}
 .time-row{display:grid;grid-template-columns:95px 1fr;gap:8px}
-.dash{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .chatbox{
-  height:280px;
+  height:440px;
   overflow:auto;
   background:#081126;
-  border:1px solid #26365c;
+  border:1px solid #23375f;
   border-radius:16px;
-  padding:12px;
+  padding:10px;
 }
-.chatmsg{background:#1a2748;border-radius:12px;padding:10px;margin:8px 0}
-.pill{display:inline-flex;background:#22345e;border-radius:999px;padding:8px 12px;margin:4px}
-.full{width:100%;margin-top:10px}
-.empty{text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:16px;padding:24px}
-.place{animation:fadeIn .15s ease}
+.chatmsg{background:#182744;border-radius:12px;padding:10px;margin:8px 0}
+.chatmsg b{color:#dce5ff}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  background:#22345e;
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:999px;
+  padding:7px 10px;
+  margin:4px;
+}
+.empty{
+  text-align:center;
+  color:var(--muted);
+  border:1px dashed var(--line);
+  border-radius:16px;
+  padding:22px;
+}
+.online-panel{padding:14px 16px}
+.online-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.online-head h2{margin:0;font-size:18px}
+.online-list{display:flex;gap:7px;flex-wrap:wrap}
+.online-pill{background:rgba(25,196,111,.14);border:1px solid rgba(25,196,111,.3)}
+.online-pill small{margin-left:5px;color:var(--gold);font-size:11px}
+.schedule-row{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  background:#081126;
+  border:1px solid #23375f;
+  border-radius:14px;
+  padding:11px;
+  margin:8px 0;
+}
+.actions{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+.place{animation:fadeIn .12s ease}
 select optgroup{background:#142141;color:#9fbbff;font-weight:900}
 select option{background:#081126;color:#f5f8ff}
-#slotJob,select[name='job']{border-color:#5d78ff;box-shadow:0 0 0 2px rgba(93,120,255,.13)}
-@keyframes fadeIn{from{opacity:.25;transform:translateY(3px)}to{opacity:1;transform:none}}
-
-.online-panel{padding:16px 18px}
-.online-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
-.online-head h2{margin:0;font-size:20px}
-.online-list{display:flex;gap:8px;flex-wrap:wrap}
-.online-pill{background:rgba(25,196,111,.16);border:1px solid rgba(25,196,111,.34)}
-.online-pill small{margin-left:6px;color:#ffe7a1;font-size:11px}
-@media(max-width:800px){
+#slotJob,select[name='job']{border-color:#5874ff;box-shadow:0 0 0 2px rgba(88,116,255,.12)}
+@keyframes fadeIn{from{opacity:.3;transform:translateY(3px)}to{opacity:1;transform:none}}
+@media(max-width:980px){
+  .app-shell{grid-template-columns:1fr}
+  .side-stack{position:static}
+  .summary-grid{grid-template-columns:1fr 1fr 1fr}
+  .chatbox{height:300px}
+}
+@media(max-width:720px){
   .wrap{padding:10px}
-  .dash{grid-template-columns:1fr}
-  .header h1{font-size:24px}
+  .header{display:block}
+  .header h1{font-size:23px}
+  .summary-grid{grid-template-columns:1fr}
+  .quickbar{display:block}
+  .category-bar{margin-top:10px}
   .slot{flex-direction:column;align-items:flex-start}
   .time-row{grid-template-columns:88px 1fr}
   .toolbar .btn,.toolbar button{flex:1}
@@ -450,47 +533,134 @@ def index():
     return render(T_INDEX, d=d, u=u, c=selected_char(u), cat=cat, posts=posts, sched=sched, online=online_users(d))
 
 T_INDEX = """
-<header class='header'><h1>⚔ 월하 · 연가 · 연희 파티모집</h1><div class='sub'>{{ app_version }} · {{ char_label(c) }}</div></header>
-<div class='toolbar'><a class='btn ok' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a>{% if is_admin(u) %}<a class='btn gray' href='/admin'>관리자</a>{% endif %}<a class='btn gray' href='/logout'>로그아웃</a></div>
-
-<section class='panel online-panel'>
-  <div class='online-head'>
-    <h2>🟢 접속중 {{ online|length }}명</h2>
-    <span class='meta'>최근 5분 기준</span>
+<header class='header'>
+  <div>
+    <h1>⚔ 월하 · 연가 · 연희</h1>
+    <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
   </div>
-  {% if online %}
-    <div class='online-list'>
-      {% for o in online %}
-        <span class='pill online-pill'>{{ o.label }}{% if o.role != '일반' %}<small>{{ o.role }}</small>{% endif %}</span>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class='meta'>현재 접속중인 문파원이 없습니다.</div>
-  {% endif %}
-</section>
+  <div class='toolbar'>
+    <a class='btn ok' href='/new'>＋ 모집글 작성</a>
+    <a class='btn gray' href='/chars'>내 캐릭터</a>
+    {% if is_admin(u) %}<a class='btn gray' href='/admin'>관리자</a>{% endif %}
+    <a class='btn gray' href='/logout'>로그아웃</a>
+  </div>
+</header>
 
-<section class='panel'><div class='toolbar'>{% for x in categories %}<a class='btn {{ "ok" if x==cat else "gray" }} mini' href='/?cat={{x}}'>{{x}}</a>{% endfor %}</div></section>
-<div class='dash'>
-<section class='panel'><h2>📅 오늘 일정</h2><div class='notice'>파밍 30분 · 15분 · 5분 전 알림 기준</div>{% for p in sched %}<div class='slot'><div><b>{{p.place}}</b><br><span class='meta'>{{p.date}} · {{show_time(p.start_time)}}</span></div></div>{% else %}<div class='empty'>등록된 파밍 일정 없음</div>{% endfor %}</section>
-<section class='panel'><h2>💬 통합채팅</h2><div class='chatbox'>{% for m in d.global_chat[-30:] %}<div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}<br><span class='meta'>{{m.time}}</span></div>{% else %}<div class='empty'>메시지 없음</div>{% endfor %}</div><form class='toolbar' method='post' action='/global_chat'><input name='text' placeholder='메시지'><button>전송</button></form></section>
+<div class='summary-grid'>
+  <div class='summary-card'><span>접속중</span><strong>{{ online|length if online is defined else 1 }}</strong></div>
+  <div class='summary-card'><span>오늘 파밍</span><strong>{{ sched|length }}</strong></div>
+  <div class='summary-card'><span>진행중 모집</span><strong>{{ posts|selectattr('closed','equalto',False)|list|length }}</strong></div>
 </div>
-<h2>📌 모집글</h2>
-{% for p in posts %}
-<section class='card {{ "closed" if p.closed else "" }}'>
-<span class='tag ok'>{{ "마감" if p.closed else "모집중" }}</span><span class='tag'>{{p.category}}</span><span class='count'>{{joined_count(p)}}/{{max_count(p)}}</span>
-<h2>{{p.place}}</h2><div class='meta'>📍 채널 {{p.channel}} · ⏰ {{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}</div><div class='meta'>👑 {{p.owner_label}} · {{p.created}}</div>
-{% if p.memo %}<div class='notice'>{{p.memo}}</div>{% endif %}
-{% if p.category == "사냥" %}
-  {% for s in p.slots %}
-  <div class='slot'><div><b>{{s.job}}</b><br>{{s.label or s.external or "모집중"}}</div><div class='toolbar'>{% if not p.closed %}{% if s.uid==u.id %}<a class='btn mini gray' href='/leave_slot/{{p.id}}/{{loop.index0}}'>취소</a>{% elif not s.uid and not s.external %}<a class='btn mini ok' href='/join_slot/{{p.id}}/{{loop.index0}}'>참여</a>{% if is_admin(u) %}<a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>외부인</a>{% endif %}{% endif %}{% endif %}</div></div>
-  {% endfor %}
-{% else %}
-  <h3>참여자</h3>{% for a in p.participants %}<span class='pill'>{{a.label}}</span>{% else %}<p class='meta'>아직 참여자 없음</p>{% endfor %}
-  {% if not p.closed %}<a class='btn ok full' href='/participate/{{p.id}}'>참여하기</a>{% endif %}
-{% endif %}
-<div class='toolbar'>{% if p.owner_uid==u.id or is_admin(u) %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a><a class='btn gray' href='/edit/{{p.id}}'>수정</a><a class='btn danger' href='/delete/{{p.id}}'>삭제</a>{% endif %}<a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length}}</a></div>
-</section>
-{% else %}<div class='empty'>모집글 없음</div>{% endfor %}
+
+<div class='app-shell'>
+  <main class='left-stack'>
+    <div class='quickbar'>
+      <h2>📌 모집글</h2>
+      <div class='category-bar'>
+        {% for x in categories %}
+          <a class='btn {{ "ok" if x==cat else "gray" }} mini' href='/?cat={{x}}'>{{x}}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% for p in posts %}
+    <section class='card {{ "closed" if p.closed else "" }}'>
+      <span class='tag ok'>{{ "마감" if p.closed else "모집중" }}</span>
+      <span class='tag'>{{p.category}}</span>
+      <span class='count'>{{joined_count(p)}}/{{max_count(p)}}</span>
+      <h2>{{p.place}}</h2>
+      <div class='meta'>📍 {{p.channel}}채널 · ⏰ {{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}</div>
+      <div class='meta'>👑 {{p.owner_label}} · {{p.created}}</div>
+      {% if p.memo %}<div class='notice'>{{p.memo}}</div>{% endif %}
+
+      {% if p.category == "사냥" %}
+        {% for s in p.slots %}
+        <div class='slot'>
+          <div>
+            <b>{{s.job}}</b>
+            <div class='meta'>{{s.label or s.external or "모집중"}}</div>
+          </div>
+          <div class='toolbar'>
+            {% if not p.closed %}
+              {% if s.uid==u.id %}
+                <a class='btn mini gray' href='/leave_slot/{{p.id}}/{{loop.index0}}'>취소</a>
+              {% elif not s.uid and not s.external %}
+                <a class='btn mini ok' href='/join_slot/{{p.id}}/{{loop.index0}}'>참여</a>
+                {% if is_admin(u) %}<a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>외부</a>{% endif %}
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <h3>참여자</h3>
+        {% for a in p.participants %}
+          <span class='pill'>{{a.label}}</span>
+        {% else %}
+          <p class='meta'>아직 참여자 없음</p>
+        {% endfor %}
+        {% if not p.closed %}<a class='btn ok full' href='/participate/{{p.id}}'>참여하기</a>{% endif %}
+      {% endif %}
+
+      <div class='actions'>
+        <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
+        {% if p.owner_uid==u.id or is_admin(u) %}
+          <a class='btn ok' href='/close/{{p.id}}'>모집완료</a>
+          <a class='btn gray' href='/edit/{{p.id}}'>수정</a>
+          <a class='btn danger' href='/delete/{{p.id}}'>삭제</a>
+        {% endif %}
+      </div>
+    </section>
+    {% else %}
+      <div class='empty'>모집글 없음</div>
+    {% endfor %}
+  </main>
+
+  <aside class='side-stack'>
+    <section class='panel online-panel'>
+      <div class='online-head'>
+        <h2>🟢 접속중 {{ online|length if online is defined else 1 }}명</h2>
+        <span class='meta'>최근 5분</span>
+      </div>
+      {% if online is defined and online %}
+        <div class='online-list'>
+        {% for o in online %}
+          <span class='pill online-pill'>{{ o.label }}{% if o.role != '일반' %}<small>{{ o.role }}</small>{% endif %}</span>
+        {% endfor %}
+        </div>
+      {% else %}
+        <span class='pill online-pill'>{{ char_label(c) }}</span>
+      {% endif %}
+    </section>
+
+    <section class='panel'>
+      <h2>📅 오늘 일정</h2>
+      {% for p in sched %}
+        <div class='schedule-row'>
+          <div><b>{{p.place}}</b><br><span class='meta'>{{p.date}}</span></div>
+          <strong>{{show_time(p.start_time)}}</strong>
+        </div>
+      {% else %}
+        <div class='empty'>등록된 파밍 일정 없음</div>
+      {% endfor %}
+    </section>
+
+    <section class='panel'>
+      <h2>💬 통합채팅</h2>
+      <div class='chatbox'>
+        {% for m in d.global_chat[-30:] %}
+          <div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}<br><span class='meta'>{{m.time}}</span></div>
+        {% else %}
+          <div class='empty'>메시지 없음</div>
+        {% endfor %}
+      </div>
+      <form class='toolbar' method='post' action='/global_chat'>
+        <input name='text' placeholder='메시지'>
+        <button>전송</button>
+      </form>
+    </section>
+  </aside>
+</div>
 """
 
 @app.route("/register", methods=["GET","POST"])
@@ -527,7 +697,7 @@ def new_post():
     return render(T_NEW, cats=cats)
 
 T_NEW = """
-<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>모집글 올리기</h1><form method='post' action='/create'><label>종류</label><select name='category' id='cat'>{% for c in cats %}<option>{{c}}</option>{% endfor %}</select>{% for cat, arr in places.items() %}<div class='place' data-cat='{{cat}}'><label>장소</label><select name='place_{{cat}}'>{% for p in arr %}<option>{{p}}</option>{% endfor %}</select></div>{% endfor %}<label>채널</label><input name='channel' maxlength='4'><label>날짜</label><input name='date' type='date' value='{{today()}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' maxlength='5' placeholder='1107'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option>오후</option></select><input name='end_time' maxlength='5' placeholder='1120'></div><label>메모</label><textarea name='memo'></textarea><section class='panel' id='slotsBox'><h2>사냥 직업 자리 추가</h2><div class='notice'>직업 선택 후 추가를 누르면 모집 자리가 생성됩니다.</div><div class='notice'>전사/도적/주술사/도사 계열 1~4차 기준입니다. 과 는 제외했습니다.</div><div class='toolbar'>{{ job_select('slotJob', '', 'slotJob')|safe }}<button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slots'></div></section><div class='notice'>600퀘/파밍은 참여 버튼 방식입니다.</div><button class='ok full'>등록</button></form></section>
+<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>모집글 올리기</h1><form method='post' action='/create'><label>종류</label><select name='category' id='cat'>{% for c in cats %}<option>{{c}}</option>{% endfor %}</select>{% for cat, arr in places.items() %}<div class='place' data-cat='{{cat}}'><label>장소</label><select name='place_{{cat}}'>{% for p in arr %}<option>{{p}}</option>{% endfor %}</select></div>{% endfor %}<label>채널</label><input name='channel' maxlength='4'><label>날짜</label><input name='date' type='date' value='{{today()}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' maxlength='5' placeholder='1107'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option>오후</option></select><input name='end_time' maxlength='5' placeholder='1120'></div><label>메모</label><textarea name='memo'></textarea><section class='panel' id='slotsBox'><h2>사냥 직업 자리 추가</h2><div class='toolbar'>{{ job_select('slotJob', '', 'slotJob')|safe }}<button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slots'></div></section><button class='ok full'>등록</button></form></section>
 """
 
 @app.route("/create", methods=["POST"])

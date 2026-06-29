@@ -1,15 +1,9 @@
-v33.0 NOTICE REALTIME TWO COLUMN
+v34.0 REAL STRUCTURE LAYOUT
 
 수정:
-- 오른쪽 사이드바 구조 제거
 - 공지사항 오른쪽 빈 공간에 접속중/오늘일정/통합채팅 배치
-- 모집글 아래 영역은 카드만 2분할
-- 사이드바가 아래로 밀리는 문제 자체 제거
+- 기존 오른쪽 사이드바 숨김
+- 모집글은 아래에서 카드만 정확히 2열
+- 오른쪽/왼쪽/오른쪽아래/왼쪽아래 형태로 계속 이어짐
 - 기존 알림/링크/승급지원 기능 유지
 - 컴파일 통과
-
-배포:
-cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
-git add .
-git commit -m "v33.0 notice realtime two column"
-git push

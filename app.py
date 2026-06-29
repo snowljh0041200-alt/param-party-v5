@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v33.0-final"
+APP_VERSION = "v34.0-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1280,18 +1280,19 @@ REGISTER_HTML = """
 
 
 PENDING_HTML = """
-<section class='panel pending-panel'>
+
+<section class='notice-live-v34'>
+  <div class='notice-area-v34'>
+    <section class='panel pending-panel'>
   <div class='pending-icon'>⏳</div>
   <h1>승인 요청중</h1>
   <p class='meta'>관리자 승인 후 이용할 수 있습니다.</p>
-  <section class='panel notice-live-v33'>
-  <div class='notice-main-v33'>
-<div class='notice'>문파 관리자에게 가입 승인을 요청해 주세요.</div>
+  <div class='notice'>문파 관리자에게 가입 승인을 요청해 주세요.</div>
   <div class='toolbar pending-actions'>
     <a class='btn gray' href='/logout'>로그아웃</a><a class='btn gray nav-btn' href='/toast_test'>토스트테스트</a>
     <a class='btn gray' href='/login'>로그인</a>
   </div>
-
+</section>
 """
 
 
@@ -2002,185 +2003,34 @@ def max_count(p):
 
 BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ title }}</title><style>{{ css }}
 
-
-/* v33.0 notice realtime + two-column posts */
-.wrap{
-  max-width:1220px!important;
-  width:min(1220px, calc(100vw - 24px))!important;
-  margin:0 auto!important;
-  padding:12px!important;
-  box-sizing:border-box!important;
-}
-
-/* 더 이상 오른쪽 사이드바를 쓰지 않음 */
-.app-shell{
-  display:block!important;
-  width:100%!important;
-}
-
-.left-stack{
-  width:100%!important;
-  max-width:100%!important;
-  min-width:0!important;
-}
-
-.side-stack-old-hidden{
-  display:none!important;
-}
-
-/* 공지사항 + 실시간 패널을 위쪽 2분할 */
-.notice-live-v33{
-  display:grid!important;
-  grid-template-columns:minmax(0, 1fr) 360px!important;
-  gap:14px!important;
-  align-items:stretch!important;
-}
-
-.notice-main-v33{
-  min-width:0!important;
-}
-
-.top-realtime-v33{
-  display:flex!important;
-  flex-direction:column!important;
-  gap:12px!important;
-  min-width:0!important;
-  max-height:none!important;
-}
-
-.top-realtime-v33 .panel{
-  margin:0!important;
-  width:100%!important;
-  box-sizing:border-box!important;
-}
-
-.top-realtime-v33 .online-panel{
-  min-height:92px!important;
-}
-
-.top-realtime-v33 .schedule-panel{
-  min-height:120px!important;
-}
-
-.top-realtime-v33 .chat-panel{
-  min-height:360px!important;
-}
-
-.top-realtime-v33 .chatbox{
-  height:260px!important;
-  min-height:260px!important;
-}
-
-/* 모집글은 아래에서 카드만 2분할 */
-.post-grid-v33{
-  display:grid!important;
-  grid-template-columns:repeat(2, minmax(0, 1fr))!important;
-  gap:14px!important;
-  align-items:start!important;
-  width:100%!important;
-}
-
-.post-grid-v33 > .card{
-  width:100%!important;
-  max-width:100%!important;
-  min-width:0!important;
-  margin:0!important;
-  box-sizing:border-box!important;
-  overflow:hidden!important;
-}
-
-.post-grid-v33 > .empty{
-  grid-column:1 / -1!important;
-  width:100%!important;
-  max-width:100%!important;
-}
-
-/* 카드 내부 compact */
-.post-grid-v33 > .card{
-  padding:14px!important;
-  border-radius:18px!important;
-}
-
-.post-grid-v33 > .card h2{
-  font-size:21px!important;
-  margin:8px 0!important;
-}
-
-.post-grid-v33 > .card .meta{
-  font-size:12px!important;
-  line-height:1.45!important;
-}
-
-.post-grid-v33 > .card .slot{
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr) auto!important;
-  gap:8px!important;
-  align-items:center!important;
-  padding:10px 11px!important;
-  margin:8px 0!important;
-  width:100%!important;
-  box-sizing:border-box!important;
-}
-
-.post-grid-v33 > .card .slot > div:first-child{
-  min-width:0!important;
-  overflow:hidden!important;
-}
-
-.post-grid-v33 > .card .slot .toolbar{
-  display:flex!important;
-  justify-content:flex-end!important;
-  flex-wrap:nowrap!important;
-  gap:6px!important;
-  min-width:max-content!important;
-}
-
-.post-grid-v33 > .card .slot .btn,
-.post-grid-v33 > .card .slot button{
-  padding:8px 10px!important;
-  font-size:13px!important;
-  white-space:nowrap!important;
-}
-
-.post-grid-v33 > .card .actions{
-  display:flex!important;
-  gap:7px!important;
-  flex-wrap:wrap!important;
-  align-items:center!important;
-  margin-top:10px!important;
-}
-
-.post-grid-v33 > .card .actions .btn{
-  padding:9px 12px!important;
-  font-size:13px!important;
-}
-
-/* 승급지원 정산/정원 표시 숨김 유지 */
-.card[data-category="승급지원"] .settle-box,
-.card[data-category="승급지원"] .settlement-box,
-.card[data-category="승급지원"] .farming-settle,
-.card[data-category="승급지원"] .farm-settle,
-.card[data-category="승급지원"] .settle-panel,
-.card[data-category="승급지원"] [data-section="settle"],
-.card[data-category="승급지원"] .settle,
-.card[data-category="승급지원"] .calc-box,
-.card[data-category="승급지원"] .capacity-badge,
-.card[data-category="승급지원"] .count-badge,
-.card[data-category="승급지원"] .people-count,
-.card[data-category="승급지원"] .member-count,
-.card[data-category="승급지원"] .cap-badge{
-  display:none!important;
-}
-
-/* 좁은 화면에서는 위/아래로 자연스럽게 */
-@media(max-width:900px){
-  .notice-live-v33{
-    grid-template-columns:1fr!important;
-  }
-  .post-grid-v33{
-    grid-template-columns:1fr!important;
-  }
-}
+/* v34.0 real structure layout */
+.wrap{max-width:1220px!important;width:min(1220px,calc(100vw - 20px))!important;margin:0 auto!important;padding:10px!important;box-sizing:border-box!important}
+.side-stack-hidden-v34{display:none!important}
+.app-shell{display:block!important;width:100%!important}
+.left-stack{width:100%!important;max-width:100%!important;min-width:0!important;display:block!important}
+.notice-live-v34{display:grid!important;grid-template-columns:minmax(0,1fr) 360px!important;gap:14px!important;align-items:stretch!important;width:100%!important;margin:12px 0 18px!important}
+.notice-area-v34,.live-area-v34{min-width:0!important}
+.notice-area-v34>.panel{height:100%!important;margin:0!important;box-sizing:border-box!important}
+.live-area-v34{display:flex!important;flex-direction:column!important;gap:12px!important}
+.live-area-v34>.panel{margin:0!important;width:100%!important;box-sizing:border-box!important}
+.live-area-v34 .online-panel{min-height:86px!important}
+.live-area-v34 .schedule-panel{min-height:118px!important}
+.live-area-v34 .chat-panel{min-height:310px!important}
+.live-area-v34 .chatbox{height:200px!important;min-height:200px!important}
+.quickbar.recruit-head{width:100%!important;max-width:100%!important;box-sizing:border-box!important}
+.post-grid-v34{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;align-items:start!important;width:100%!important}
+.post-grid-v34>.card{width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;box-sizing:border-box!important;overflow:hidden!important;padding:14px!important;border-radius:18px!important}
+.post-grid-v34>.empty{grid-column:1/-1!important;width:100%!important;max-width:100%!important}
+.post-grid-v34>.card h2{font-size:21px!important;margin:8px 0!important}
+.post-grid-v34>.card .meta{font-size:12px!important;line-height:1.45!important}
+.post-grid-v34>.card .slot{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;align-items:center!important;padding:10px 11px!important;margin:8px 0!important;width:100%!important;box-sizing:border-box!important}
+.post-grid-v34>.card .slot>div:first-child{min-width:0!important;overflow:hidden!important}
+.post-grid-v34>.card .slot .toolbar{display:flex!important;justify-content:flex-end!important;flex-wrap:nowrap!important;gap:6px!important;min-width:max-content!important}
+.post-grid-v34>.card .slot .btn,.post-grid-v34>.card .slot button{padding:8px 10px!important;font-size:13px!important;white-space:nowrap!important}
+.post-grid-v34>.card .actions{display:flex!important;gap:7px!important;flex-wrap:wrap!important;align-items:center!important;margin-top:10px!important}
+.post-grid-v34>.card .actions .btn{padding:9px 12px!important;font-size:13px!important}
+.card[data-category="승급지원"] .settle-box,.card[data-category="승급지원"] .settlement-box,.card[data-category="승급지원"] .farming-settle,.card[data-category="승급지원"] .farm-settle,.card[data-category="승급지원"] .settle-panel,.card[data-category="승급지원"] [data-section="settle"],.card[data-category="승급지원"] .settle,.card[data-category="승급지원"] .calc-box,.card[data-category="승급지원"] .capacity-badge,.card[data-category="승급지원"] .count-badge,.card[data-category="승급지원"] .people-count,.card[data-category="승급지원"] .member-count,.card[data-category="승급지원"] .cap-badge{display:none!important}
+@media(max-width:900px){.notice-live-v34{grid-template-columns:1fr!important}.post-grid-v34{grid-template-columns:1fr!important}}
 
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
@@ -3236,7 +3086,7 @@ def toast_test_page():
     if not approved(u):
         return redirect("/gate")
     return render("""
-
+<section class='panel'>
   <a class='btn gray' href='/'>← 메인으로</a>
   <h1>🔔 토스트 알림 테스트</h1>
   <div class='notice'>버튼을 누르면 화면 우측 상단에 테스트 팝업이 떠야 합니다.</div>
@@ -3247,8 +3097,8 @@ def toast_test_page():
   </div>
 </section>
   </div>
-  <div class='top-realtime-v33'>
-<section class='panel online-panel'>
+  <div class='live-area-v34'>
+    <section class='panel online-panel'>
       <div class='online-head'>
         <h2>🟢 접속중 {{ online|length if online is defined else 1 }}명</h2>
         <span class='meta'>최근 5분</span>
@@ -3294,6 +3144,7 @@ def toast_test_page():
     </section>
   </div>
 </section>
+
 """)
 
 @app.route("/")
@@ -3361,9 +3212,8 @@ T_INDEX = """
         {% endfor %}
       </div>
     </div>
-
-        <div class='post-grid-v33'>
-    {% for p in posts %}
+    <div class='post-grid-v34'>
+{% for p in posts %}
     <section class='card {{ "closed" if p.closed else "" }}' data-category='{{p.category}}'>
       <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "모집 완료" if p.closed else "모집중" }}</span>{% if delete_after_text(p) %}<span class='tag auto-delete-tag'>{{ delete_after_text(p) }}</span>{% endif %}
       <span class='tag'>{{p.category}}</span>
@@ -3467,7 +3317,7 @@ T_INDEX = """
     {% endfor %}
     </div>
   </main>
-  <aside class='side-stack side-stack-old-hidden'></aside>
+  <aside class='side-stack side-stack-hidden-v34'></aside>
 </div>
 
 <div id='settingsModal' class='modal-backdrop' onclick='closeSettingsModal(event)'>

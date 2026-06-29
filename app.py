@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v36.8-final"
+APP_VERSION = "v36.9-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2472,52 +2472,15 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
 }
 
 
-/* v36.8 character management fix */
-.char-manage-v368{
-  max-width:none!important;
-}
-.char-list-v368{
-  display:grid!important;
-  gap:10px!important;
-  margin:18px 0!important;
-}
-.char-row-v368{
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr) auto!important;
-  gap:12px!important;
-  align-items:center!important;
-  padding:14px!important;
-  border:1px solid rgba(90,130,210,.35)!important;
-  border-radius:14px!important;
-  background:rgba(5,14,34,.35)!important;
-}
-.char-actions-v368{
-  display:flex!important;
-  gap:8px!important;
-  flex-wrap:wrap!important;
-  justify-content:flex-end!important;
-}
-.char-form-v368{
-  display:grid!important;
-  gap:8px!important;
-}
-.char-form-v368 input,
-.char-form-v368 select{
-  width:100%!important;
-  box-sizing:border-box!important;
-}
-.edit-char-form-v368 label{
-  font-weight:800!important;
-  margin-top:6px!important;
-}
-@media(max-width:700px){
-  .char-row-v368{
-    grid-template-columns:1fr!important;
-  }
-  .char-actions-v368{
-    justify-content:flex-start!important;
-  }
-}
+/* v36.9 character page error fix */
+.char-manage-v369{max-width:none!important}
+.char-list-v369{display:grid!important;gap:10px!important;margin:18px 0!important}
+.char-row-v369{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:12px!important;align-items:center!important;padding:14px!important;border:1px solid rgba(90,130,210,.35)!important;border-radius:14px!important;background:rgba(5,14,34,.35)!important}
+.char-actions-v369{display:flex!important;gap:8px!important;flex-wrap:wrap!important;justify-content:flex-end!important}
+.char-form-v369{display:grid!important;gap:8px!important}
+.char-form-v369 input,.char-form-v369 select{width:100%!important;box-sizing:border-box!important}
+.edit-char-form-v369 label{font-weight:800!important;margin-top:6px!important}
+@media(max-width:700px){.char-row-v369{grid-template-columns:1fr!important}.char-actions-v369{justify-content:flex-start!important}}
 
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
@@ -3588,28 +3551,28 @@ def v36_2_filter_farm_alerts_py(alerts):
     return out  # v36_2_filter_farm_alerts_py
 
 
-T_CHARS_MANAGE = """
-<section class='panel char-manage-v368'>
+T_CHARS_MANAGE_V369 = """
+<section class='panel char-manage-v369'>
   <a class='btn gray' href='/'>← 메인으로</a>
   <h1>캐릭터</h1>
 
-  <div class='char-list-v368'>
-  {% for ch in u.chars %}
-    <div class='char-row-v368'>
+  <div class='char-list-v369'>
+  {% for ch in chars %}
+    <div class='char-row-v369'>
       <div>
-        <b>{{ch.name}}({{ch.job}})</b>
+        <b>{{ ch.get("name","") }}({{ ch.get("job","") }})</b>
         <div class='meta'>
-          {% if selected_char(u) and selected_char(u).id == ch.id %}
+          {% if selected_id and selected_id == ch.get("id") %}
             현재 선택됨
           {% else %}
             승인됨
           {% endif %}
         </div>
       </div>
-      <div class='char-actions-v368'>
-        <a class='btn ok' href='/select_char/{{ch.id}}'>선택</a>
-        <a class='btn gray' href='/edit_char/{{ch.id}}'>수정</a>
-        <a class='btn danger' href='/delete_char/{{ch.id}}' onclick='return confirm("이 캐릭터를 삭제할까요?")'>삭제</a>
+      <div class='char-actions-v369'>
+        <a class='btn ok' href='/select_char/{{ ch.get("id") }}'>선택</a>
+        <a class='btn gray' href='/edit_char/{{ ch.get("id") }}'>수정</a>
+        <a class='btn danger' href='/delete_char/{{ ch.get("id") }}' onclick='return confirm("이 캐릭터를 삭제할까요?")'>삭제</a>
       </div>
     </div>
   {% else %}
@@ -3618,7 +3581,7 @@ T_CHARS_MANAGE = """
   </div>
 
   <h2>추가</h2>
-  <form method='post' action='/add_char' class='char-form-v368'>
+  <form method='post' action='/add_char' class='char-form-v369'>
     <input name='name' placeholder='캐릭터명' required>
     <select name='job'>
       {% for j in jobs %}
@@ -3630,19 +3593,19 @@ T_CHARS_MANAGE = """
 </section>
 """
 
-T_EDIT_CHAR_V368 = """
-<section class='panel char-manage-v368'>
+T_EDIT_CHAR_V369 = """
+<section class='panel char-manage-v369'>
   <a class='btn gray' href='/chars'>← 캐릭터</a>
   <h1>캐릭터 수정</h1>
 
-  <form method='post' class='char-form-v368 edit-char-form-v368'>
+  <form method='post' class='char-form-v369 edit-char-form-v369'>
     <label>캐릭터명</label>
-    <input name='name' value='{{ch.name}}' required>
+    <input name='name' value='{{ ch.get("name","") }}' required>
 
     <label>직업/차수</label>
     <select name='job'>
       {% for j in jobs %}
-        <option value='{{j}}' {% if ch.job==j %}selected{% endif %}>{{j}}</option>
+        <option value='{{j}}' {% if ch.get("job","")==j %}selected{% endif %}>{{j}}</option>
       {% endfor %}
     </select>
 
@@ -3654,7 +3617,7 @@ T_EDIT_CHAR_V368 = """
 
 
 def find_user_char(u, cid):
-    for ch in u.get("chars", []):
+    for ch in (u.get("chars") or []):
         if str(ch.get("id")) == str(cid):
             return ch
     return None
@@ -3663,12 +3626,13 @@ def find_user_char(u, cid):
 def delete_char(cid):
     d = load()
     u = current_user()
-    chars = u.get("chars", [])
+    chars = u.get("chars") or []
     u["chars"] = [ch for ch in chars if str(ch.get("id")) != str(cid)]
-    if u.get("selected_char_id") == cid:
+    if str(u.get("selected_char_id")) == str(cid):
         u["selected_char_id"] = u["chars"][0]["id"] if u.get("chars") else None
     save(d)
     return redirect("/chars")
+
 
 @app.route("/add_char", methods=["POST"])
 def add_char():
@@ -3677,16 +3641,13 @@ def add_char():
     name = (request.form.get("name") or "").strip()
     job = (request.form.get("job") or "").strip()
     if name:
-        u.setdefault("chars", []).append({
-            "id": uid(),
-            "name": name,
-            "job": job or (JOBS[0] if JOBS else ""),
-            "status": "approved"
-        })
+        new_ch = {"id": uid(), "name": name, "job": job or (JOBS[0] if JOBS else ""), "status": "approved"}
+        u.setdefault("chars", []).append(new_ch)
         if not u.get("selected_char_id"):
-            u["selected_char_id"] = u["chars"][-1]["id"]
+            u["selected_char_id"] = new_ch["id"]
         save(d)
     return redirect("/chars")
+
 
 @app.route("/toast_test")
 def toast_test_page():
@@ -4673,6 +4634,8 @@ def chat(pid):
     return render("<section class='panel'><a class='btn gray' href='/'>← 메인으로</a><h1>채팅</h1><div class='chatbox'>{% for m in p.chat %}<div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}</div>{% else %}<div class='empty'>메시지 없음</div>{% endfor %}</div><form method='post' class='toolbar'><input name='text'><button>전송</button></form></section>", p=p)
 
 
+
+
 @app.route("/edit_char/<cid>", methods=["GET","POST"])
 def edit_char(cid):
     d = load()
@@ -4690,13 +4653,15 @@ def edit_char(cid):
         ch["status"] = ch.get("status") or "approved"
         save(d)
         return redirect("/chars")
-    return render_template_string(BASE_HEAD + T_EDIT_CHAR_V368 + BASE_TAIL, d=d, u=u, c=selected_char(u), ch=ch, jobs=JOBS, app_version=APP_VERSION)
+    return render_template_string(BASE_HEAD + T_EDIT_CHAR_V369 + BASE_TAIL, d=d, u=u, c=selected_char(u), ch=ch, jobs=JOBS, app_version=APP_VERSION)
 
 @app.route("/chars")
 def chars():
     d = load()
     u = current_user()
-    return render_template_string(BASE_HEAD + T_CHARS_MANAGE + BASE_TAIL, d=d, u=u, c=selected_char(u), jobs=JOBS, app_version=APP_VERSION)
+    chars = u.get("chars") or []
+    selected_id = u.get("selected_char_id")
+    return render_template_string(BASE_HEAD + T_CHARS_MANAGE_V369 + BASE_TAIL, d=d, u=u, c=selected_char(u), chars=chars, selected_id=selected_id, jobs=JOBS, app_version=APP_VERSION)
 
 @app.route("/select_char/<cid>")
 def select_char(cid):

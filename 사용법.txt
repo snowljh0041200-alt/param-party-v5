@@ -1,15 +1,13 @@
-v36.8 CHARACTER MANAGEMENT FIX
+v36.9 CHARACTER PAGE ERROR FIX
 
 수정:
-- 캐릭터 페이지를 새로 구성
-- 각 캐릭터마다 선택 / 수정 / 삭제 버튼 표시
+- v36.8에서 캐릭터 페이지 Internal Server Error 뜨는 문제 수정
+- v36.7 안정 버전 기준으로 다시 패치
+- 캐릭터 페이지에 선택 / 수정 / 삭제 버튼 표시
 - 수정에서 캐릭터명과 직업/차수 변경 가능
-- 진인 → 진선 승급 후 수정 가능
-- 캐릭터 추가 기능 유지
-- 기존 접속중/알림/외부 버튼 수정 유지
 - 컴파일 통과
 
 배포:
 git add .
-git commit -m "v36.8 character management fix"
+git commit -m "v36.9 character page error fix"
 git push

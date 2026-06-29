@@ -1,12 +1,15 @@
-v26.6 COPY NEWLINE FIX
+v26.9 NOTICE POPUP
 
 수정:
-- 글복사 시 카톡에서 한 줄로 붙던 문제 수정
-- 버튼 속성에 문구를 넣지 않고 서버에서 복사용 텍스트를 받아오도록 변경
-- 줄바꿈 유지
-- 사냥글 복사 형식 유지
+- 상단 큰 통계 카드 숨김
+- 헤더에 작은 통계 표시
+- 관리자 문파 공지사항 작성/수정 추가
+- 문파원 접속 시 공지 팝업 표시
+- X/확인으로 닫기
+- 오늘 하루 보지 않기 지원
+- 공지 다시 보기 버튼 추가
 
 배포:
 git add .
-git commit -m "v26.6 copy newline fix"
+git commit -m "v26.9 notice popup"
 git push

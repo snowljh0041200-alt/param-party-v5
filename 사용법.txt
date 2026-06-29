@@ -1,13 +1,14 @@
-v37.0 CURRENT USER FIX
+v37.1 CHARACTER STYLE FIX
 
 수정:
-- 캐릭터 페이지 Internal Server Error 원인 수정
-- 없는 current_user() 호출을 실제 함수 cur_user()로 교체
-- 안전용 current_user alias 추가
-- 캐릭터 선택/수정/삭제 기능 유지
+- 캐릭터 페이지가 흰색 기본 HTML처럼 뜨는 문제 수정
+- 캐릭터 페이지도 기존 앱 공통 render() 방식 사용
+- 선택 / 수정 / 삭제 버튼 유지
+- 직업/차수 수정 기능 유지
+- 기존 기능 유지
 - 컴파일 통과
 
 배포:
 git add .
-git commit -m "v37.0 current user fix"
+git commit -m "v37.1 character style fix"
 git push

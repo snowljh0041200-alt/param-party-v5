@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v37.0-final"
+APP_VERSION = "v37.1-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2486,6 +2486,54 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
 .edit-char-form-v369 label{font-weight:800!important;margin-top:6px!important}
 @media(max-width:700px){.char-row-v369{grid-template-columns:1fr!important}.char-actions-v369{justify-content:flex-start!important}}
 
+
+/* v37.1 character style fix */
+.char-manage-v369{
+  max-width:none!important;
+}
+.char-list-v369{
+  display:grid!important;
+  gap:10px!important;
+  margin:18px 0!important;
+}
+.char-row-v369{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:12px!important;
+  align-items:center!important;
+  padding:14px!important;
+  border:1px solid rgba(90,130,210,.35)!important;
+  border-radius:14px!important;
+  background:rgba(5,14,34,.35)!important;
+}
+.char-actions-v369{
+  display:flex!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  justify-content:flex-end!important;
+}
+.char-form-v369{
+  display:grid!important;
+  gap:8px!important;
+}
+.char-form-v369 input,
+.char-form-v369 select{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+.edit-char-form-v369 label{
+  font-weight:800!important;
+  margin-top:6px!important;
+}
+@media(max-width:700px){
+  .char-row-v369{
+    grid-template-columns:1fr!important;
+  }
+  .char-actions-v369{
+    justify-content:flex-start!important;
+  }
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -4657,7 +4705,7 @@ def edit_char(cid):
         ch["status"] = ch.get("status") or "approved"
         save(d)
         return redirect("/chars")
-    return render_template_string(BASE_HEAD + T_EDIT_CHAR_V369 + BASE_TAIL, d=d, u=u, c=selected_char(u), ch=ch, jobs=JOBS, app_version=APP_VERSION)
+    return render(T_EDIT_CHAR_V369, d=d, u=u, c=selected_char(u), ch=ch, jobs=JOBS)
 
 @app.route("/chars")
 def chars():
@@ -4665,7 +4713,7 @@ def chars():
     u = cur_user()
     chars = u.get("chars") or []
     selected_id = u.get("selected_char_id")
-    return render_template_string(BASE_HEAD + T_CHARS_MANAGE_V369 + BASE_TAIL, d=d, u=u, c=selected_char(u), chars=chars, selected_id=selected_id, jobs=JOBS, app_version=APP_VERSION)
+    return render(T_CHARS_MANAGE_V369, d=d, u=u, c=selected_char(u), chars=chars, selected_id=selected_id, jobs=JOBS)
 
 @app.route("/select_char/<cid>")
 def select_char(cid):

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.16-service"
+APP_VERSION = "v26.18-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -719,6 +719,41 @@ input::placeholder,textarea::placeholder{color:#667694}
   line-height:1.5;
 }
 
+
+/* v26.17 edit member panel */
+.edit-member-panel{
+  margin-top:16px!important;
+}
+.edit-slots{
+  display:grid;
+  gap:10px;
+}
+.edit-slot-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px;
+  border:1px solid rgba(88,116,255,.22);
+  border-radius:15px;
+  background:rgba(8,17,38,.62);
+}
+.choice-line{
+  display:block;
+  padding:12px;
+  margin:8px 0;
+  border:1px solid rgba(88,116,255,.22);
+  border-radius:13px;
+  background:rgba(8,17,38,.62);
+  font-weight:900;
+}
+@media(max-width:720px){
+  .edit-slot-row{
+    align-items:stretch;
+    flex-direction:column;
+  }
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1170,6 +1205,30 @@ def remaining_text(p):
 
 
 
+
+
+def reopen_if_not_full(p):
+    try:
+        if p and p.get("closed") and p.get("category") in ["사냥", "600퀘", "승급지원"]:
+            if joined_count(p) < max_count(p):
+                p["closed"] = False
+                p["closed_at"] = ""
+                return True
+    except Exception:
+        pass
+    return False
+
+def refresh_post_status_after_member_change(d, p):
+    changed = reopen_if_not_full(p)
+    try:
+        if p and p.get("category") in ["사냥", "600퀘", "승급지원"] and not p.get("closed"):
+            if max_count(p) > 0 and joined_count(p) >= max_count(p):
+                p["closed"] = True
+                p["closed_at"] = now().isoformat(timespec="seconds")
+                changed = True
+    except Exception:
+        pass
+    return changed
 
 def auto_close_full_posts(d):
     changed = False
@@ -2147,6 +2206,36 @@ def farm_group(pid, group):
 {% endfor %}
 <button class='ok full'>저장</button>
 </form>
+
+{% if can_manage_post(u,p) and p.category == "사냥" %}
+<section class='panel edit-member-panel'>
+  <h2>👥 멤버 관리</h2>
+  <div class='notice'>모집중/모집완료 상태에서도 관리자와 작성자는 멤버를 추가·제거할 수 있습니다. 모집완료 글에서 인원이 빠지면 자동으로 모집중으로 돌아갑니다.</div>
+  <div class='edit-slots'>
+    {% for s in p.slots %}
+    <div class='edit-slot-row'>
+      <div>
+        <b>{{s.job}}</b>
+        <div class='meta'>
+          {% if s.label %}{{s.label}}
+          {% elif s.external %}{{s.external}} <span class='tag'>외부</span>
+          {% else %}빈 자리{% endif %}
+        </div>
+      </div>
+      <div class='toolbar'>
+        {% if s.uid or s.external %}
+          <a class='btn mini danger' href='/manage_clear_slot/{{p.id}}/{{loop.index0}}'>제거</a>
+        {% else %}
+          <a class='btn mini ok' href='/manage_choose_slot/{{p.id}}/{{loop.index0}}'>참여자 추가</a>
+          <a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>외부 추가</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 </section>
 """, title=title, members=members, checked=checked)
 
@@ -2177,6 +2266,7 @@ def leave_slot(pid,i):
 def remove_external_slot(pid, i):
     d = load()
     if normalize_existing_approved_members(d):
+        refresh_post_status_after_member_change(d, p)
         save(d)
     u = cur_user(d)
     p = find_post(d, pid)
@@ -2191,15 +2281,78 @@ def remove_external_slot(pid, i):
             save(d)
     return redirect("/")
 
+
+
+@app.route("/manage_clear_slot/<pid>/<int:i>")
+def manage_clear_slot(pid, i):
+    d = load()
+    u = cur_user(d)
+    p = find_post(d, pid)
+    if not p or not can_manage_post(u, p):
+        return redirect("/")
+    if 0 <= i < len(p.get("slots", [])):
+        p["slots"][i].update({"uid": "", "label": "", "char_id": "", "external": ""})
+        refresh_post_status_after_member_change(d, p)
+        save(d)
+    return redirect(f"/edit/{pid}")
+
+
+@app.route("/manage_choose_slot/<pid>/<int:i>", methods=["GET","POST"])
+def manage_choose_slot(pid, i):
+    d = load()
+    u = cur_user(d)
+    p = find_post(d, pid)
+    if not p or not can_manage_post(u, p) or not (0 <= i < len(p.get("slots", []))):
+        return redirect("/")
+    slot = p["slots"][i]
+    users = [x for x in d.get("users", []) if x.get("status") == "approved"]
+    choices = []
+    for user in users:
+        for ch in user.get("chars", []):
+            if ch.get("status") == "approved" and same_job_family(ch.get("job"), slot.get("job")):
+                choices.append({
+                    "uid": user.get("id"),
+                    "char_id": ch.get("id"),
+                    "label": f"{ch.get('name')}({ch.get('job')})"
+                })
+    if request.method == "POST":
+        key = request.form.get("choice", "")
+        for c in choices:
+            if key == c["uid"] + "|" + c["char_id"]:
+                slot.update({"uid": c["uid"], "char_id": c["char_id"], "label": c["label"], "external": ""})
+                refresh_post_status_after_member_change(d, p)
+                save(d)
+                return redirect(f"/edit/{pid}")
+    return render("""
+<div class='card narrow'>
+  <a class='btn gray' href='/edit/{{p.id}}'>← 수정으로</a>
+  <h1>참여자 추가</h1>
+  <div class='notice'>{{slot.job}} 자리에 추가할 캐릭터를 선택하세요.</div>
+  {% if not choices %}
+    <div class='empty'>추가 가능한 캐릭터가 없습니다.</div>
+  {% else %}
+  <form method='post'>
+    {% for c in choices %}
+      <label class='choice-line'>
+        <input type='radio' name='choice' value='{{c.uid}}|{{c.char_id}}' required>
+        {{c.label}}
+      </label>
+    {% endfor %}
+    <button class='ok full'>추가</button>
+  </form>
+  {% endif %}
+</div>
+""", p=p, slot=slot, choices=choices)
+
 @app.route("/external_slot/<pid>/<int:i>", methods=["GET","POST"])
 def external_slot(pid,i):
     d=load(); u=cur_user(d); p=find_post(d,pid)
-    if not p or not (is_admin(u) or p.get("owner_uid")==u.get("id")): return redirect("/")
+    if not p or not (is_admin(u) or p.get("owner_uid")==u.get("id")): return redirect(request.referrer or "/")
     if request.method=="POST":
         p=find_post(d,pid); name=request.form.get("name","").strip()
         if p and 0<=i<len(p["slots"]):
             p["slots"][i].update({"uid":"","label":name,"external":name}); save(d)
-        return redirect("/")
+        return redirect(request.referrer or "/")
     return render("<section class='panel'><h1>외부인 추가</h1><form method='post'><label>외부인 표시명</label><input name='name' placeholder='예: 길드원/지인/격수'><button class='ok full'>저장</button></form></section>")
 
 @app.route("/participate/<pid>")
@@ -2631,6 +2784,7 @@ def leave_participant(pid):
     ids_to_remove.append(u.get("id"))
     p["early_ids"] = [x for x in p.get("early_ids", []) if x not in ids_to_remove]
     p["late_ids"] = [x for x in p.get("late_ids", []) if x not in ids_to_remove]
+    refresh_post_status_after_member_change(d, p)
     save(d)
     return redirect("/")
 

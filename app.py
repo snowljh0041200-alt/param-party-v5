@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v22.7"
+APP_VERSION = "v22.8"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -279,7 +279,7 @@ select option{background:#081126;color:#f5f8ff}
 
 .group-badge{margin-left:6px;padding:3px 7px;border-radius:999px;background:rgba(244,212,122,.16);border:1px solid rgba(244,212,122,.3);color:#ffe5a0;font-size:11px}
 .remain{background:rgba(244,212,122,.12);border:1px solid rgba(244,212,122,.25);border-radius:999px;padding:3px 8px}
-@media(max-width:720px){.farm-form{grid-template-columns:1fr}.farm-summary{grid-template-columns:1fr}}
+@media(max-width:720px){.header .toolbar{margin-top:12px}.nav-btn{flex:1}.farm-form{grid-template-columns:1fr}.farm-summary{grid-template-columns:1fr}}
 
 .alarm-panel{background:linear-gradient(180deg,rgba(16,26,49,.98),rgba(8,17,38,.98));border-color:#334a7c}
 .alarm-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0}
@@ -316,6 +316,21 @@ input[type='range']{padding:0;height:6px;accent-color:#19c46f}
 .admin-form{display:grid;grid-template-columns:1fr 100px;gap:8px}
 .danger-zone{padding:12px;border:1px solid rgba(239,68,68,.35);border-radius:15px;background:rgba(239,68,68,.08)}
 @media(max-width:720px){.admin-grid{grid-template-columns:1fr 1fr}.admin-form{grid-template-columns:1fr}}
+
+
+.nav-btn{min-height:50px;padding:0 18px;border-radius:15px;font-size:15px;letter-spacing:-.3px}
+.nav-btn.primary{background:linear-gradient(180deg,#27df8b,#13b864)!important;border-color:rgba(88,255,170,.28)!important}
+.header .toolbar{background:rgba(8,17,38,.42);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:6px}
+.category-bar{background:rgba(8,17,38,.58);border:1px solid rgba(255,255,255,.06);border-radius:17px;padding:6px}
+.tab-chip{min-width:62px;min-height:38px;padding:0 14px!important;border-radius:13px!important;box-shadow:none!important}
+.tab-chip.ok{background:linear-gradient(180deg,#24d985,#0fad61)!important;border-color:rgba(88,255,170,.22)!important}
+.tab-chip.gray{background:rgba(77,91,124,.86)!important;border-color:rgba(255,255,255,.08)!important}
+.btn.gray{background:linear-gradient(180deg,#5a6680,#404b66)!important}
+.btn{transition:transform .12s ease, filter .12s ease, border-color .12s ease}
+.btn:hover{transform:translateY(-1px)}
+.admin-action-title{color:#ffe5a0;margin:8px 0 10px;font-size:14px}
+.danger-zone .toolbar{margin-bottom:12px}
+.admin-console h2{margin-top:24px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)}
 
 @media(max-width:980px){.farm-form{grid-template-columns:1fr 1fr!important}}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr!important}}
@@ -859,11 +874,11 @@ T_INDEX = """
     <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
   </div>
   <div class='toolbar'>
-    <a class='btn ok' href='/new'>＋ 모집글 작성</a>
-    <a class='btn gray' href='/chars'>내 캐릭터</a>
-    <button type='button' class='btn gray' onclick='openSettingsModal()'>⚙ 설정</button>
-    {% if is_admin(u) %}<a class='btn gray' href='/admin'>관리자</a>{% endif %}
-    <a class='btn gray' href='/logout'>로그아웃</a>
+    <a class='btn nav-btn primary' href='/new'>＋ 모집글 작성</a>
+    <a class='btn nav-btn gray' href='/chars'>내 캐릭터</a>
+    <button type='button' class='btn nav-btn gray' onclick='openSettingsModal()'>⚙ 설정</button>
+    {% if is_admin(u) %}<a class='btn nav-btn gray' href='/admin'>관리자</a>{% endif %}
+    <a class='btn nav-btn gray' href='/logout'>로그아웃</a>
   </div>
 </header>
 
@@ -879,7 +894,7 @@ T_INDEX = """
       <h2>📌 모집글</h2>
       <div class='category-bar'>
         {% for x in categories %}
-          <a class='btn {{ "ok" if x==cat else "gray" }} mini' href='/?cat={{x}}'>{{x}}</a>
+          <a class='btn tab-chip {{ "ok" if x==cat else "gray" }} mini' href='/?cat={{x}}'>{{x}}</a>
         {% endfor %}
       </div>
     </div>
@@ -1370,9 +1385,18 @@ def admin():
   <div class='notice'>관리자 비밀번호를 아는 사람은 가입 시 바로 관리자 승인됩니다. 현재 기본값을 쓰고 있다면 꼭 변경하세요.</div>
 
   <h2>데이터 관리</h2>
-  <div class='toolbar danger-zone'>
-    <a class='btn danger' href='/admin/clear_chat' onclick="return confirm('통합채팅과 글 채팅을 전부 삭제할까요?')">채팅 전체 삭제</a>
-    <a class='btn danger' href='/admin/clear_posts' onclick="return confirm('모집글을 전부 삭제할까요?')">모집글 전체 삭제</a>
+  <div class='danger-zone'>
+    <div class='admin-action-title'>종류별 삭제</div>
+    <div class='toolbar'>
+      <a class='btn danger' href='/admin/clear_posts/파밍' onclick="return confirm('파밍글을 전부 삭제할까요?')">파밍글 삭제</a>
+      <a class='btn danger' href='/admin/clear_posts/사냥' onclick="return confirm('사냥글을 전부 삭제할까요?')">사냥글 삭제</a>
+      <a class='btn danger' href='/admin/clear_posts/600퀘' onclick="return confirm('600퀘 글을 전부 삭제할까요?')">600퀘 삭제</a>
+      <a class='btn danger' href='/admin/clear_chat' onclick="return confirm('통합채팅과 글 채팅을 전부 삭제할까요?')">채팅 삭제</a>
+    </div>
+    <div class='admin-action-title'>전체 초기화</div>
+    <div class='toolbar'>
+      <a class='btn danger' href='/admin/clear_posts' onclick="return confirm('모집글을 전부 삭제할까요?')">모집글 전체 삭제</a>
+    </div>
   </div>
 </section>
 """, users=d["users"], pending=pending, pending_chars=pending_chars, posts=d["posts"], chat_count=len(d.get("global_chat", [])), me=u)
@@ -1414,6 +1438,16 @@ def admin_clear_chat():
         d["global_chat"]=[]
         for p in d.get("posts", []):
             p["chat"]=[]
+        save(d)
+    return redirect("/admin")
+
+
+
+@app.route("/admin/clear_posts/<category>")
+def admin_clear_posts_category(category):
+    d=load(); u=cur_user(d)
+    if is_admin(u) and category in ["사냥","파밍","600퀘"]:
+        d["posts"]=[p for p in d.get("posts", []) if p.get("category") != category]
         save(d)
     return redirect("/admin")
 

@@ -1,13 +1,14 @@
-v37.2 EDIT CHAR SAFE FIX
+v37.3 ADD CHAR FIX
 
 수정:
-- 캐릭터 수정 버튼 클릭 시 Internal Server Error 수정
-- /edit_char/<id>를 독립 안전 페이지로 변경
-- 기존 앱 CSS를 직접 포함해서 스타일 유지
-- 캐릭터명/직업/차수 수정 가능
+- 캐릭터 추가 버튼 클릭 시 Internal Server Error 수정
+- /add_char 라우트를 안전 버전으로 교체
+- uuid로 캐릭터 ID 직접 생성
+- cur_user(d) 기준으로 사용자 저장
+- 캐릭터 선택/수정/삭제 기능 유지
 - 컴파일 통과
 
 배포:
 git add .
-git commit -m "v37.2 edit char safe fix"
+git commit -m "v37.3 add char fix"
 git push

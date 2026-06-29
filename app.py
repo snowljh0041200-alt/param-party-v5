@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v37.2-final"
+APP_VERSION = "v37.3-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2534,6 +2534,8 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
   }
 }
 
+
+/* v37.3 add char fix */
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -3730,17 +3732,27 @@ def delete_char(cid):
 @app.route("/add_char", methods=["POST"])
 def add_char():
     d = load()
-    u = cur_user()
+    u = cur_user(d)
+
     name = (request.form.get("name") or "").strip()
     job = (request.form.get("job") or "").strip()
-    if name:
-        new_ch = {"id": uid(), "name": name, "job": job or (JOBS[0] if JOBS else ""), "status": "approved"}
-        u.setdefault("chars", []).append(new_ch)
-        if not u.get("selected_char_id"):
-            u["selected_char_id"] = new_ch["id"]
-        save(d)
-    return redirect("/chars")
 
+    if name:
+        new_id = uuid.uuid4().hex[:12]
+        new_ch = {
+            "id": new_id,
+            "name": name,
+            "job": job or (JOBS[0] if JOBS else "전사"),
+            "status": "approved"
+        }
+        u.setdefault("chars", []).append(new_ch)
+
+        if not u.get("selected_char_id"):
+            u["selected_char_id"] = new_id
+
+        save(d)
+
+    return redirect("/chars")
 
 @app.route("/toast_test")
 def toast_test_page():

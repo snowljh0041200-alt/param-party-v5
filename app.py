@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.18-service"
+APP_VERSION = "v26.19-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -752,6 +752,33 @@ input::placeholder,textarea::placeholder{color:#667694}
     align-items:stretch;
     flex-direction:column;
   }
+}
+
+
+/* v26.19 force edit member panel */
+.edit-member-panel{margin-top:18px!important}
+.edit-slots{display:grid;gap:10px}
+.edit-slot-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px;
+  border:1px solid rgba(88,116,255,.22);
+  border-radius:15px;
+  background:rgba(8,17,38,.62);
+}
+.choice-line{
+  display:block;
+  padding:12px;
+  margin:8px 0;
+  border:1px solid rgba(88,116,255,.22);
+  border-radius:13px;
+  background:rgba(8,17,38,.62);
+  font-weight:900;
+}
+@media(max-width:720px){
+  .edit-slot-row{align-items:stretch;flex-direction:column}
 }
 
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
@@ -2368,7 +2395,67 @@ def edit(pid):
     if request.method=="POST":
         p["channel"]=digits(request.form.get("channel"),4); p["date"]=request.form.get("date") or today(); p["start_time"]=to24(request.form.get("start_period"),request.form.get("start_time")); p["end_time"]=to24(request.form.get("end_period"),request.form.get("end_time")); p["memo"]=request.form.get("memo",""); save(d); return redirect("/")
     sp,st=split12(p.get("start_time")); ep,et=split12(p.get("end_time"))
-    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>수정</h1><div class='notice'>관리자/작성자는 모집중/모집완료 상태에서도 멤버를 수정할 수 있습니다.</div><form method='post'><label>채널</label><input name='channel' value='{{p.channel}}'><label>날짜</label><input name='date' type='date' value='{{p.date}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option {% if sp=='오전' %}selected{% endif %}>오전</option><option {% if sp=='오후' %}selected{% endif %}>오후</option></select><input name='start_time' value='{{st}}'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option {% if ep=='오전' %}selected{% endif %}>오전</option><option {% if ep=='오후' %}selected{% endif %}>오후</option></select><input name='end_time' value='{{et}}'></div><label>메모</label><textarea name='memo'>{{p.memo}}</textarea><button class='ok full'>저장</button></form></section>", p=p,sp=sp,st=st,ep=ep,et=et)
+    return render("""
+<section class='panel'>
+  <a class='btn gray' href='/'>← 메인</a>
+  <h1>수정</h1>
+  <div class='notice'>관리자/작성자는 모집중/모집완료 상태에서도 멤버를 수정할 수 있습니다.</div>
+  <form method='post'>
+    <label>채널</label>
+    <input name='channel' value='{{p.channel}}'>
+    <label>날짜</label>
+    <input name='date' type='date' value='{{p.date}}'>
+    <label>시작시간</label>
+    <div class='time-row'>
+      <select name='start_period'>
+        <option {% if sp=='오전' %}selected{% endif %}>오전</option>
+        <option {% if sp=='오후' %}selected{% endif %}>오후</option>
+      </select>
+      <input name='start_time' value='{{st}}'>
+    </div>
+    <label>종료시간</label>
+    <div class='time-row'>
+      <select name='end_period'>
+        <option {% if ep=='오전' %}selected{% endif %}>오전</option>
+        <option {% if ep=='오후' %}selected{% endif %}>오후</option>
+      </select>
+      <input name='end_time' value='{{et}}'>
+    </div>
+    <label>메모</label>
+    <textarea name='memo'>{{p.memo}}</textarea>
+    <button class='ok full'>저장</button>
+  </form>
+</section>
+
+{% if p.category == "사냥" %}
+<section class='panel edit-member-panel'>
+  <h2>👥 멤버 관리</h2>
+  <div class='notice'>모집중/모집완료 상태에서도 관리자와 작성자는 멤버를 추가·제거할 수 있습니다. 모집완료 글에서 인원이 빠지면 자동으로 모집중으로 돌아갑니다.</div>
+  <div class='edit-slots'>
+    {% for s in p.slots %}
+    <div class='edit-slot-row'>
+      <div>
+        <b>{{s.job}}</b>
+        <div class='meta'>
+          {% if s.label %}{{s.label}}
+          {% elif s.external %}{{s.external}} <span class='tag'>외부</span>
+          {% else %}빈 자리{% endif %}
+        </div>
+      </div>
+      <div class='toolbar'>
+        {% if s.uid or s.external %}
+          <a class='btn mini danger' href='/manage_clear_slot/{{p.id}}/{{loop.index0}}'>제거</a>
+        {% else %}
+          <a class='btn mini ok' href='/manage_choose_slot/{{p.id}}/{{loop.index0}}'>참여자 추가</a>
+          <a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>외부 추가</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+""", p=p,sp=sp,st=st,ep=ep,et=et)
 
 @app.route("/close/<pid>")
 def close(pid):

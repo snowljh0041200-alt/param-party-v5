@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v31.3-final"
+APP_VERSION = "v31.4-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1174,118 +1174,6 @@ input::placeholder,textarea::placeholder{color:#667694}
   display:none!important;
 }
 
-
-/* v31.3 recover card slot fit */
-/* v31.x 레이아웃 강제 변경은 중단. 원래 구조 유지 */
-body{
-  overflow-x:hidden!important;
-}
-
-/* 모집글 카드는 부모 폭 안에서만 */
-.post-card{
-  width:100%!important;
-  max-width:100%!important;
-  box-sizing:border-box!important;
-  overflow:hidden!important;
-}
-
-/* 사냥 직업 줄: 왼쪽 직업/상태, 오른쪽 참여/외부 버튼 */
-.post-card .slot,
-.post-card .job-slot,
-.post-card .party-slot,
-.post-card .hunt-slot{
-  display:grid!important;
-  grid-template-columns:minmax(0, 1fr) auto!important;
-  align-items:center!important;
-  gap:10px!important;
-  width:100%!important;
-  box-sizing:border-box!important;
-  overflow:hidden!important;
-}
-
-/* 슬롯 내부 첫 영역은 줄바꿈 허용 */
-.post-card .slot > div:first-child,
-.post-card .job-slot > div:first-child,
-.post-card .party-slot > div:first-child,
-.post-card .hunt-slot > div:first-child{
-  min-width:0!important;
-  overflow:hidden!important;
-}
-
-/* 슬롯 안 버튼 묶음은 삭제 버튼 기준선처럼 오른쪽에 붙임 */
-.post-card .slot .actions,
-.post-card .slot .toolbar,
-.post-card .slot .slot-actions,
-.post-card .job-slot .actions,
-.post-card .job-slot .toolbar,
-.post-card .job-slot .slot-actions,
-.post-card .party-slot .actions,
-.post-card .party-slot .toolbar,
-.post-card .party-slot .slot-actions,
-.post-card .hunt-slot .actions,
-.post-card .hunt-slot .toolbar,
-.post-card .hunt-slot .slot-actions{
-  display:flex!important;
-  justify-content:flex-end!important;
-  align-items:center!important;
-  gap:8px!important;
-  flex-wrap:nowrap!important;
-  min-width:max-content!important;
-}
-
-/* 슬롯 안 참여/외부 버튼 크기 줄여서 빈칸에 들어가게 */
-.post-card .slot .btn,
-.post-card .slot button,
-.post-card .job-slot .btn,
-.post-card .job-slot button,
-.post-card .party-slot .btn,
-.post-card .party-slot button,
-.post-card .hunt-slot .btn,
-.post-card .hunt-slot button{
-  padding:8px 12px!important;
-  font-size:14px!important;
-  white-space:nowrap!important;
-}
-
-/* 하단 버튼 줄을 카드 기준선으로 사용 */
-.post-card > .toolbar,
-.post-card > .actions,
-.post-card .post-actions{
-  display:flex!important;
-  flex-wrap:wrap!important;
-  gap:8px!important;
-  align-items:center!important;
-  max-width:100%!important;
-}
-
-/* 오른쪽 실시간 패널은 원래 위치 유지 + sticky만 */
-.side,
-.sidebar,
-.right-side,
-.side-panel,
-aside{
-  position:sticky!important;
-  top:12px!important;
-  align-self:flex-start!important;
-}
-
-/* 승급지원 정산/인원 숨김 유지 */
-.post-card[data-category="승급지원"] .settle-box,
-.post-card[data-category="승급지원"] .settlement-box,
-.post-card[data-category="승급지원"] .farming-settle,
-.post-card[data-category="승급지원"] .farm-settle,
-.post-card[data-category="승급지원"] .settle-panel,
-.post-card[data-category="승급지원"] [data-section="settle"],
-.post-card[data-category="승급지원"] .settle,
-.post-card[data-category="승급지원"] .calc-box,
-.post-card[data-category="승급지원"] .capacity-badge,
-.post-card[data-category="승급지원"] .count-badge,
-.post-card[data-category="승급지원"] .people-count,
-.post-card[data-category="승급지원"] .member-count,
-.post-card[data-category="승급지원"] .cap-badge{
-  display:none!important;
-}
-
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -2110,7 +1998,159 @@ def max_count(p):
         return 10
     return max(len(p["participants"]), 0)
 
-BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ title }}</title><style>{{ css }}</style></head><body><div class='wrap'>"""
+BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ title }}</title><style>{{ css }}
+/* v31.4 true two-column recover */
+/* 핵심: 기존 980px 모바일 전환을 무력화하고, 760px 이상은 오른쪽 패널을 항상 오른쪽에 둔다 */
+@media (min-width:760px){
+  .app-shell{
+    display:grid!important;
+    grid-template-columns:minmax(0, 1fr) 340px!important;
+    gap:14px!important;
+    align-items:start!important;
+    width:100%!important;
+    max-width:none!important;
+  }
+
+  .left-stack{
+    min-width:0!important;
+    width:100%!important;
+    display:grid!important;
+    grid-template-columns:repeat(2, minmax(0, 1fr))!important;
+    gap:14px!important;
+    align-items:start!important;
+  }
+
+  .left-stack > .quickbar,
+  .left-stack > .empty{
+    grid-column:1 / -1!important;
+  }
+
+  .left-stack > .card{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+  }
+
+  .side-stack{
+    grid-column:2!important;
+    position:sticky!important;
+    top:12px!important;
+    align-self:start!important;
+    width:340px!important;
+    min-width:340px!important;
+    max-width:340px!important;
+    max-height:calc(100vh - 24px)!important;
+    overflow-y:auto!important;
+    display:block!important;
+  }
+
+  .side-stack > .panel{
+    width:100%!important;
+    box-sizing:border-box!important;
+    margin-bottom:12px!important;
+  }
+
+  .chatbox{
+    height:360px!important;
+  }
+}
+
+/* 760px 미만에서만 한 줄로 내려감 */
+@media (max-width:759px){
+  .app-shell{
+    display:block!important;
+  }
+  .left-stack{
+    display:block!important;
+  }
+  .left-stack > .card{
+    margin-bottom:14px!important;
+  }
+  .side-stack{
+    position:static!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    max-height:none!important;
+  }
+}
+
+/* 모집글 카드 내부 폭 정리 */
+.left-stack > .card{
+  overflow:hidden!important;
+  padding:14px!important;
+  border-radius:18px!important;
+}
+
+.left-stack > .card h2{
+  font-size:21px!important;
+  margin:8px 0!important;
+}
+
+.left-stack > .card .meta{
+  font-size:12px!important;
+  line-height:1.45!important;
+}
+
+.left-stack > .card .slot{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:8px!important;
+  align-items:center!important;
+  padding:10px 11px!important;
+  margin:8px 0!important;
+}
+
+.left-stack > .card .slot > div:first-child{
+  min-width:0!important;
+}
+
+.left-stack > .card .slot .toolbar{
+  justify-content:flex-end!important;
+  flex-wrap:nowrap!important;
+  gap:6px!important;
+  min-width:max-content!important;
+}
+
+.left-stack > .card .slot .btn,
+.left-stack > .card .slot button{
+  padding:8px 10px!important;
+  font-size:13px!important;
+  white-space:nowrap!important;
+}
+
+.left-stack > .card .actions{
+  display:flex!important;
+  gap:7px!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+}
+
+.left-stack > .card .actions .btn{
+  padding:9px 12px!important;
+  font-size:13px!important;
+}
+
+/* 승급지원 파밍정산/정원 표시 숨김 유지 */
+.card[data-category="승급지원"] .settle-box,
+.card[data-category="승급지원"] .settlement-box,
+.card[data-category="승급지원"] .farming-settle,
+.card[data-category="승급지원"] .farm-settle,
+.card[data-category="승급지원"] .settle-panel,
+.card[data-category="승급지원"] [data-section="settle"],
+.card[data-category="승급지원"] .settle,
+.card[data-category="승급지원"] .calc-box,
+.card[data-category="승급지원"] .capacity-badge,
+.card[data-category="승급지원"] .count-badge,
+.card[data-category="승급지원"] .people-count,
+.card[data-category="승급지원"] .member-count,
+.card[data-category="승급지원"] .cap-badge{
+  display:none!important;
+}
+
+</style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
 function qs(s){return document.querySelector(s)}
@@ -3243,7 +3283,7 @@ T_INDEX = """
     </div>
 
     {% for p in posts %}
-    <section class='card {{ "closed" if p.closed else "" }}'>
+    <section class='card {{ "closed" if p.closed else "" }}' data-category='{{p.category}}'>
       <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "모집 완료" if p.closed else "모집중" }}</span>{% if delete_after_text(p) %}<span class='tag auto-delete-tag'>{{ delete_after_text(p) }}</span>{% endif %}
       <span class='tag'>{{p.category}}</span>
       <span class='count'>{{joined_count(p)}} / {{max_count(p)}}명</span>

@@ -1,17 +1,17 @@
-v31.3 RECOVER CARD SLOT FIT
+v31.4 TRUE TWO COLUMN RECOVER
 
 수정:
-- v31.2에서 깨진 강제 4분할/폭 계산 제거
-- v29 안정 레이아웃 기준으로 복구
-- 모집글 카드 안에서만 슬롯 줄 정리
-- 직업명은 왼쪽, 참여/외부 버튼은 오른쪽 빈칸에 맞춤
-- 하단 삭제 버튼 기준선 안으로 버튼들이 들어오게 조정
-- 오른쪽 실시간 패널은 원래 위치 유지
-- 기존 알림/링크/승급지원 정산 숨김 기능 유지
+- v29 안정버전 기준으로 복구
+- 기존 980px 이하에서 오른쪽 패널이 아래로 내려가던 문제 수정
+- 760px 이상에서는 무조건:
+  왼쪽 모집글 2열 / 오른쪽 접속중·오늘일정·통합채팅 고정
+- 모집글 카드 폭 축소
+- 슬롯 안 참여/외부 버튼을 카드 안쪽 오른쪽 기준선에 맞춤
+- 기존 알림/링크/승급지원 정산 숨김 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v31.3 recover card slot fit"
+git commit -m "v31.4 true two column recover"
 git push

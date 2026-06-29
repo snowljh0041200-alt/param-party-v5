@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.6"
+APP_VERSION = "v26.7"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -978,11 +978,28 @@ def base_line(job):
     return job
 
 def compatible_job(slot_job, char_job):
-    # 같은 계열만 참여 가능. 예: 검성 자리에는 전사 계열만 가능, 진선 자리에는 도사 계열만 가능
-    return base_line(slot_job) == base_line(char_job)
+    return same_job_family(slot_job, char_job)
+
+def job_family(job):
+    j = str(job or "")
+    warrior = ["전사","검객","검제","검황","검성"]
+    thief = ["도적","자객","진검","귀검","태성"]
+    mage = ["주술사","술사","현사","현인","현자"]
+    priest = ["도사","도인","명인","진인","진선"]
+    for fam in [warrior, thief, mage, priest]:
+        if j in fam:
+            return fam[0]
+    return j
+
+def same_job_family(a, b):
+    return job_family(a) == job_family(b)
 
 def approved_chars(u):
-    return [c for c in (u or {}).get("chars", []) if c.get("status") == "approved"]
+    if not u:
+        return []
+    if u.get("status") == "approved":
+        return u.get("chars", [])
+    return [c for c in u.get("chars", []) if c.get("status") == "approved"]
 
 def post_datetime(p):
     # 파밍은 종료시간을 젠시간으로 봅니다. 예: 08:00~09:00이면 09:00 젠
@@ -2082,9 +2099,9 @@ def chars():
     if not approved(u): return redirect("/pending")
     if request.method=="POST":
         name=request.form.get("name","").strip(); job=request.form.get("job","검성")
-        if name and not char_name_exists(d, name, exclude_uid=u.get("id","")): u["chars"].append({"id":nid(),"name":name,"job":job,"status":"pending"}); save(d)
+        if name and not char_name_exists(d, name, exclude_uid=u.get("id","")): u["chars"].append({"id":nid(),"name":name,"job":job,"status":"approved" if u.get("status")=="approved" else "pending"}); save(d)
         return redirect("/chars")
-    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{c.status}}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'>{{ job_select('job')|safe }}<button class='ok'>추가</button></form></section>", u=u)
+    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{ '승인됨' if c.status=='approved' else '승인대기' }}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'>{{ job_select('job')|safe }}<button class='ok'>추가</button></form></section>", u=u)
 
 @app.route("/select_char/<cid>")
 def select_char(cid):

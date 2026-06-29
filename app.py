@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v36.9-final"
+APP_VERSION = "v37.0-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1462,6 +1462,10 @@ def cur_user(d=None):
         if u["id"] == uid:
             return u
     return None
+
+
+def current_user(d=None):
+    return cur_user(d)
 
 def approved(u):
     return bool(u and u.get("status") == "approved")
@@ -3625,7 +3629,7 @@ def find_user_char(u, cid):
 @app.route("/delete_char/<cid>")
 def delete_char(cid):
     d = load()
-    u = current_user()
+    u = cur_user()
     chars = u.get("chars") or []
     u["chars"] = [ch for ch in chars if str(ch.get("id")) != str(cid)]
     if str(u.get("selected_char_id")) == str(cid):
@@ -3637,7 +3641,7 @@ def delete_char(cid):
 @app.route("/add_char", methods=["POST"])
 def add_char():
     d = load()
-    u = current_user()
+    u = cur_user()
     name = (request.form.get("name") or "").strip()
     job = (request.form.get("job") or "").strip()
     if name:
@@ -3679,7 +3683,7 @@ def notice_page():
       <div class='notice notice-full'>{nl2br(n.get('text') or '등록된 공지사항이 없습니다.')}</div>
     </section>
     """
-    return render(body, d=d, u=current_user(), c=selected_char(current_user()), cat="전체", posts=[], sched=[], online=[], notice=n, notice_preview_text="", notice_new=False)
+    return render(body, d=d, u=cur_user(), c=selected_char(cur_user()), cat="전체", posts=[], sched=[], online=[], notice=n, notice_preview_text="", notice_new=False)
 
 
 @app.route("/")
@@ -4639,7 +4643,7 @@ def chat(pid):
 @app.route("/edit_char/<cid>", methods=["GET","POST"])
 def edit_char(cid):
     d = load()
-    u = current_user()
+    u = cur_user()
     ch = find_user_char(u, cid)
     if not ch:
         return redirect("/chars")
@@ -4658,7 +4662,7 @@ def edit_char(cid):
 @app.route("/chars")
 def chars():
     d = load()
-    u = current_user()
+    u = cur_user()
     chars = u.get("chars") or []
     selected_id = u.get("selected_char_id")
     return render_template_string(BASE_HEAD + T_CHARS_MANAGE_V369 + BASE_TAIL, d=d, u=u, c=selected_char(u), chars=chars, selected_id=selected_id, jobs=JOBS, app_version=APP_VERSION)

@@ -1,13 +1,13 @@
-v36.9 CHARACTER PAGE ERROR FIX
+v37.0 CURRENT USER FIX
 
 수정:
-- v36.8에서 캐릭터 페이지 Internal Server Error 뜨는 문제 수정
-- v36.7 안정 버전 기준으로 다시 패치
-- 캐릭터 페이지에 선택 / 수정 / 삭제 버튼 표시
-- 수정에서 캐릭터명과 직업/차수 변경 가능
+- 캐릭터 페이지 Internal Server Error 원인 수정
+- 없는 current_user() 호출을 실제 함수 cur_user()로 교체
+- 안전용 current_user alias 추가
+- 캐릭터 선택/수정/삭제 기능 유지
 - 컴파일 통과
 
 배포:
 git add .
-git commit -m "v36.9 character page error fix"
+git commit -m "v37.0 current user fix"
 git push

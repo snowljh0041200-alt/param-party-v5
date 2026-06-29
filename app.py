@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.14-service-final"
+APP_VERSION = "v26.16-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -710,6 +710,15 @@ input::placeholder,textarea::placeholder{color:#667694}
   }
 }
 
+
+/* v26.16 member manage polish */
+.actions .btn + .btn{
+  margin-left:4px;
+}
+.notice{
+  line-height:1.5;
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1100,6 +1109,17 @@ def post_datetime(p):
         return now()
 
 
+
+
+def normalize_existing_approved_members(d):
+    changed = False
+    for u in d.get("users", []):
+        if u.get("status") == "approved":
+            for c in u.get("chars", []):
+                if c.get("status") != "approved":
+                    c["status"] = "approved"
+                    changed = True
+    return changed
 
 def get_notice(d):
     n = d.get("settings", {}).get("notice", {})
@@ -1542,15 +1562,19 @@ function isUserEditing(){
   return false;
 }
 function bindLivePageRefresh(){
-  if(!document.querySelector('[data-live-root]')) return;
-  setInterval(()=>{
-    if(isUserEditing()) return;
-    if(document.hidden) return;
-    // 메인 화면은 참여/글작성 변화가 바로 보이도록 8초마다 조용히 새로고침
-    location.reload();
-  }, 6000);
+  // v26.16: 전체 페이지 자동 새로고침 중지. 채팅/알림은 AJAX만 사용.
 }
 document.addEventListener('DOMContentLoaded', bindLivePageRefresh);
+
+
+function keepChatScrollStable(box, renderFn){
+  if(!box){ renderFn(); return; }
+  const nearBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 80;
+  const oldTop = box.scrollTop;
+  renderFn();
+  if(nearBottom) box.scrollTop = box.scrollHeight;
+  else box.scrollTop = oldTop;
+}
 
 function escapeHtml(s){
   return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -1775,7 +1799,7 @@ T_INDEX = """
             <div class='meta'>{{s.label or s.external or "참여 대기"}}</div>
           </div>
           <div class='toolbar'>
-            {% if not p.closed %}
+            {% if not p.closed or can_manage_post(u,p) %}
               {% if s.uid==u.id %}
                 <span class='tag ok'>내 자리</span>
                 <a class='btn mini gray' href='/leave_slot/{{p.id}}/{{loop.index0}}'>취소</a>
@@ -1848,7 +1872,7 @@ T_INDEX = """
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
           {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}
-          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>수정</a>{% endif %}
+          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>글수정</a><a class='btn gray' href='/edit/{{p.id}}'>멤버관리</a>{% endif %}
           <a class='btn danger' href='/delete/{{p.id}}'>삭제</a>
         {% endif %}
       </div>
@@ -2152,9 +2176,11 @@ def leave_slot(pid,i):
 @app.route("/remove_external_slot/<pid>/<int:i>")
 def remove_external_slot(pid, i):
     d = load()
+    if normalize_existing_approved_members(d):
+        save(d)
     u = cur_user(d)
     p = find_post(d, pid)
-    if not p or p.get("closed"):
+    if not p or (p.get("closed") and not can_manage_post(u,p)):
         return redirect("/")
     if not (is_admin(u) or p.get("owner_uid") == (u or {}).get("id")):
         return redirect("/")
@@ -2189,11 +2215,13 @@ def edit(pid):
     if request.method=="POST":
         p["channel"]=digits(request.form.get("channel"),4); p["date"]=request.form.get("date") or today(); p["start_time"]=to24(request.form.get("start_period"),request.form.get("start_time")); p["end_time"]=to24(request.form.get("end_period"),request.form.get("end_time")); p["memo"]=request.form.get("memo",""); save(d); return redirect("/")
     sp,st=split12(p.get("start_time")); ep,et=split12(p.get("end_time"))
-    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>수정</h1><form method='post'><label>채널</label><input name='channel' value='{{p.channel}}'><label>날짜</label><input name='date' type='date' value='{{p.date}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option {% if sp=='오전' %}selected{% endif %}>오전</option><option {% if sp=='오후' %}selected{% endif %}>오후</option></select><input name='start_time' value='{{st}}'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option {% if ep=='오전' %}selected{% endif %}>오전</option><option {% if ep=='오후' %}selected{% endif %}>오후</option></select><input name='end_time' value='{{et}}'></div><label>메모</label><textarea name='memo'>{{p.memo}}</textarea><button class='ok full'>저장</button></form></section>", p=p,sp=sp,st=st,ep=ep,et=et)
+    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>수정</h1><div class='notice'>관리자/작성자는 모집중/모집완료 상태에서도 멤버를 수정할 수 있습니다.</div><form method='post'><label>채널</label><input name='channel' value='{{p.channel}}'><label>날짜</label><input name='date' type='date' value='{{p.date}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option {% if sp=='오전' %}selected{% endif %}>오전</option><option {% if sp=='오후' %}selected{% endif %}>오후</option></select><input name='start_time' value='{{st}}'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option {% if ep=='오전' %}selected{% endif %}>오전</option><option {% if ep=='오후' %}selected{% endif %}>오후</option></select><input name='end_time' value='{{et}}'></div><label>메모</label><textarea name='memo'>{{p.memo}}</textarea><button class='ok full'>저장</button></form></section>", p=p,sp=sp,st=st,ep=ep,et=et)
 
 @app.route("/close/<pid>")
 def close(pid):
     d = load()
+    if normalize_existing_approved_members(d):
+        save(d)
     u = cur_user(d)
     p = find_post(d, pid)
     if p and can_manage_post(u, p):
@@ -2317,6 +2345,7 @@ def admin():
     <div class='admin-card'><span>채팅</span><strong>{{chat_count}}</strong></div>
   </div>
 
+  <div class='notice'>기존 문파원은 data.json을 유지하면 다시 가입/승인할 필요가 없습니다. 승인된 계정의 추가 캐릭터는 자동 승인됩니다.</div>
   <h2>가입 승인</h2>
   {% for x in pending %}
     <div class='slot'><div><b>{{x.account}}</b><br><span class='meta'>{{x.chars[0].name if x.chars else ""}} / {{x.chars[0].job if x.chars else ""}}</span></div><a class='btn mini ok' href='/admin/approve/{{x.id}}'>승인</a></div>
@@ -2378,7 +2407,7 @@ def admin():
           <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
-          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>글수정</a>
           <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 파밍글을 삭제할까요?')">삭제</a>
         </div>
       </div>
@@ -2394,7 +2423,7 @@ def admin():
           <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
-          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>글수정</a>
           <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 사냥글을 삭제할까요?')">삭제</a>
         </div>
       </div>
@@ -2410,7 +2439,7 @@ def admin():
           <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
-          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>글수정</a>
           <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 600퀘 글을 삭제할까요?')">삭제</a>
         </div>
       </div>
@@ -2427,7 +2456,7 @@ def admin():
           <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
-          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>글수정</a>
           <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 승급지원 글을 삭제할까요?')">삭제</a>
         </div>
       </div>

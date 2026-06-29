@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.22-service"
+APP_VERSION = "v26.23-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -842,6 +842,38 @@ input::placeholder,textarea::placeholder{color:#667694}
   #toastWrap{left:12px;right:12px;top:12px;max-width:none}
 }
 
+
+/* v26.23 toast only status fix */
+#toastWrap{
+  position:fixed;
+  top:18px;
+  right:18px;
+  z-index:9999;
+  display:grid;
+  gap:8px;
+  max-width:360px;
+}
+.toast{
+  opacity:0;
+  transform:translateY(-8px);
+  transition:.2s ease;
+  background:linear-gradient(180deg,#1d2b4f,#101b35);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:14px;
+  color:#fff;
+  padding:12px 14px;
+  box-shadow:0 18px 48px rgba(0,0,0,.38);
+  font-weight:900;
+  line-height:1.45;
+}
+.toast.show{
+  opacity:1;
+  transform:translateY(0);
+}
+@media(max-width:720px){
+  #toastWrap{left:12px;right:12px;top:12px;max-width:none}
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1044,7 +1076,7 @@ def show_time(value):
     return f"{p} {t}" if t else "시간 미정"
 
 def empty_data():
-    return {"users": [], "posts": [], "global_chat": [], "alerts": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"title":"공성 관련 협의 사항 안내","text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.","updated_at":""}}}
+    return {"users": [], "posts": [], "global_chat": [], "alerts": [], "alerts": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"title":"공성 관련 협의 사항 안내","text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.","updated_at":""}}}
 
 def normalize(d):
     d.setdefault("users", [])
@@ -1302,12 +1334,10 @@ def system_notify(d, msg):
         item = {
             "id": nid(),
             "uid": "system",
-            "name": "시스템",
+            "name": "알림",
             "text": msg,
             "time": now().isoformat(timespec="seconds")
         }
-        d.setdefault("global_chat", []).append(item)
-        d["global_chat"] = d.get("global_chat", [])[-200:]
         d.setdefault("alerts", []).append(item)
         d["alerts"] = d.get("alerts", [])[-80:]
         return True
@@ -2391,31 +2421,47 @@ def join_slot(pid,i):
         if not compatible_job(p["slots"][i].get("job",""), c.get("job","")):
             return redirect(f"/choose_slot/{pid}/{i}")
         for s in p["slots"]:
-            if s.get("uid")==u["id"]: s.update({"uid":"","label":"","char_id":""})
+            if s.get("uid")==u["id"]:
+                s.update({"uid":"","label":"","char_id":"","external":""})
         if not p["slots"][i].get("uid") and not p["slots"][i].get("external"):
-            p["slots"][i].update({"uid":u["id"],"label":char_label(c),"char_id":c.get("id","")})
+            p["slots"][i].update({"uid":u["id"],"label":char_label(c),"char_id":c.get("id",""),"external":""})
+            job = p["slots"][i].get("job","")
+            system_notify(d, f"🔔 {actor_label(u)}님이 [{post_title(p)}] {job} 자리에 참여했습니다.")
+        auto_close_full_posts(d)
         save(d)
     return redirect("/")
+
 
 @app.route("/leave_slot/<pid>/<int:i>")
 def leave_slot(pid,i):
     d=load(); u=cur_user(d); p=find_post(d,pid)
-    if p and 0<=i<len(p["slots"]) and (p["slots"][i].get("uid")==u["id"] or is_admin(u)):
-        p["slots"][i].update({"uid":"","label":"","external":""}); save(d)
+    if p and 0<=i<len(p["slots"]) and (p["slots"][i].get("uid")==u["id"] or can_manage_post(u,p)):
+        job = p["slots"][i].get("job","")
+        p["slots"][i].update({"uid":"","label":"","char_id":"","external":""})
+        system_notify(d, f"🔔 {actor_label(u)}님이 [{post_title(p)}] {job} 자리 참여를 취소했습니다.")
+        refresh_post_status_after_member_change(d, p)
+        save(d)
     return redirect("/")
+
 
 
 
 @app.route("/remove_external_slot/<pid>/<int:i>")
 def remove_external_slot(pid, i):
     d = load()
-    if normalize_existing_approved_members(d):
-        refresh_post_status_after_member_change(d, p)
-        save(d)
     u = cur_user(d)
     p = find_post(d, pid)
-    if not p or (p.get("closed") and not can_manage_post(u,p)):
+    if not p or not can_manage_post(u, p):
         return redirect("/")
+    if 0 <= i < len(p.get("slots", [])):
+        old = p["slots"][i].get("external") or p["slots"][i].get("label") or "외부인"
+        job = p["slots"][i].get("job", "")
+        p["slots"][i].update({"uid": "", "label": "", "char_id": "", "external": ""})
+        system_notify(d, f"🔔 [{post_title(p)}] {job} 자리의 {old}님이 제거되었습니다.")
+        refresh_post_status_after_member_change(d, p)
+        save(d)
+    return redirect("/")
+
     if not (is_admin(u) or p.get("owner_uid") == (u or {}).get("id")):
         return redirect("/")
     if 0 <= i < len(p.get("slots", [])):
@@ -2504,7 +2550,8 @@ def external_slot(pid, i):
         name = request.form.get("name", "").strip()
         if name:
             p["slots"][i].update({"uid": "", "label": name, "char_id": "", "external": name})
-            system_notify(d, f"➕ {actor_label(u)}님이 [{post_title(p)}] {p['slots'][i].get('job','')} 자리에 외부인 {name}님을 추가했습니다.")
+            job = p["slots"][i].get("job", "")
+            system_notify(d, f"🔔 [{post_title(p)}] {job} 자리에 외부인 {name}님이 추가되었습니다.")
             refresh_post_status_after_member_change(d, p)
             save(d)
         return redirect(next_url or "/")
@@ -2628,6 +2675,7 @@ def edit_add_job_slot(pid):
         p.setdefault("slots", []).append({"job": job, "uid": "", "label": "", "char_id": "", "external": ""})
         reopen_on_edit_change(p)
         system_notify(d, f"⚔ {actor_label(u)}님이 [{post_title(p)}] 모집글에 {job} 자리를 추가했습니다.")
+        system_notify(d, f"🔔 [{post_title(p)}] {job} 자리가 추가되었습니다.")
         refresh_post_status_after_member_change(d, p)
         save(d)
     return redirect(f"/edit/{pid}")
@@ -2641,7 +2689,9 @@ def edit_remove_job_slot(pid, i):
         return redirect("/")
     if 0 <= i < len(p.get("slots", [])):
         removed_job = p["slots"][i].get("job","")
+        removed_job = p["slots"][i].get("job","")
         p["slots"].pop(i)
+        system_notify(d, f"🔔 [{post_title(p)}] {removed_job} 자리가 제거되었습니다.")
         system_notify(d, f"➖ {actor_label(u)}님이 [{post_title(p)}] 모집글에서 {removed_job} 자리를 제거했습니다.")
         reopen_on_edit_change(p)
         refresh_post_status_after_member_change(d, p)

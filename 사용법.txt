@@ -1,14 +1,14 @@
-v26.22 EXTERNAL RETURN + POPUP ALERTS
+v26.23 TOAST ONLY STATUS FIX
 
 수정:
-- 메인/수정에서 외부인 추가 저장 후 멈추지 않고 이전 화면으로 돌아감
-- 외부인 추가 페이지에 돌아가기 버튼 추가
-- 참여/취소/외부추가/제거/자리추가/자리제거 알림을 통합채팅 + 화면 팝업 토스트로 표시
-- 글수정/자리수정 중복 제거 유지
+- 통합채팅에는 시스템 알림을 남기지 않음
+- 참여/취소/외부추가/외부제거/자리추가/자리제거는 화면 토스트 팝업으로만 표시
+- 외부제거 후 인원 부족 시 모집완료 → 모집중 자동 복귀
+- 외부추가 저장 후 이전 화면으로 복귀 유지
 - 기존 기능 유지
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v26.22 external return popup alerts"
+git commit -m "v26.23 toast only status fix"
 git push

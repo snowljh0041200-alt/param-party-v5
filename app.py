@@ -1,11 +1,11 @@
 
 from flask import Flask, request, redirect, session, render_template_string
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v22.0"
+APP_VERSION = "v22.1"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -254,6 +254,12 @@ select optgroup{background:#142141;color:#9fbbff;font-weight:900}
 select option{background:#081126;color:#f5f8ff}
 #slotJob,select[name='job']{border-color:#5874ff;box-shadow:0 0 0 2px rgba(88,116,255,.12)}
 @keyframes fadeIn{from{opacity:.3;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+.closed{opacity:.62!important;filter:grayscale(.45)!important;background:linear-gradient(180deg,rgba(71,79,99,.72),rgba(37,44,60,.72))!important}
+.closed-tag{background:rgba(239,68,68,.22)!important;border-color:rgba(239,68,68,.5)!important;color:#ffb4b4!important;font-weight:900}
+.remain{color:#ffe189}
+.farm-box{margin-top:12px;padding:12px;border:1px solid #263a64;border-radius:16px;background:rgba(8,17,38,.55)}
+.farm-tools{margin-top:8px}
 @media(max-width:980px){
   .app-shell{grid-template-columns:1fr}
   .side-stack{position:static}
@@ -445,6 +451,8 @@ def char_label(c):
 
 def touch_online():
     d = load()
+    if farm_alert_tick(d):
+        save(d)
     u = cur_user(d)
     if not u:
         return
@@ -485,6 +493,77 @@ def update_last_seen():
         pass
 
 
+
+def base_line(job):
+    warrior = ["전사","검객","검제","검황","검성"]
+    rogue = ["도적","자객","진검","귀검","태성"]
+    mage = ["주술사","술사","현사","현인","현자"]
+    priest = ["도사","도인","명인","진인","진선"]
+    for group in [warrior, rogue, mage, priest]:
+        if job in group:
+            return group[0]
+    return job
+
+def compatible_job(slot_job, char_job):
+    # 같은 계열만 참여 가능. 예: 검성 자리에는 전사 계열만 가능, 진선 자리에는 도사 계열만 가능
+    return base_line(slot_job) == base_line(char_job)
+
+def approved_chars(u):
+    return [c for c in (u or {}).get("chars", []) if c.get("status") == "approved"]
+
+def post_datetime(p):
+    try:
+        return datetime.fromisoformat(f"{p.get('date') or today()}T{p.get('start_time') or '00:00'}").replace(tzinfo=KST)
+    except Exception:
+        return now()
+
+def remaining_text(p):
+    dt = post_datetime(p)
+    diff = dt - now()
+    minutes = int(diff.total_seconds() // 60)
+    if minutes > 0:
+        return f"{minutes}분 남음"
+    if minutes > -60:
+        return "진행중"
+    return "종료"
+
+def farm_alert_tick(d):
+    changed = False
+    for p in d.get("posts", []):
+        if p.get("category") != "파밍" or p.get("closed"):
+            continue
+        sent = p.setdefault("alert_sent", [])
+        dt = post_datetime(p)
+        left = int((dt - now()).total_seconds() // 60)
+        for target in [30, 15, 5]:
+            key = str(target)
+            if left <= target and left >= target - 1 and key not in sent:
+                msg = f"🔔 {p.get('place','파밍')} 젠 {target}분 전입니다. 채널 {p.get('channel','')}"
+                d.setdefault("global_chat", []).append({"name":"알림","text":msg,"time":now_text()})
+                d["global_chat"] = d["global_chat"][-100:]
+                sent.append(key)
+                changed = True
+    return changed
+
+def farm_distribution(p):
+    try:
+        amount = int(re.sub(r"[^0-9]", "", str(p.get("sale_amount","") or "0")))
+    except Exception:
+        amount = 0
+    early = p.get("early_ids", [])
+    late = p.get("late_ids", [])
+    early_w = float(p.get("early_weight", "1.0") or "1.0")
+    late_w = float(p.get("late_weight", "0.88") or "0.88")
+    total_w = len(early) * early_w + len(late) * late_w
+    if amount <= 0 or total_w <= 0:
+        return {"early_each":0, "late_each":0, "amount":amount}
+    return {
+        "early_each": int(amount * early_w / total_w),
+        "late_each": int(amount * late_w / total_w),
+        "amount": amount
+    }
+
+
 def find_post(d, pid):
     for p in d["posts"]:
         if p["id"] == pid:
@@ -516,7 +595,7 @@ document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.oncha
 def render(page, **kw):
     kw.setdefault("title", APP_TITLE)
     kw.setdefault("css", CSS)
-    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
+    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
     return render_template_string(BASE_HEAD + page + BASE_TAIL, **kw)
 
 @app.route("/")
@@ -547,9 +626,9 @@ T_INDEX = """
 </header>
 
 <div class='summary-grid'>
-  <div class='summary-card'><span>접속중</span><strong>{{ online|length if online is defined else 1 }}</strong></div>
   <div class='summary-card'><span>오늘 파밍</span><strong>{{ sched|length }}</strong></div>
   <div class='summary-card'><span>진행중 모집</span><strong>{{ posts|selectattr('closed','equalto',False)|list|length }}</strong></div>
+  <div class='summary-card'><span>내 캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong></div>
 </div>
 
 <div class='app-shell'>
@@ -565,11 +644,11 @@ T_INDEX = """
 
     {% for p in posts %}
     <section class='card {{ "closed" if p.closed else "" }}'>
-      <span class='tag ok'>{{ "마감" if p.closed else "모집중" }}</span>
+      <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "마감" if p.closed else "모집중" }}</span>
       <span class='tag'>{{p.category}}</span>
       <span class='count'>{{joined_count(p)}}/{{max_count(p)}}</span>
       <h2>{{p.place}}</h2>
-      <div class='meta'>📍 {{p.channel}}채널 · ⏰ {{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}</div>
+      <div class='meta'>📍 {{p.channel}}채널 · ⏰ {{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}{% if p.category=="파밍" %} · <b class='remain'>{{ remaining_text(p) }}</b>{% endif %}</div>
       <div class='meta'>👑 {{p.owner_label}} · {{p.created}}</div>
       {% if p.memo %}<div class='notice'>{{p.memo}}</div>{% endif %}
 
@@ -585,7 +664,7 @@ T_INDEX = """
               {% if s.uid==u.id %}
                 <a class='btn mini gray' href='/leave_slot/{{p.id}}/{{loop.index0}}'>취소</a>
               {% elif not s.uid and not s.external %}
-                <a class='btn mini ok' href='/join_slot/{{p.id}}/{{loop.index0}}'>참여</a>
+                <a class='btn mini ok' href='/choose_slot/{{p.id}}/{{loop.index0}}'>참여</a>
                 {% if is_admin(u) %}<a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>외부</a>{% endif %}
               {% endif %}
             {% endif %}
@@ -599,7 +678,30 @@ T_INDEX = """
         {% else %}
           <p class='meta'>아직 참여자 없음</p>
         {% endfor %}
-        {% if not p.closed %}<a class='btn ok full' href='/participate/{{p.id}}'>참여하기</a>{% endif %}
+        {% if not p.closed %}<a class='btn ok full' href='/choose_participant/{{p.id}}'>참여하기</a>{% endif %}
+
+        {% if p.category == "파밍" %}
+          <div class='farm-box'>
+            <h3>파밍 결과</h3>
+            <div class='meta'>결과: {{ p.farm_result or "미등록" }} / 아이템: {{ p.farm_item or "-" }} / 판매금액: {{ p.sale_amount or "0" }}</div>
+            {% set dist = farm_distribution(p) %}
+            {% if dist.amount > 0 %}
+              <div class='notice'>선집합 1인 {{ dist.early_each }}전 · 후집합 1인 {{ dist.late_each }}전</div>
+            {% endif %}
+            {% if p.owner_uid==u.id or is_admin(u) %}
+              <form method='post' action='/farm_result/{{p.id}}'>
+                <select name='farm_result'><option {% if p.farm_result=="노득" %}selected{% endif %}>노득</option><option {% if p.farm_result=="득템" %}selected{% endif %}>득템</option></select>
+                <input name='farm_item' value='{{p.farm_item}}' placeholder='아이템명'>
+                <input name='sale_amount' value='{{p.sale_amount}}' placeholder='판매금액'>
+                <button class='ok full'>결과 저장</button>
+              </form>
+              <div class='toolbar farm-tools'>
+                <a class='btn gray mini' href='/farm_group/{{p.id}}/early'>선집합 체크</a>
+                <a class='btn gray mini' href='/farm_group/{{p.id}}/late'>후집합 체크</a>
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
       {% endif %}
 
       <div class='actions'>
@@ -637,7 +739,7 @@ T_INDEX = """
       <h2>📅 오늘 일정</h2>
       {% for p in sched %}
         <div class='schedule-row'>
-          <div><b>{{p.place}}</b><br><span class='meta'>{{p.date}}</span></div>
+          <div><b>{{p.place}}</b><br><span class='meta'>{{p.date}} · {{ remaining_text(p) }}</span></div>
           <strong>{{show_time(p.start_time)}}</strong>
         </div>
       {% else %}
@@ -715,15 +817,120 @@ def create():
     d["posts"].append({"id":nid(),"category":cat,"place":request.form.get(f"place_{cat}",""),"channel":digits(request.form.get("channel"),4),"date":request.form.get("date") or today(),"start_time":to24(request.form.get("start_period"),request.form.get("start_time")),"end_time":to24(request.form.get("end_period"),request.form.get("end_time")),"memo":request.form.get("memo",""),"owner_uid":u["id"],"owner_label":char_label(c),"created":now_text(),"closed":False,"slots":slots,"participants":[],"chat":[]})
     save(d); return redirect("/")
 
+
+@app.route("/choose_slot/<pid>/<int:i>", methods=["GET","POST"])
+def choose_slot(pid, i):
+    d=load(); u=cur_user(d); p=find_post(d,pid)
+    if not approved(u) or not p or p.get("category")!="사냥" or p.get("closed"):
+        return redirect("/")
+    if not (0 <= i < len(p.get("slots", []))):
+        return redirect("/")
+    slot = p["slots"][i]
+    options = [c for c in approved_chars(u) if compatible_job(slot.get("job",""), c.get("job",""))]
+    if request.method == "POST":
+        cid = request.form.get("char_id","")
+        chosen = None
+        for c in options:
+            if c.get("id") == cid:
+                chosen = c
+        if chosen and not slot.get("uid") and not slot.get("external"):
+            for s in p["slots"]:
+                if s.get("uid")==u["id"]:
+                    s.update({"uid":"","label":""})
+            slot.update({"uid":u["id"],"label":char_label(chosen),"char_id":chosen.get("id","")})
+            save(d)
+        return redirect("/")
+    return render("""
+<section class='panel'>
+<a class='btn gray' href='/'>← 메인</a>
+<h1>참여 캐릭터 선택</h1>
+<div class='notice'>{{slot.job}} 자리에는 같은 계열 캐릭터만 참여할 수 있습니다.</div>
+<form method='post'>
+{% for c in options %}
+<label class='slot'><span><b>{{c.name}}({{c.job}})</b></span><input type='radio' name='char_id' value='{{c.id}}' required></label>
+{% else %}
+<div class='empty'>참여 가능한 캐릭터가 없습니다.</div>
+{% endfor %}
+{% if options %}<button class='ok full'>참여하기</button>{% endif %}
+</form>
+</section>
+""", slot=slot, options=options)
+
+@app.route("/choose_participant/<pid>", methods=["GET","POST"])
+def choose_participant(pid):
+    d=load(); u=cur_user(d); p=find_post(d,pid)
+    if not approved(u) or not p or p.get("category") not in ["600퀘","파밍"] or p.get("closed"):
+        return redirect("/")
+    options = approved_chars(u)
+    if request.method == "POST":
+        cid = request.form.get("char_id","")
+        chosen = None
+        for c in options:
+            if c.get("id") == cid:
+                chosen = c
+        if chosen:
+            if p.get("category")!="600퀘" or len(p.get("participants",[])) < 10:
+                if not any(a.get("uid")==u["id"] and a.get("char_id")==chosen.get("id") for a in p["participants"]):
+                    p["participants"].append({"uid":u["id"],"char_id":chosen.get("id"),"label":char_label(chosen)})
+                    save(d)
+        return redirect("/")
+    return render("""
+<section class='panel'>
+<a class='btn gray' href='/'>← 메인</a>
+<h1>참여 캐릭터 선택</h1>
+<form method='post'>
+{% for c in options %}
+<label class='slot'><span><b>{{c.name}}({{c.job}})</b></span><input type='radio' name='char_id' value='{{c.id}}' required></label>
+{% else %}
+<div class='empty'>승인된 캐릭터가 없습니다.</div>
+{% endfor %}
+{% if options %}<button class='ok full'>참여하기</button>{% endif %}
+</form>
+</section>
+""", options=options)
+
+@app.route("/farm_group/<pid>/<group>", methods=["GET","POST"])
+def farm_group(pid, group):
+    d=load(); u=cur_user(d); p=find_post(d,pid)
+    if not p or p.get("category")!="파밍" or not (is_admin(u) or p.get("owner_uid")==u.get("id")):
+        return redirect("/")
+    if group not in ["early","late"]:
+        return redirect("/")
+    key = "early_ids" if group=="early" else "late_ids"
+    if request.method == "POST":
+        ids = request.form.getlist("member")
+        p[key] = ids
+        save(d)
+        return redirect("/")
+    members = p.get("participants", [])
+    checked = set(p.get(key, []))
+    title = "선집합 체크" if group=="early" else "후집합 체크"
+    return render("""
+<section class='panel'>
+<a class='btn gray' href='/'>← 메인</a>
+<h1>{{title}}</h1>
+<form method='post'>
+{% for m in members %}
+<label class='slot'><span><b>{{m.label}}</b></span><input type='checkbox' name='member' value='{{m.char_id or m.uid}}' {% if (m.char_id or m.uid) in checked %}checked{% endif %}></label>
+{% else %}
+<div class='empty'>참여자가 없습니다.</div>
+{% endfor %}
+<button class='ok full'>저장</button>
+</form>
+</section>
+""", title=title, members=members, checked=checked)
+
 @app.route("/join_slot/<pid>/<int:i>")
 def join_slot(pid,i):
     d=load(); u=cur_user(d); c=selected_char(u)
     p=find_post(d,pid)
-    if p and c and p["category"]=="사냥" and not p.get("closed"):
+    if p and c and p["category"]=="사냥" and not p.get("closed") and 0<=i<len(p["slots"]):
+        if not compatible_job(p["slots"][i].get("job",""), c.get("job","")):
+            return redirect(f"/choose_slot/{pid}/{i}")
         for s in p["slots"]:
-            if s.get("uid")==u["id"]: s.update({"uid":"","label":""})
-        if 0<=i<len(p["slots"]) and not p["slots"][i].get("uid") and not p["slots"][i].get("external"):
-            p["slots"][i].update({"uid":u["id"],"label":char_label(c)})
+            if s.get("uid")==u["id"]: s.update({"uid":"","label":"","char_id":""})
+        if not p["slots"][i].get("uid") and not p["slots"][i].get("external"):
+            p["slots"][i].update({"uid":u["id"],"label":char_label(c),"char_id":c.get("id","")})
         save(d)
     return redirect("/")
 
@@ -747,12 +954,7 @@ def external_slot(pid,i):
 
 @app.route("/participate/<pid>")
 def participate(pid):
-    d=load(); u=cur_user(d); c=selected_char(u); p=find_post(d,pid)
-    if p and c and p["category"] in ["600퀘","파밍"] and not p.get("closed"):
-        if p["category"]!="600퀘" or len(p["participants"])<10:
-            if not any(a.get("uid")==u["id"] for a in p["participants"]):
-                p["participants"].append({"uid":u["id"],"label":char_label(c)}); save(d)
-    return redirect("/")
+    return redirect(f"/choose_participant/{pid}")
 
 @app.route("/edit/<pid>", methods=["GET","POST"])
 def edit(pid):

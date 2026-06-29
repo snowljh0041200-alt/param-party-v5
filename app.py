@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v36.1-final"
+APP_VERSION = "v36.2-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2280,6 +2280,43 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
   margin-top:10px!important;
 }
 
+
+/* v36.2 notice and alert fix */
+.v36-notice-card{
+  min-height:0!important;
+  height:auto!important;
+  max-height:none!important;
+  padding-bottom:16px!important;
+}
+.v36-notice-full{
+  max-height:none!important;
+  overflow:visible!important;
+  white-space:normal!important;
+  line-height:1.55!important;
+}
+.v36-notice-scroll{
+  max-height:none!important;
+  overflow:visible!important;
+}
+.top-grid-v36{
+  align-items:start!important;
+  margin-bottom:14px!important;
+}
+.notice-box-v36 .panel{
+  margin-bottom:0!important;
+}
+.live-box-v36 .chat-panel{
+  min-height:280px!important;
+}
+.live-box-v36 .chatbox{
+  height:170px!important;
+  min-height:170px!important;
+}
+/* 더보기 제거 후 남는 버튼형 여백 방지 */
+.v36-notice-card > a[href="/notice"]{
+  display:none!important;
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -3296,6 +3333,11 @@ async function testToastFromSettings(){
       try{ seen = JSON.parse(localStorage.getItem('v288FarmSeen') || '{}'); }catch(e){ seen = {}; }
 
       arr.forEach(function(a){
+        /* v36_2_skip_ended_farm_alerts */
+        var rawMsg = String(a.text || a.message || a.status || a.remain || a.left || '');
+        if(rawMsg.indexOf('종료') !== -1 || rawMsg.indexOf('끝') !== -1 || rawMsg.toLowerCase().indexOf('ended') !== -1) return;
+        var mins = parseInt(a.minutes || a.left || a.remain || a.before || '', 10);
+        if(!isNaN(mins) && mins < 0) return;
         var k = farmKey(a);
         if(!k || seen[k]) return;
         seen[k] = Date.now();
@@ -3327,6 +3369,22 @@ def render(page, **kw):
     return render_template_string(BASE_HEAD + page + BASE_TAIL, **kw)
 
 
+
+
+def v36_2_filter_farm_alerts_py(alerts):
+    out = []
+    for a in alerts or []:
+        msg = str(a.get("text") or a.get("message") or a.get("status") or a.get("remain") or a.get("left") or "")
+        if "종료" in msg or "끝" in msg or "ended" in msg.lower():
+            continue
+        try:
+            mins = int(a.get("minutes") or a.get("left") or a.get("remain") or a.get("before") or 0)
+            if mins < 0:
+                continue
+        except Exception:
+            pass
+        out.append(a)
+    return out  # v36_2_filter_farm_alerts_py
 
 @app.route("/toast_test")
 def toast_test_page():
@@ -3380,6 +3438,11 @@ def index():
     sched = [p for p in d["posts"] if p["category"] == "파밍" and not p.get("closed")]
     return render(T_INDEX, d=d, u=u, c=selected_char(u), cat=cat, posts=posts, sched=sched, online=online_users(d), notice=get_notice(d), notice_preview_text=notice_preview_text, notice_new=notice_is_new(d))
 
+
+@app.template_filter("nl2br")
+def nl2br_filter(s):
+    return h(s or "").replace("\n", "<br>")
+
 T_INDEX = """
 <header class='header'>
   <div>
@@ -3402,8 +3465,7 @@ T_INDEX = """
         <h2>📢 {{ notice.title }}</h2>
         {% if notice_new %}<span class='tag ok'>NEW</span>{% endif %}
       </div>
-      <div class='clan-notice-preview v36-notice-scroll'>{{ notice_preview_text(notice.text)|safe }}</div>
-      <a class='btn gray mini' href='/notice'>더보기</a>
+      <div class='clan-notice-preview v36-notice-full'>{{ notice.text|nl2br|safe }}</div>
     </section>
     {% endif %}
   </div>

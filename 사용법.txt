@@ -1,16 +1,14 @@
-v36.1 LAYOUT POLISH FIX
+v36.2 NOTICE AND ALERT FIX
 
 수정:
-- 공지사항 더보기 /notice 에러 방지
-- 공지사항 카드 높이 축소
-- 공지사항 아래 빈공간 축소
-- 파밍 정산 입력칸이 카드 밖으로 삐져나오는 문제 수정
-- 오른쪽 채팅 패널 높이 보정
-- 기존 기능 유지
+- 공지사항 더보기 버튼 제거
+- 공지사항을 카드 안에 전체 표시
+- 공지사항 밑 빈공간 축소
+- 파밍 크롬 알림에서 종료/끝난 일정 제외
+- 파밍 정산칸 수정 유지
 - 컴파일 통과
 
 배포:
-cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v36.1 layout polish fix"
+git commit -m "v36.2 notice and alert fix"
 git push

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v25.4"
+APP_VERSION = "v25.5"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1100,6 +1100,28 @@ document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.oncha
 
 
 
+
+function isUserEditing(){
+  const a=document.activeElement;
+  if(!a)return false;
+  const tag=(a.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select')return true;
+  if(a.isContentEditable)return true;
+  const modal=document.querySelector('.modal-backdrop.show');
+  if(modal)return true;
+  return false;
+}
+function bindLivePageRefresh(){
+  if(!document.querySelector('[data-live-root]')) return;
+  setInterval(()=>{
+    if(isUserEditing()) return;
+    if(document.hidden) return;
+    // 메인 화면은 참여/글작성 변화가 바로 보이도록 8초마다 조용히 새로고침
+    location.reload();
+  }, 8000);
+}
+document.addEventListener('DOMContentLoaded', bindLivePageRefresh);
+
 function escapeHtml(s){
   return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
@@ -1227,6 +1249,10 @@ async function checkFarmAlarms(){
 setInterval(checkFarmAlarms, 60000);
 document.addEventListener('DOMContentLoaded', ()=>{loadAlarmSettings();checkFarmAlarms();});
 
+
+window.addEventListener('beforeunload',()=>{try{sessionStorage.setItem('liveScrollY',String(window.scrollY||0));}catch(e){}});
+document.addEventListener('DOMContentLoaded',()=>{try{const y=sessionStorage.getItem('liveScrollY'); if(y){window.scrollTo(0,Number(y)); sessionStorage.removeItem('liveScrollY');}}catch(e){}});
+
 </script></body></html>"""
 
 def render(page, **kw):
@@ -1271,7 +1297,7 @@ T_INDEX = """
   <div class='summary-card'><span>캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong></div>
 </div>
 
-<div class='app-shell'>
+<div class='app-shell' data-live-root='1'>
   <main class='left-stack'>
     <div class='quickbar'>
       <h2>📌 모집글</h2>
@@ -1305,7 +1331,7 @@ T_INDEX = """
                 <a class='btn mini gray' href='/leave_slot/{{p.id}}/{{loop.index0}}'>취소</a>
               {% elif not s.uid and not s.external %}
                 <a class='btn mini ok' href='/choose_slot/{{p.id}}/{{loop.index0}}'>참여</a>
-                {% if is_admin(u) %}<a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>외부</a>{% endif %}
+                {% if is_admin(u) or p.owner_uid==u.id %}<a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>외부</a>{% endif %}
               {% endif %}
             {% endif %}
           </div>
@@ -1657,14 +1683,14 @@ def leave_slot(pid,i):
 
 @app.route("/external_slot/<pid>/<int:i>", methods=["GET","POST"])
 def external_slot(pid,i):
-    d=load(); u=cur_user(d)
-    if not is_admin(u): return redirect("/")
+    d=load(); u=cur_user(d); p=find_post(d,pid)
+    if not p or not (is_admin(u) or p.get("owner_uid")==u.get("id")): return redirect("/")
     if request.method=="POST":
         p=find_post(d,pid); name=request.form.get("name","").strip()
         if p and 0<=i<len(p["slots"]):
             p["slots"][i].update({"uid":"","label":name,"external":name}); save(d)
         return redirect("/")
-    return render("<section class='panel'><h1>외부인 추가</h1><form method='post'><input name='name'><button class='ok full'>저장</button></form></section>")
+    return render("<section class='panel'><h1>외부인 추가</h1><form method='post'><label>외부인 표시명</label><input name='name' placeholder='예: 길드원/지인/격수'><button class='ok full'>저장</button></form></section>")
 
 @app.route("/participate/<pid>")
 def participate(pid):

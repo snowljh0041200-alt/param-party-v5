@@ -1,12 +1,14 @@
-v25.4 PENDING DIRECT FIX
+v25.5 EXTERNAL + LIVE REFRESH
 
 수정:
-- /pending 승인 요청중 페이지 500 에러 수정
-- T_PENDING 변수 의존 제거
-- PENDING_HTML 직접 렌더링으로 변경
-- /gate, /login, /register 직접 렌더링 유지
+- 사냥 모집글 작성자도 외부인 추가 가능
+- 관리자는 기존처럼 모든 사냥글 외부인 추가 가능
+- 외부인 추가 화면 문구 정리
+- 메인 화면 자동 갱신 추가
+- 입력 중/설정창 열림/탭 비활성 상태에서는 자동 갱신 중지
+- 자동 갱신 시 스크롤 위치 복구
 
 배포:
 git add .
-git commit -m "v25.4 pending direct fix"
+git commit -m "v25.5 external live refresh"
 git push

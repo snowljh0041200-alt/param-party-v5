@@ -1,15 +1,14 @@
-v28.9 PROMOTION OPEN JOIN FIX
+v29.0 PROMOTION UI FINAL
 
 수정:
-- 승급지원은 파밍처럼 정원 제한 없이 계속 참여 가능
-- 승급지원 1명 참여 후 자동 모집완료 되는 문제 수정
-- auto_close_full_posts에서 승급지원 제외
-- 기존에 모집완료 처리된 승급지원 글도 자동으로 모집중 복구
-- 1/1명 정원 표시도 승급지원에서는 숨김/완화
+- 승급지원 글에서 파밍 정산 영역 숨김
+- 승급지원 글에서 1/1명 같은 정원 표시 숨김
+- 승급지원은 파밍처럼 정원 제한 없이 계속 모집중 유지
+- 기존 참여/취소/토스트/크롬 알림/메모 링크 기능 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v28.9 promotion open join fix"
+git commit -m "v29.0 promotion ui final"
 git push

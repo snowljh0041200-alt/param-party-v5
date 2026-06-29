@@ -2,6 +2,6 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 git add .
-git commit -m "v28.9 promotion open join fix"
+git commit -m "v29.0 promotion ui final"
 git push
 pause

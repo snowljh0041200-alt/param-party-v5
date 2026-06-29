@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v28.9-final"
+APP_VERSION = "v29.0-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1151,6 +1151,27 @@ input::placeholder,textarea::placeholder{color:#667694}
   text-decoration:underline!important;
   font-weight:900!important;
   word-break:break-all!important;
+}
+
+
+/* v29.0 promotion UI final */
+.post-card[data-category="승급지원"] .settle-box,
+.post-card[data-category="승급지원"] .settlement-box,
+.post-card[data-category="승급지원"] .farming-settle,
+.post-card[data-category="승급지원"] .farm-settle,
+.post-card[data-category="승급지원"] .settle-panel,
+.post-card[data-category="승급지원"] [data-section="settle"],
+.post-card[data-category="승급지원"] .settle,
+.post-card[data-category="승급지원"] .calc-box{
+  display:none!important;
+}
+
+/* 승급지원 인원 배지 숨김 */
+.post-card[data-category="승급지원"] .capacity-badge,
+.post-card[data-category="승급지원"] .count-badge,
+.post-card[data-category="승급지원"] .people-count,
+.post-card[data-category="승급지원"] .member-count{
+  display:none!important;
 }
 
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
@@ -3162,7 +3183,8 @@ T_INDEX = """
 
         {% if p.category in ["파밍","승급지원"] %}
           <div class='farm-box'>
-            <div class='farm-head'>
+            {% if p.category != '승급지원' %}<!-- v29_promotion_hide_settlement_start -->
+<div class='farm-head'>
               <h3>파밍 정산</h3>
               <span class='tag'>{{ p.farm_result or "미등록" }}</span>
             </div>
@@ -3196,7 +3218,9 @@ T_INDEX = """
       {% endif %}
 
       <div class='actions'>
-        <button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-pid='{{p.id}}'>글복사</button>
+        
+<!-- v29_promotion_hide_settlement_end -->{% endif %}
+<button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-pid='{{p.id}}'>글복사</button>
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
           {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}

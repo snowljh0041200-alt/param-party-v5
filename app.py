@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "39.2"
+APP_VERSION = "40.0"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -3647,6 +3647,461 @@ textarea:focus{
   margin-right:2px;
 }
 
+
+/* =========================================================
+   v40.0 MMORPG UI REMASTER
+   기능/DB/API 유지. 메인 화면 디자인용 HTML/CSS 강화.
+   ========================================================= */
+:root{
+  --v40-bg:#020407;
+  --v40-panel:#061018;
+  --v40-panel2:#0a1722;
+  --v40-gold:#c08b35;
+  --v40-gold2:#f3d48a;
+  --v40-blue:#1b4e88;
+  --v40-blue2:#2d77c8;
+  --v40-green:#0f8d55;
+  --v40-purple:#3c276f;
+  --v40-red:#8d2630;
+  --v40-line:rgba(192,139,53,.38);
+  --v40-text:#efe7d4;
+  --v40-muted:#a99675;
+}
+
+html,body{
+  background:
+    radial-gradient(circle at 15% 0%, rgba(28,76,130,.22), transparent 32%),
+    radial-gradient(circle at 85% 8%, rgba(192,139,53,.12), transparent 30%),
+    radial-gradient(circle at 85% 88%, rgba(192,139,53,.08), transparent 34%),
+    linear-gradient(180deg,#020407,#051018 45%,#020407)!important;
+  color:var(--v40-text)!important;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+}
+
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:-1;
+  background:
+    radial-gradient(circle at 92% 88%, rgba(192,139,53,.10), transparent 24%),
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
+  background-size:auto, 38px 38px, 38px 38px;
+  opacity:.75;
+}
+
+/* 전체 폭 */
+.wrap{
+  max-width:1360px!important;
+}
+
+/* 헤더: 초안 스타일 */
+.header{
+  min-height:92px!important;
+  padding:0 20px!important;
+  border-radius:0!important;
+  border:1px solid rgba(192,139,53,.45)!important;
+  background:
+    radial-gradient(circle at 5% 50%, rgba(192,139,53,.18), transparent 14%),
+    linear-gradient(180deg, rgba(7,16,24,.98), rgba(2,7,12,.98))!important;
+  box-shadow:0 18px 48px rgba(0,0,0,.55), inset 0 -1px 0 rgba(192,139,53,.22)!important;
+}
+
+.header::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(90deg, rgba(192,139,53,.22), transparent 26%, transparent 75%, rgba(192,139,53,.12));
+  pointer-events:none;
+}
+
+.header::after{
+  display:none!important;
+}
+
+.v40-brand{
+  display:flex!important;
+  align-items:center!important;
+  gap:14px!important;
+  margin:0!important;
+  color:var(--v40-gold2)!important;
+  font-size:32px!important;
+  font-weight:900!important;
+  letter-spacing:.02em!important;
+  text-shadow:0 0 18px rgba(192,139,53,.32)!important;
+  background:none!important;
+  -webkit-background-clip:initial!important;
+  background-clip:initial!important;
+}
+
+.v40-emblem{
+  width:68px!important;
+  height:68px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:50%!important;
+  color:#eecb7c!important;
+  font-size:46px!important;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,238,180,.25), transparent 30%),
+    radial-gradient(circle at center, rgba(192,139,53,.18), rgba(3,8,14,.9) 68%)!important;
+  border:2px solid rgba(192,139,53,.62)!important;
+  box-shadow:0 0 28px rgba(192,139,53,.22), inset 0 0 24px rgba(192,139,53,.16)!important;
+}
+
+.v40-sub,
+.header .sub{
+  margin-left:82px!important;
+  color:#d2aa63!important;
+  font-size:14px!important;
+  font-weight:700!important;
+  background:none!important;
+  border:0!important;
+  padding:0!important;
+}
+
+.header .sub::before{display:none!important}
+
+/* 상단 버튼 */
+.header .btn,
+.header button{
+  background:transparent!important;
+  border:0!important;
+  color:#c9a86b!important;
+  box-shadow:none!important;
+  border-radius:0!important;
+  padding:14px 12px!important;
+  font-size:14px!important;
+}
+.header .btn:hover{
+  color:#ffe2a0!important;
+  background:rgba(192,139,53,.08)!important;
+}
+
+/* 접속중 캡슐 */
+.header-online-v365{
+  background:rgba(3,9,15,.78)!important;
+  border:1px solid rgba(192,139,53,.32)!important;
+  border-radius:999px!important;
+  color:#e9d4a6!important;
+}
+
+/* 패널 공통: 장식 테두리 */
+.panel,
+.card,
+.post-card-v36,
+.clan-notice-card,
+.schedule-panel,
+.chat-panel,
+.farm-box{
+  position:relative!important;
+  border:1px solid var(--v40-line)!important;
+  border-radius:10px!important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(30,70,115,.10), transparent 34%),
+    linear-gradient(180deg, rgba(5,15,23,.96), rgba(1,7,13,.98))!important;
+  box-shadow:0 22px 55px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,230,170,.055)!important;
+  color:var(--v40-text)!important;
+}
+
+.panel::before,
+.card::before,
+.post-card-v36::before{
+  content:"";
+  position:absolute;
+  inset:8px;
+  border:1px solid rgba(192,139,53,.10);
+  border-radius:7px;
+  pointer-events:none;
+  background:none!important;
+}
+
+.panel::after,
+.card::after,
+.post-card-v36::after{
+  content:"";
+  position:absolute;
+  left:18px;
+  right:18px;
+  top:-1px;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(245,212,138,.62),transparent);
+  pointer-events:none;
+}
+
+/* 공지 */
+.clan-notice-card,
+.v36-notice-card{
+  border-color:rgba(192,139,53,.48)!important;
+}
+.clan-notice-head h2,
+.panel h2,
+.section-title-v39,
+.recruit-title-row h2{
+  color:var(--v40-gold2)!important;
+  font-size:26px!important;
+  font-weight:900!important;
+  letter-spacing:-.02em!important;
+  text-shadow:0 0 14px rgba(192,139,53,.22)!important;
+}
+.clan-notice-preview,
+.v36-notice-full{
+  background:rgba(0,6,12,.48)!important;
+  border:0!important;
+  color:#e7ddc7!important;
+}
+
+/* 모집 섹션 */
+.section-title-v39,
+.recruit-title-row h2{
+  font-size:30px!important;
+}
+.quickbar.recruit-head{
+  background:rgba(2,8,14,.72)!important;
+  border:1px solid rgba(192,139,53,.25)!important;
+  border-radius:10px!important;
+  padding:11px!important;
+}
+
+/* 모집 카드: 초안처럼 컴팩트 fantasy card */
+.post-card-v36,
+.card{
+  overflow:hidden!important;
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease!important;
+}
+.post-card-v36:hover,
+.card:hover{
+  transform:translateY(-4px)!important;
+  border-color:rgba(245,212,138,.62)!important;
+  box-shadow:0 28px 70px rgba(0,0,0,.68),0 0 28px rgba(192,139,53,.12)!important;
+}
+
+.v40-place-art{
+  display:grid!important;
+  place-items:center!important;
+  height:86px!important;
+  margin:8px 0 2px!important;
+}
+.v40-place-art span{
+  width:78px!important;
+  height:78px!important;
+  display:grid!important;
+  place-items:center!important;
+  font-size:48px!important;
+  border-radius:50%!important;
+  color:#eed28c!important;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,.24), transparent 30%),
+    radial-gradient(circle at center, rgba(192,139,53,.18), rgba(2,8,14,.92) 70%)!important;
+  border:1px solid rgba(192,139,53,.35)!important;
+  box-shadow:0 0 22px rgba(192,139,53,.14), inset 0 0 18px rgba(192,139,53,.12)!important;
+}
+
+.post-title-v40{
+  text-align:center!important;
+  color:#f6d78f!important;
+  font-size:28px!important;
+  font-weight:900!important;
+  margin:4px 0 10px!important;
+  text-shadow:0 0 14px rgba(192,139,53,.30)!important;
+}
+.post-title-v39{display:none!important}
+
+.post-time-v39,
+.meta{
+  color:#c9b486!important;
+}
+.post-time-v39{
+  justify-content:center!important;
+}
+.post-time-v39 span,
+.owner-v39,
+.post-time-v39 .remain{
+  background:transparent!important;
+  border:0!important;
+  color:#c9b486!important;
+  padding:1px 5px!important;
+}
+
+/* 태그와 카운트 */
+.tag{
+  background:rgba(3,11,18,.82)!important;
+  color:#cdb785!important;
+  border:1px solid rgba(192,139,53,.25)!important;
+  border-radius:6px!important;
+  padding:5px 9px!important;
+  box-shadow:none!important;
+}
+.tag.ok,
+.ok.tag,
+.post-card-v36 .tag.ok{
+  color:#a6f0b8!important;
+  background:linear-gradient(180deg, rgba(11,82,48,.88), rgba(4,43,28,.92))!important;
+  border-color:rgba(49,211,111,.38)!important;
+  box-shadow:0 0 14px rgba(49,211,111,.16)!important;
+}
+.count{
+  background:rgba(22,39,74,.72)!important;
+  color:#f2e2b0!important;
+  border:1px solid rgba(95,130,225,.45)!important;
+  border-radius:8px!important;
+  padding:8px 11px!important;
+  box-shadow:0 0 16px rgba(75,130,255,.13)!important;
+}
+
+/* 슬롯 */
+.slot,
+.post-card-v36 .slot{
+  border:1px solid rgba(192,139,53,.18)!important;
+  border-radius:8px!important;
+  background:linear-gradient(180deg, rgba(5,13,20,.88), rgba(1,6,12,.92))!important;
+  min-height:48px!important;
+}
+.job-name-v40{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  color:#f0e5ce!important;
+  font-weight:900!important;
+}
+.job-icon-v40{
+  width:28px!important;
+  height:28px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:50%!important;
+  background:radial-gradient(circle, rgba(192,139,53,.22), rgba(2,8,14,.92))!important;
+  border:1px solid rgba(192,139,53,.34)!important;
+  box-shadow:inset 0 0 10px rgba(192,139,53,.12)!important;
+}
+.job-name-v39{display:none!important}
+
+/* 버튼: 초안처럼 어두운 청색/보라 */
+.btn,
+button,
+input[type=submit]{
+  border-radius:6px!important;
+  font-weight:800!important;
+  letter-spacing:-.02em!important;
+  border:1px solid rgba(88,130,205,.38)!important;
+  background:linear-gradient(180deg, #0d2d5b, #061b38)!important;
+  color:#dcecff!important;
+  box-shadow:0 10px 20px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.08)!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.4)!important;
+}
+.btn:hover,
+button:hover{
+  transform:translateY(-1px)!important;
+  filter:brightness(1.15)!important;
+}
+
+.btn.ok,
+button.ok,
+.ok,
+.btn.primary,
+.recruit-write-btn{
+  background:linear-gradient(180deg, #174783, #082349)!important;
+  border-color:rgba(76,144,230,.52)!important;
+  color:#e6f3ff!important;
+  box-shadow:0 0 16px rgba(56,125,220,.18), inset 0 1px 0 rgba(255,255,255,.10)!important;
+}
+a[href*='external'],
+.btn.external,
+.slot a:last-child{
+  background:linear-gradient(180deg, #3d2a76, #1a123d)!important;
+  border-color:rgba(128,91,230,.48)!important;
+  color:#e2d6ff!important;
+}
+.btn.gray,
+.gray{
+  background:linear-gradient(180deg, #1c2a3f, #0b1422)!important;
+  border-color:rgba(192,139,53,.22)!important;
+  color:#d9c79b!important;
+}
+.btn.danger,
+.danger{
+  background:linear-gradient(180deg, #8a2d35, #3a1117)!important;
+  border-color:rgba(220,75,85,.44)!important;
+  color:#ffd6da!important;
+}
+
+/* 밝은 초록 제거 */
+.recruit-write-btn{
+  color:#f4d48b!important;
+  background:linear-gradient(180deg, #4b3215, #15100a)!important;
+  border-color:rgba(245,212,138,.48)!important;
+}
+
+/* 카테고리 */
+.category-bar .btn,
+.tab-chip{
+  background:linear-gradient(180deg, #101b2a, #050b13)!important;
+  color:#bca575!important;
+  border-color:rgba(192,139,53,.20)!important;
+}
+.category-bar .btn.ok,
+.tab-chip.active{
+  background:linear-gradient(180deg, #4b3215, #15100a)!important;
+  color:#f3d48a!important;
+  border-color:rgba(245,212,138,.42)!important;
+}
+
+/* 채팅/일정 */
+.chatbox,
+.schedule-item,
+.schedule-item-v363{
+  background:rgba(0,7,13,.55)!important;
+  border:1px solid rgba(192,139,53,.18)!important;
+  border-radius:8px!important;
+}
+.chatmsg{
+  background:rgba(4,13,21,.88)!important;
+  border:1px solid rgba(192,139,53,.16)!important;
+  border-radius:8px!important;
+}
+.chatmsg b{color:#f3d48a!important}
+
+/* 입력 */
+input,
+select,
+textarea{
+  background:#030910!important;
+  color:#efe7d4!important;
+  border:1px solid rgba(192,139,53,.24)!important;
+  border-radius:6px!important;
+}
+input:focus,
+select:focus,
+textarea:focus{
+  border-color:rgba(245,212,138,.52)!important;
+  box-shadow:0 0 0 3px rgba(192,139,53,.10)!important;
+}
+
+/* 파밍 정산 */
+.farm-box,
+.farm-v36{
+  background:rgba(0,7,13,.55)!important;
+}
+
+/* 스크롤 */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#02070d}
+::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg, rgba(192,139,53,.62), rgba(55,40,20,.8));
+  border-radius:999px;
+}
+
+/* 모바일 */
+@media(max-width:900px){
+  .v40-brand{font-size:24px!important}
+  .v40-emblem{width:52px!important;height:52px!important;font-size:34px!important}
+  .v40-sub{margin-left:66px!important}
+  .v40-place-art{height:70px!important}
+  .v40-place-art span{width:64px!important;height:64px!important;font-size:38px!important}
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -4947,12 +5402,43 @@ def role_label_filter(role):
         return "관리자"
     return r
 
+
+@app.template_filter("place_icon")
+def place_icon_filter(name):
+    s = str(name or "")
+    if "도삭" in s or "산" in s:
+        return "⛰"
+    if "해골" in s or "왕" in s:
+        return "💀"
+    if "어금니" in s or "치" in s:
+        return "🦷"
+    if "승급" in s:
+        return "👑"
+    if "황산" in s:
+        return "🧭"
+    return "◆"
+
+@app.template_filter("job_icon")
+def job_icon_filter(job):
+    s = str(job or "")
+    if "전사" in s or "검" in s:
+        return "🛡"
+    if "도적" in s or "자객" in s:
+        return "🗡"
+    if "주술" in s or "술사" in s:
+        return "🔥"
+    if "도사" in s or "진선" in s or "진인" in s or "현자" in s:
+        return "🙏"
+    if "승급" in s:
+        return "👑"
+    return "⚔"
+
 T_INDEX = """
 <header class='header'>
   <div class='title-online-v365'>
     <div>
-      <h1><span class='brand-mark-v39'>⚔</span> 월하 · 연가 · 연희</h1>
-      <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
+      <h1 class='v40-brand'><span class='v40-emblem'>☾</span><span>월하 · 연가 · 연희</span></h1>
+      <div class='sub v40-sub'>바람의나라 클래식 파티 모집 · {{ app_version }} · {{ char_label(c) }}</div>
     </div>
     <div class='header-online-v365'>
       <span class='online-dot-v365'></span>
@@ -4994,7 +5480,7 @@ T_INDEX = """
 
   <aside class='live-box-v36'>
 <section class='panel schedule-panel'>
-      <h2 class='schedule-title-v39'>🗓️ 보스 알림</h2>
+      <h2 class='schedule-title-v39'>☠ 보스 알림</h2>
       {% for s in sched %}
         <div class='schedule-item schedule-item-v363'>
           <div class='schedule-title-v363'>{{s.place}}</div>
@@ -5007,7 +5493,7 @@ T_INDEX = """
     </section>
 
     <section class='panel chat-panel'>
-      <h2 class='chat-title-v39'>💬 실시간 채팅</h2>
+      <h2 class='chat-title-v39'>☁ 통합 채팅</h2>
       <div class='chatbox' id='globalChatBox'>
         {% for m in d.global_chat[-30:] %}
           <div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}<br><span class='meta'>{{m.time}}</span></div>
@@ -5026,7 +5512,7 @@ T_INDEX = """
 <main class='recruit-v36'>
   <div class='quickbar recruit-head'>
     <div class='recruit-title-row'>
-      <h2 class='section-title-v39'>📌 파티 모집</h2>
+      <h2 class='section-title-v39'>🔥 파티 모집</h2>
       <a class='btn recruit-write-btn primary' href='/new'>＋ 모집 작성</a>
     </div>
     <div class='category-bar'>
@@ -5050,7 +5536,7 @@ T_INDEX = """
         {% endif %}
       </div>
 
-      <h2 class='post-title-v39'><span class='place-icon-v39'>🏔</span>{{p.place}}</h2>
+      <div class='v40-place-art'><span>{{ p.place|place_icon }}</span></div><h2 class='post-title-v40'>{{p.place}}</h2>
       <div class='meta post-time-v39'><span>📍 {{p.channel}}채널</span><span>📅 {{p.date}}</span><span>🕒 {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}</span>{% if p.category=="파밍" %}<b class='remain'>⏳ {{ remaining_text(p) }}</b>{% endif %}</div>
       <div class='meta owner-v39'>👑 작성자 {{p.owner_label}} · {{p.created}}</div>
       {% if p.memo %}<div class='notice memo-v36'>{{p.memo|autolink|safe}}</div>{% endif %}
@@ -5060,7 +5546,7 @@ T_INDEX = """
         {% for s in p.slots %}
           <div class='slot'>
             <div>
-              <b class='job-name-v39'><span class='job-icon-v39'>⚔</span>{{s.job}}</b>
+              <b class='job-name-v40'><span class='job-icon-v40'>{{ s.job|job_icon }}</span>{{s.job}}</b>
               <div class='meta'>{{s.label or s.external or "참여 대기"}}</div>
             </div>
             <div class='toolbar'>
@@ -5074,9 +5560,9 @@ T_INDEX = """
                     <a class='btn mini danger' href='/remove_external_slot/{{p.id}}/{{loop.index0}}'>외부제거</a>
                   {% endif %}
                 {% elif not p.closed %}
-                  <a class='btn mini ok' href='/join_slot/{{p.id}}/{{loop.index0}}'>🟢 참여</a>
+                  <a class='btn mini ok' href='/join_slot/{{p.id}}/{{loop.index0}}'>＋ 참여하기</a>
                   {% if is_admin(u) or p.owner_uid==u.id %}
-                    <a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}?next=/'>➕ 외부</a>
+                    <a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}?next=/'>＋ 외부참여</a>
                   {% endif %}
                 {% endif %}
               {% endif %}
@@ -5142,12 +5628,12 @@ T_INDEX = """
       {% endif %}
 
       <div class='actions'>
-        <button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-pid='{{p.id}}'>📋 복사</button>
-        <a class='btn gray' href='/chat/{{p.id}}'>💬 채팅 {{p.chat|length }}</a>
+        <button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-pid='{{p.id}}'>▣ 복사</button>
+        <a class='btn gray' href='/chat/{{p.id}}'>☊ 채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
-          {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>✅ 완료</a>{% endif %}
-          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>✏ 수정</a>{% endif %}
-          <a class='btn danger' href='/delete/{{p.id}}'>🗑 삭제</a>
+          {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>✓ 완료</a>{% endif %}
+          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>✎ 수정</a>{% endif %}
+          <a class='btn danger' href='/delete/{{p.id}}'>♜ 삭제</a>
         {% endif %}
       </div>
     </article>

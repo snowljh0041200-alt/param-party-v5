@@ -1,21 +1,30 @@
-v39.2 UNIQUE DARK GOLD THEME
+v40.0 MMORPG UI REMASTER
 
 기준:
-- v39.1 fantasy theme
+- v39.2 디자인판
 
 중요:
-- 기능/라우트/DB/API 변경 없음
-- 디자인 CSS 및 상단 표시 문구만 수정
+- 기능/DB/API 변경 없음
+- 메인 화면 디자인용 HTML 클래스/텍스트/CSS만 변경
+- 장소 아이콘:
+  도삭산/산 = ⛰
+  해골왕 = 💀
+  어금니 = 🦷
+  승급 = 👑
+- 직업 아이콘:
+  전사/검 = 🛡
+  도적 = 🗡
+  주술사 = 🔥
+  도사/진선/진인/현자 = 🙏
 
-수정:
-- 밝은 그레이 톤을 어두운 흑청색으로 변경
-- 금색 포인트 강화
-- 카드/버튼/칩 색감 더 고급스럽게 조정
-- 상단 버전 문구를 짧게 39.2 형태로 표시
-- Guild Party Manager 문구 제거
-- 캐릭터명은 상단에 유지
+디자인:
+- 이미지 초안처럼 MMORPG 다크 골드 UI
+- 밝은 초록 버튼 제거
+- 참여 버튼 청색, 외부참여 보라색
+- 카드 상단 장소 대형 아이콘
+- 금속 테두리/어두운 패널/고급 버튼
 
 배포:
 git add .
-git commit -m "v39.2 unique dark gold theme"
+git commit -m "v40.0 mmorpg ui remaster"
 git push

@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v35.0-final"
+APP_VERSION = "v36.0-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2000,7 +2000,8 @@ def max_count(p):
 
 BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ title }}</title><style>{{ css }}
 
-/* v35.0 REAL T_INDEX LAYOUT FIX */
+
+/* v36.0 CLEAN MAIN LAYOUT */
 .wrap{
   max-width:1220px!important;
   width:min(1220px, calc(100vw - 20px))!important;
@@ -2009,73 +2010,75 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
   box-sizing:border-box!important;
 }
 
-/* 공지 오른쪽 빈 공간에 실시간 영역 */
-.notice-live-v35{
+/* 상단: 공지 + 실시간 */
+.top-grid-v36{
   display:grid!important;
   grid-template-columns:minmax(0, 1fr) 360px!important;
   gap:14px!important;
   align-items:stretch!important;
-  width:100%!important;
   margin:12px 0 18px!important;
 }
-
-.notice-area-v35,
-.live-area-v35{
+.notice-box-v36,
+.live-box-v36{
   min-width:0!important;
 }
-
-.notice-area-v35 > .panel{
+.v36-notice-card{
   height:100%!important;
+  min-height:260px!important;
+  max-height:360px!important;
   margin:0!important;
-  box-sizing:border-box!important;
+  display:flex!important;
+  flex-direction:column!important;
 }
-
-.live-area-v35{
+.v36-notice-scroll{
+  flex:1!important;
+  max-height:210px!important;
+  overflow:auto!important;
+}
+.live-box-v36{
   display:flex!important;
   flex-direction:column!important;
   gap:12px!important;
 }
-
-.live-area-v35 > .panel{
+.live-box-v36 > .panel{
   margin:0!important;
   width:100%!important;
   box-sizing:border-box!important;
 }
-
-.live-area-v35 .online-panel{min-height:84px!important}
-.live-area-v35 .schedule-panel{min-height:110px!important}
-.live-area-v35 .chat-panel{min-height:320px!important}
-.live-area-v35 .chatbox{height:210px!important;min-height:210px!important}
-
-/* 기존 오른쪽 사이드/앱쉘 구조 제거 */
-.app-shell,
-.left-stack,
-.side-stack{
-  display:contents!important;
+.live-box-v36 .online-panel{
+  min-height:90px!important;
+}
+.live-box-v36 .schedule-panel{
+  min-height:118px!important;
+}
+.live-box-v36 .chat-panel{
+  min-height:320px!important;
+}
+.live-box-v36 .chatbox{
+  height:210px!important;
+  min-height:210px!important;
 }
 
-/* 모집글 아래 2분할 */
-.recruit-area-v35{
+/* 모집글 */
+.recruit-v36{
   width:100%!important;
-  display:block!important;
   min-width:0!important;
+  display:block!important;
 }
-
-.recruit-area-v35 .quickbar.recruit-head{
+.recruit-v36 .quickbar.recruit-head{
   width:100%!important;
   max-width:100%!important;
   box-sizing:border-box!important;
+  margin-bottom:14px!important;
 }
-
-.post-grid-v35{
+.post-grid-v36{
   display:grid!important;
   grid-template-columns:repeat(2, minmax(0, 1fr))!important;
   gap:14px!important;
-  width:100%!important;
   align-items:start!important;
+  width:100%!important;
 }
-
-.post-grid-v35 > .card{
+.post-card-v36{
   width:100%!important;
   max-width:100%!important;
   min-width:0!important;
@@ -2085,87 +2088,104 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
   padding:14px!important;
   border-radius:18px!important;
 }
-
-.post-grid-v35 > .empty{
-  grid-column:1 / -1!important;
-  width:100%!important;
-  max-width:100%!important;
+.post-top-v36{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:flex-start!important;
+  gap:8px!important;
 }
-
-.post-grid-v35 > .card h2{
+.post-card-v36 h2{
   font-size:21px!important;
   margin:8px 0!important;
 }
-
-.post-grid-v35 > .card .meta{
+.post-card-v36 .meta{
   font-size:12px!important;
   line-height:1.45!important;
 }
-
-.post-grid-v35 > .card .slot{
+.memo-v36{
+  padding:10px 12px!important;
+  margin:10px 0!important;
+  word-break:break-all!important;
+}
+.slots-v36{
   display:grid!important;
-  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:8px!important;
+  margin-top:10px!important;
+}
+.post-card-v36 .slot{
+  display:grid!important;
+  grid-template-columns:minmax(0, 1fr) auto!important;
   gap:8px!important;
   align-items:center!important;
   padding:10px 11px!important;
-  margin:8px 0!important;
+  margin:0!important;
   width:100%!important;
   box-sizing:border-box!important;
 }
-
-.post-grid-v35 > .card .slot > div:first-child{
+.post-card-v36 .slot > div:first-child{
   min-width:0!important;
   overflow:hidden!important;
 }
-
-.post-grid-v35 > .card .slot .toolbar{
+.post-card-v36 .slot .toolbar{
   display:flex!important;
   justify-content:flex-end!important;
   flex-wrap:nowrap!important;
   gap:6px!important;
   min-width:max-content!important;
 }
-
-.post-grid-v35 > .card .slot .btn,
-.post-grid-v35 > .card .slot button{
+.post-card-v36 .slot .btn,
+.post-card-v36 .slot button{
   padding:8px 10px!important;
   font-size:13px!important;
   white-space:nowrap!important;
 }
-
-.post-grid-v35 > .card .actions{
+.participants-v36{
+  margin-top:12px!important;
+}
+.participants-v36 h3{
+  font-size:16px!important;
+  margin:0 0 8px!important;
+}
+.participant-list-v36{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:8px!important;
+  min-height:28px!important;
+  margin-bottom:10px!important;
+}
+.post-card-v36 .full{
+  width:100%!important;
+  justify-content:center!important;
+}
+.farm-v36{
+  margin-top:10px!important;
+}
+.post-card-v36 .actions{
   display:flex!important;
   gap:7px!important;
   flex-wrap:wrap!important;
   align-items:center!important;
   margin-top:10px!important;
 }
-
-.post-grid-v35 > .card .actions .btn{
+.post-card-v36 .actions .btn{
   padding:9px 12px!important;
   font-size:13px!important;
 }
 
-/* 승급지원 정산/정원 표시 숨김 유지 */
-.card[data-category="승급지원"] .settle-box,
-.card[data-category="승급지원"] .settlement-box,
-.card[data-category="승급지원"] .farming-settle,
-.card[data-category="승급지원"] .farm-settle,
-.card[data-category="승급지원"] .settle-panel,
-.card[data-category="승급지원"] [data-section="settle"],
-.card[data-category="승급지원"] .settle,
-.card[data-category="승급지원"] .calc-box,
-.card[data-category="승급지원"] .capacity-badge,
-.card[data-category="승급지원"] .count-badge,
-.card[data-category="승급지원"] .people-count,
-.card[data-category="승급지원"] .member-count,
-.card[data-category="승급지원"] .cap-badge{
+/* 승급지원은 정산/정원 없음 */
+.post-card-v36[data-category="승급지원"] .count,
+.post-card-v36[data-category="승급지원"] .farm-box{
   display:none!important;
 }
 
+/* 너무 좁은 화면만 1열 */
 @media(max-width:900px){
-  .notice-live-v35{grid-template-columns:1fr!important}
-  .post-grid-v35{grid-template-columns:1fr!important}
+  .top-grid-v36{
+    grid-template-columns:1fr!important;
+  }
+  .post-grid-v36{
+    grid-template-columns:1fr!important;
+  }
 }
 
 </style></head><body><div class='wrap'>"""
@@ -3267,65 +3287,55 @@ T_INDEX = """
   </div>
 </header>
 
-<div class='summary-grid'>
-  <div class='summary-card'><span>오늘 파밍</span><strong>{{ sched|length }}</strong></div>
-  <div class='summary-card'><span>진행중 모집</span><strong>{{ posts|selectattr('closed','equalto',False)|list|length }}</strong></div>
-  <div class='summary-card'><span>캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong></div>
-</div>
-
-
-<section class='notice-live-v35'>
-  <div class='notice-area-v35'>
+<section class='top-grid-v36'>
+  <div class='notice-box-v36'>
     {% if notice.text %}
-    <section class='panel clan-notice-card'>
-  <div class='clan-notice-head'>
-    <h2>📢 {{ notice.title }}</h2>
-    {% if notice_new %}<span class='tag ok'>NEW</span>{% endif %}
-  </div>
-  <div class='clan-notice-preview'>{{ notice_preview_text(notice.text) }}</div>
-  <div class='clan-notice-full'>{{ notice.text }}</div>
-  <button type='button' class='btn gray mini' onclick='toggleClanNotice()' id='clanNoticeBtn'>더보기</button>
-</section>
+    <section class='panel clan-notice-card v36-notice-card'>
+      <div class='clan-notice-head'>
+        <h2>📢 {{ notice.title }}</h2>
+        {% if notice_new %}<span class='tag ok'>NEW</span>{% endif %}
+      </div>
+      <div class='clan-notice-preview v36-notice-scroll'>{{ notice_preview_text(notice.text)|safe }}</div>
+      <a class='btn gray mini' href='/notice'>더보기</a>
+    </section>
     {% endif %}
   </div>
-  <div class='live-area-v35'>
+
+  <aside class='live-box-v36'>
     <section class='panel online-panel'>
-      <div class='online-head'>
-        <h2>🟢 접속중 {{ online|length if online is defined else 1 }}명</h2>
+      <div class='panel-head'>
+        <h2>🟢 접속중 {{ online|length }}명</h2>
         <span class='meta'>최근 5분</span>
       </div>
-      {% if online is defined and online %}
-        <div class='online-list'>
+      <div class='online-list'>
         {% for o in online %}
-          <span class='pill online-pill'>{{ o.label }}{% if o.role != '일반' %}<small>{{ o.role }}</small>{% endif %}</span>
+          <span class='pill'>{{o.label}}{% if o.role=="super" %}<small class='group-badge'>최고관리자</small>{% endif %}</span>
+        {% else %}
+          <div class='empty small'>접속자 없음</div>
         {% endfor %}
-        </div>
-      {% else %}
-        <span class='pill online-pill'>{{ char_label(c) }}</span>
-      {% endif %}
+      </div>
     </section>
-    <section class='panel'>
-      <h2>📅 오늘 일정</h2>
-      {% for p in sched %}
-        <div class='schedule-row boss-timer' data-target='{{ countdown_target(p) }}'>
-          <div>
-            <b>{{p.place}}</b><br>
-            <span class='meta'>{{p.date}} · {{show_time(p.end_time or p.start_time)}} 젠</span>
-          </div>
-          <strong class='schedule-countdown'>--:--</strong>
+
+    <section class='panel schedule-panel'>
+      <h2>🗓️ 오늘 일정</h2>
+      {% for s in sched %}
+        <div class='schedule-item'>
+          <b>{{s.place}}</b>
+          <span>{{s.date}} · {{show_time(s.start_time)}} 젠</span>
+          <em>{{ remaining_text(s) }}</em>
         </div>
       {% else %}
-        <div class='empty'>등록된 파밍 일정 없음</div>
+        <div class='empty small'>등록된 파밍 일정 없음</div>
       {% endfor %}
     </section>
 
-    <section class='panel' id='global-chat'>
+    <section class='panel chat-panel'>
       <h2>💬 통합채팅</h2>
       <div class='chatbox' id='globalChatBox'>
         {% for m in d.global_chat[-30:] %}
           <div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}<br><span class='meta'>{{m.time}}</span></div>
         {% else %}
-          <div class='empty'>메시지 없음</div>
+          <div class='empty small'>메시지 없음</div>
         {% endfor %}
       </div>
       <form class='toolbar' method='post' action='/global_chat' id='globalChatForm'>
@@ -3333,77 +3343,95 @@ T_INDEX = """
         <button>전송</button>
       </form>
     </section>
-  </div>
+  </aside>
 </section>
 
-<main class='recruit-area-v35'>
+<main class='recruit-v36'>
   <div class='quickbar recruit-head'>
-      <div class='recruit-title-row'>
-        <h2>📌 모집글</h2>
-        <a class='btn recruit-write-btn primary' href='/new'>＋ 모집</a>
-      </div>
-      <div class='category-bar'>
-        {% for x in categories %}
-          <a class='btn tab-chip {{ "ok" if x==cat else "gray" }} mini' href='/?cat={{x}}'>{{x}}</a>
-        {% endfor %}
-      </div>
+    <div class='recruit-title-row'>
+      <h2>📌 모집글</h2>
+      <a class='btn recruit-write-btn primary' href='/new'>＋ 모집</a>
     </div>
-<div class='post-grid-v35'>
-{% for p in posts %}
-    <section class='card {{ "closed" if p.closed else "" }}' data-category='{{p.category}}'>
-      <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "모집 완료" if p.closed else "모집중" }}</span>{% if delete_after_text(p) %}<span class='tag auto-delete-tag'>{{ delete_after_text(p) }}</span>{% endif %}
-      <span class='tag'>{{p.category}}</span>
-      <span class='count'>{{joined_count(p)}} / {{max_count(p)}}명</span>
+    <div class='category-bar'>
+      {% for x in categories %}
+        <a class='btn tab-chip {{ "ok" if x==cat else "gray" }} mini' href='/?cat={{x}}'>{{x}}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <section class='post-grid-v36'>
+  {% for p in posts %}
+    <article class='card post-card-v36 {{ "closed" if p.closed else "" }}' data-category='{{p.category}}'>
+      <div class='post-top-v36'>
+        <div>
+          <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "모집 완료" if p.closed else "모집중" }}</span>
+          {% if delete_after_text(p) %}<span class='tag auto-delete-tag'>{{ delete_after_text(p) }}</span>{% endif %}
+          <span class='tag'>{{p.category}}</span>
+        </div>
+        {% if p.category not in ["파밍","승급지원"] %}
+          <span class='count'>{{joined_count(p)}} / {{max_count(p)}}명</span>
+        {% endif %}
+      </div>
+
       <h2>{{p.place}}</h2>
       <div class='meta'>📍 {{p.channel}}채널 · ⏰ {{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}{% if p.category=="파밍" %} · <b class='remain'>{{ remaining_text(p) }}</b>{% endif %}</div>
       <div class='meta'>👑 {{p.owner_label}} · {{p.created}}</div>
-      {% if p.memo %}<div class='notice'>{{p.memo|autolink|safe}}</div>{% endif %}
+      {% if p.memo %}<div class='notice memo-v36'>{{p.memo|autolink|safe}}</div>{% endif %}
 
       {% if p.category == "사냥" %}
+        <div class='slots-v36'>
         {% for s in p.slots %}
-        <div class='slot'>
-          <div>
-            <b>{{s.job}}</b>
-            <div class='meta'>{{s.label or s.external or "참여 대기"}}</div>
-          </div>
-          <div class='toolbar'>
-            {% if not p.closed or can_manage_post(u,p) %}
-              {% if s.uid==u.id %}
-                <span class='tag ok'>내 자리</span>
-                <a class='btn mini gray' href='/leave_slot/{{p.id}}/{{loop.index0}}'>취소</a>
-              {% elif s.external %}
-                <span class='tag'>외부</span>
-                {% if is_admin(u) or p.owner_uid==u.id %}
-                  <a class='btn mini danger' href='/remove_external_slot/{{p.id}}/{{loop.index0}}'>외부제거</a>
+          <div class='slot'>
+            <div>
+              <b>{{s.job}}</b>
+              <div class='meta'>{{s.label or s.external or "참여 대기"}}</div>
+            </div>
+            <div class='toolbar'>
+              {% if not p.closed or can_manage_post(u,p) %}
+                {% if s.uid==u.id %}
+                  <span class='tag ok'>내 자리</span>
+                  <a class='btn mini gray' href='/leave_slot/{{p.id}}/{{loop.index0}}'>취소</a>
+                {% elif s.external %}
+                  <span class='tag'>외부</span>
+                  {% if is_admin(u) or p.owner_uid==u.id %}
+                    <a class='btn mini danger' href='/remove_external_slot/{{p.id}}/{{loop.index0}}'>외부제거</a>
+                  {% endif %}
+                {% elif not p.closed %}
+                  <a class='btn mini ok' href='/join_slot/{{p.id}}/{{loop.index0}}'>참여</a>
+                  {% if is_admin(u) or p.owner_uid==u.id %}
+                    <a class='btn mini gray' href='/add_external/{{p.id}}/{{loop.index0}}'>+ 외부</a>
+                  {% endif %}
                 {% endif %}
-              {% elif not s.uid and not s.external %}
-                <a class='btn mini ok' href='/choose_slot/{{p.id}}/{{loop.index0}}'>참여</a>
-                {% if is_admin(u) or p.owner_uid==u.id %}<a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}?next=/'>+ 외부</a>{% endif %}
               {% endif %}
-            {% endif %}
+            </div>
           </div>
+        {% endfor %}
         </div>
-        {% endfor %}
       {% else %}
-        <h3>참여자</h3>
-        {% for a in p.participants %}
-          <span class='pill'>{{a.label}}{% if a.uid==u.id %}<small class='group-badge'>내 참여</small>{% endif %}{% set g = participant_group_label(p,a) %}{% if g %}<small class='group-badge'>{{g}}</small>{% endif %}</span>
-        {% else %}
-          <p class='meta'>아직 참여자 없음</p>
-        {% endfor %}
-        {% set my_part = participant_for_user(p,u) %}
-        {% if my_part and not p.closed %}
-          <a class='btn gray full' href='/leave_participant/{{p.id}}'>참여취소</a>
-        {% elif can_join_post(p) %}
-          <a class='btn ok full' href='/choose_participant/{{p.id}}'>참여하기</a>
-        {% elif join_block_reason(p) %}
-          <div class='notice'>{{ join_block_reason(p) }}</div><button class='btn gray full' disabled>참여불가</button>
-        {% endif %}
+        <div class='participants-v36'>
+          <h3>참여자</h3>
+          <div class='participant-list-v36'>
+          {% for a in p.participants %}
+            <span class='pill'>{{a.label}}{% if a.uid==u.id %}<small class='group-badge'>내 참여</small>{% endif %}{% set g = participant_group_label(p,a) %}{% if g %}<small class='group-badge'>{{g}}</small>{% endif %}</span>
+          {% else %}
+            <span class='meta'>아직 참여자 없음</span>
+          {% endfor %}
+          </div>
 
-        {% if p.category in ["파밍","승급지원"] %}
-          <div class='farm-box'>
-            {% if p.category != '승급지원' %}<!-- v29_promotion_hide_settlement_start -->
-<div class='farm-head'>
+          {% set my_part = participant_for_user(p,u) %}
+          {% if my_part and not p.closed %}
+            <a class='btn gray full' href='/leave_participant/{{p.id}}'>참여취소</a>
+          {% elif can_join_post(p) %}
+            <a class='btn ok full' href='/choose_participant/{{p.id}}'>참여하기</a>
+          {% elif join_block_reason(p) %}
+            <div class='notice'>{{ join_block_reason(p) }}</div>
+            <button class='btn gray full' disabled>참여불가</button>
+          {% endif %}
+        </div>
+
+        {% if p.category == "파밍" %}
+          <div class='farm-box farm-v36'>
+            <div class='farm-head'>
               <h3>파밍 정산</h3>
               <span class='tag'>{{ p.farm_result or "미등록" }}</span>
             </div>
@@ -3437,9 +3465,7 @@ T_INDEX = """
       {% endif %}
 
       <div class='actions'>
-        
-<!-- v29_promotion_hide_settlement_end -->{% endif %}
-<button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-pid='{{p.id}}'>글복사</button>
+        <button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-pid='{{p.id}}'>글복사</button>
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
           {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}
@@ -3447,12 +3473,13 @@ T_INDEX = """
           <a class='btn danger' href='/delete/{{p.id}}'>삭제</a>
         {% endif %}
       </div>
-    </section>
-    {% else %}
-      <div class='empty'>모집글 없음</div>
-    {% endfor %}
-</div>
+    </article>
+  {% else %}
+    <div class='empty'>모집글 없음</div>
+  {% endfor %}
+  </section>
 </main>
+
 
 <div id='settingsModal' class='modal-backdrop' onclick='closeSettingsModal(event)'>
   <div class='settings-modal'>
@@ -3492,7 +3519,6 @@ T_INDEX = """
     </div>
   </div>
 </div>
-
 """
 
 

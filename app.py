@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.2"
+APP_VERSION = "v26.4"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -607,7 +607,7 @@ input::placeholder,textarea::placeholder{color:#667694}
 .schedule-row strong,.remain{color:#ffe28a!important}
 .group-badge{white-space:nowrap}
 
-.share-btn{
+.copy-btn{
   background:linear-gradient(180deg,#6b7896,#4b5874)!important;
 }
 
@@ -1258,18 +1258,12 @@ document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.oncha
 
 
 
-async function sharePost(btn){
+async function copyPostText(btn){
   const text = btn?.dataset?.share || '';
   if(!text)return;
   try{
-    if(navigator.share){
-      await navigator.share({text});
-      return;
-    }
-  }catch(e){}
-  try{
     await navigator.clipboard.writeText(text);
-    showToast('카톡 공유 문구를 복사했습니다');
+    showToast('글 내용을 복사했습니다. 카톡에 붙여넣기 하세요');
   }catch(e){
     const box=document.createElement('textarea');
     box.value=text;
@@ -1277,12 +1271,15 @@ async function sharePost(btn){
     box.style.left='-9999px';
     document.body.appendChild(box);
     box.select();
-    try{document.execCommand('copy');showToast('카톡 공유 문구를 복사했습니다');}
-    catch(err){alert(text);}
+    try{
+      document.execCommand('copy');
+      showToast('글 내용을 복사했습니다. 카톡에 붙여넣기 하세요');
+    }catch(err){
+      alert(text);
+    }
     document.body.removeChild(box);
   }
 }
-
 function showToast(message){
   try{
     let t=document.getElementById('appToast');
@@ -1519,7 +1516,7 @@ T_INDEX = """
 
     {% for p in posts %}
     <section class='card {{ "closed" if p.closed else "" }}'>
-      <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "마감" if p.closed else "모집중" }}</span>
+      <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "모집 완료" if p.closed else "모집중" }}</span>{% if delete_after_text(p) %}<span class='tag auto-delete-tag'>{{ delete_after_text(p) }}</span>{% endif %}
       <span class='tag'>{{p.category}}</span>
       <span class='count'>{{joined_count(p)}} / {{max_count(p)}}명</span>
       <h2>{{p.place}}</h2>
@@ -1604,7 +1601,7 @@ T_INDEX = """
       {% endif %}
 
       <div class='actions'>
-        <button type='button' class='btn gray share-btn' onclick='sharePost(this)' data-share='{{ share_text(p)|e }}'>공유</button>
+        <button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-share='{{ share_text(p)|e }}'>글복사</button>
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
           {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}
@@ -1950,10 +1947,13 @@ def edit(pid):
 
 @app.route("/close/<pid>")
 def close(pid):
-    d=load(); u=cur_user(d); p=find_post(d,pid)
+    d = load()
+    u = cur_user(d)
+    p = find_post(d, pid)
     if p and can_manage_post(u, p):
-        p["closed"]=True
-        p["closed_at"]=now().isoformat(timespec="seconds")
+        p["closed"] = True
+        if not p.get("closed_at"):
+            p["closed_at"] = now().isoformat(timespec="seconds")
         save(d)
     return redirect("/")
 
@@ -2106,7 +2106,7 @@ def admin():
       <div class='admin-post-row'>
         <div>
           <b>{{p.place}}</b>
-          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "마감" if p.closed else "모집중" }}</div>
+          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
           <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
@@ -2122,7 +2122,7 @@ def admin():
       <div class='admin-post-row'>
         <div>
           <b>{{p.place}}</b>
-          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "마감" if p.closed else "모집중" }}</div>
+          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
           <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
@@ -2138,7 +2138,7 @@ def admin():
       <div class='admin-post-row'>
         <div>
           <b>{{p.place}}</b>
-          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "마감" if p.closed else "모집중" }}</div>
+          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
           <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
@@ -2155,7 +2155,7 @@ def admin():
       <div class='admin-post-row'>
         <div>
           <b>{{p.place}}</b>
-          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "마감" if p.closed else "모집중" }}</div>
+          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
           <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>

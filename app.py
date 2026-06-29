@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v22.4"
+APP_VERSION = "v22.5"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -280,6 +280,20 @@ select option{background:#081126;color:#f5f8ff}
 .group-badge{margin-left:6px;padding:3px 7px;border-radius:999px;background:rgba(244,212,122,.16);border:1px solid rgba(244,212,122,.3);color:#ffe5a0;font-size:11px}
 .remain{background:rgba(244,212,122,.12);border:1px solid rgba(244,212,122,.25);border-radius:999px;padding:3px 8px}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr}.farm-summary{grid-template-columns:1fr}}
+
+.alarm-panel{background:linear-gradient(180deg,rgba(16,26,49,.98),rgba(8,17,38,.98));border-color:#334a7c}
+.alarm-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0}
+.switch-line{display:flex;align-items:center;gap:8px;margin:0;color:#e7eeff}
+.switch-line input{width:auto;accent-color:#19c46f}
+.volume-label{display:flex;justify-content:space-between;color:#9fb0d1;font-size:13px;margin:10px 0 6px}
+input[type='range']{padding:0;height:6px;accent-color:#19c46f}
+.summary-card{position:relative;overflow:hidden}
+.summary-card:after{content:"";position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;background:rgba(88,116,255,.10)}
+.card{border-color:#2c426f}
+.card h2{font-size:26px}
+.actions .btn{min-width:72px}
+.farm-box{background:linear-gradient(180deg,rgba(8,17,38,.82),rgba(8,17,38,.58))}
+
 @media(max-width:980px){
   .app-shell{grid-template-columns:1fr}
   .side-stack{position:static}
@@ -697,16 +711,49 @@ function addSlot(){let j=(qs('#slotJob')||document.querySelector("select[name='s
 function mode(){let c=qs('#cat')?.value;document.querySelectorAll('.place').forEach(x=>x.style.display=x.dataset.cat==c?'':'none');let s=qs('#slotsBox');if(s)s.style.display=c=='사냥'?'':'none'}
 document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.onchange=mode;mode()}document.querySelectorAll('input[name=start_time],input[name=end_time]').forEach(i=>i.oninput=()=>i.value=fmt(i.value))});
 
+
 let __farmVoiceSent = {};
+function getAlarmSettings(){
+  return {
+    voice: localStorage.getItem('farmVoiceEnabled') !== '0',
+    volume: Math.max(0, Math.min(1, Number(localStorage.getItem('farmVoiceVolume') || '1')))
+  };
+}
+function saveAlarmSettings(){
+  const toggle=document.getElementById('alarmVoiceToggle');
+  const volume=document.getElementById('alarmVolume');
+  const text=document.getElementById('alarmVolumeText');
+  if(toggle) localStorage.setItem('farmVoiceEnabled', toggle.checked ? '1':'0');
+  if(volume){
+    localStorage.setItem('farmVoiceVolume', String(Number(volume.value)/100));
+    if(text) text.textContent=volume.value+'%';
+  }
+}
+function loadAlarmSettings(){
+  const s=getAlarmSettings();
+  const toggle=document.getElementById('alarmVoiceToggle');
+  const volume=document.getElementById('alarmVolume');
+  const text=document.getElementById('alarmVolumeText');
+  if(toggle) toggle.checked=s.voice;
+  if(volume) volume.value=Math.round(s.volume*100);
+  if(text) text.textContent=Math.round(s.volume*100)+'%';
+  if(toggle) toggle.addEventListener('change', saveAlarmSettings);
+  if(volume) volume.addEventListener('input', saveAlarmSettings);
+}
 function speakFarmAlarm(text){
   try{
+    const s=getAlarmSettings();
+    if(!s.voice) return;
     if(!('speechSynthesis' in window)) return;
     const u = new SpeechSynthesisUtterance(text);
     u.lang='ko-KR';
     u.rate=1;
-    u.volume=1;
+    u.volume=s.volume;
     speechSynthesis.speak(u);
   }catch(e){}
+}
+function testFarmVoice(){
+  speakFarmAlarm('해골왕 젠 30분 전입니다');
 }
 async function checkFarmAlarms(){
   try{
@@ -716,9 +763,18 @@ async function checkFarmAlarms(){
       [30,15,5].forEach(t=>{
         if(a.left<=t && a.left>=t-1){
           const key=a.id+'-'+t;
-          if(!__farmVoiceSent[key]){
-            __farmVoiceSent[key]=true;
+          const count=Number(__farmVoiceSent[key]||0);
+          if(count<2){
+            __farmVoiceSent[key]=count+1;
             speakFarmAlarm(a.place+' 젠 '+t+'분 전입니다');
+            if(count===0){
+              setTimeout(()=>{ 
+                if(Number(__farmVoiceSent[key]||0)<2){
+                  __farmVoiceSent[key]=2;
+                  speakFarmAlarm(a.place+' 젠 '+t+'분 전입니다');
+                }
+              }, 2500);
+            }
           }
         }
       });
@@ -726,7 +782,7 @@ async function checkFarmAlarms(){
   }catch(e){}
 }
 setInterval(checkFarmAlarms, 60000);
-document.addEventListener('DOMContentLoaded', checkFarmAlarms);
+document.addEventListener('DOMContentLoaded', ()=>{loadAlarmSettings();checkFarmAlarms();});
 
 </script></body></html>"""
 
@@ -880,6 +936,21 @@ T_INDEX = """
       {% else %}
         <span class='pill online-pill'>{{ char_label(c) }}</span>
       {% endif %}
+    </section>
+
+
+    <section class='panel alarm-panel'>
+      <div class='online-head'>
+        <h2>🔔 알림 설정</h2>
+        <span class='meta'>30 · 15 · 5분</span>
+      </div>
+      <div class='alarm-row'>
+        <label class='switch-line'><input type='checkbox' id='alarmVoiceToggle' checked> 음성 알림</label>
+        <button type='button' class='btn gray mini' onclick='testFarmVoice()'>테스트</button>
+      </div>
+      <label class='volume-label'>음량 <span id='alarmVolumeText'>100%</span></label>
+      <input type='range' id='alarmVolume' min='0' max='100' value='100'>
+      <div class='meta'>같은 알림은 최대 2번만 알려줍니다.</div>
     </section>
 
     <section class='panel'>

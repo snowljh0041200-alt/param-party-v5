@@ -1,13 +1,15 @@
-v26.12 NOTICE LAYOUT FIX
+v26.13 SERVICE STABLE NOTICE
 
 수정:
-- 공지사항 카드를 헤더 바로 아래 전체 폭으로 이동
-- 모집글 영역이 옆으로 밀리는 배치 문제 수정
-- 오른쪽 사이드바 폭 고정 및 메인 폭 복구
-- 상단 통계 박스 숨김 유지
-- 기능 변경 없음
+- v26.8 안정판 기준으로 최소 수정
+- 상단 통계 박스 숨김
+- 헤더 아래 공지사항 카드 추가
+- 관리자 공지 제목/내용 저장 추가
+- 팝업 없음
+- 기존 모집/채팅/알림/카운트다운 기능 유지
+- 컴파일 통과
 
 배포:
 git add .
-git commit -m "v26.12 notice layout fix"
+git commit -m "v26.13 service stable notice"
 git push

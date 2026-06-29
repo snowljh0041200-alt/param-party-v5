@@ -1,14 +1,26 @@
-v37.3 ADD CHAR FIX
+v38.0 DESIGN REMASTER CSS ONLY
 
-수정:
-- 캐릭터 추가 버튼 클릭 시 Internal Server Error 수정
-- /add_char 라우트를 안전 버전으로 교체
-- uuid로 캐릭터 ID 직접 생성
-- cur_user(d) 기준으로 사용자 저장
-- 캐릭터 선택/수정/삭제 기능 유지
-- 컴파일 통과
+기준:
+- v37.3 안정판 기준
+
+중요:
+- 기능/라우트/DB/API 수정 없음
+- CSS 디자인만 추가
+- 500 에러 위험 최소화
+
+디자인 수정:
+- 전체 다크 판타지 배경 개선
+- 헤더 고급화
+- 카드 Glassmorphism 느낌 적용
+- 버튼 그라데이션/호버 효과
+- 모집글 카드 입체감 강화
+- 태그/인원수/상태 배지 개선
+- 통합채팅/오늘일정/공지사항 디자인 개선
+- 입력창 포커스 효과
+- 스크롤바 디자인
+- 캐릭터 페이지 카드 디자인 개선
 
 배포:
 git add .
-git commit -m "v37.3 add char fix"
+git commit -m "v38.0 design remaster css only"
 git push

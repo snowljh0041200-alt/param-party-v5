@@ -4,9 +4,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re
-from urllib.parse import quote, html, hashlib
 
-APP_VERSION = "v26.25-service"
+APP_VERSION = "v26.26-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1399,11 +1398,20 @@ def remaining_text(p):
 
 
 
+
+def safe_quote_toast(msg):
+    try:
+        import urllib.parse
+        return urllib.parse.quote(str(msg), safe="")
+    except Exception:
+        return str(msg).replace(" ", "%20")
+
 def toast_redirect(url, msg):
     if not msg:
         return redirect(url)
     sep = "&" if "?" in url else "?"
-    return redirect(url + sep + "toast=" + quote(str(msg)))
+    return redirect(url + sep + "toast=" + safe_quote_toast(msg))
+
 
 def action_msg(p, text):
     return f"🔔 [{post_title(p)}] {text}"

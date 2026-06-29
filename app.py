@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.23-service"
+APP_VERSION = "v26.24-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -874,6 +874,40 @@ input::placeholder,textarea::placeholder{color:#667694}
   #toastWrap{left:12px;right:12px;top:12px;max-width:none}
 }
 
+
+/* v26.24 reliable toast */
+#toastWrap{
+  position:fixed!important;
+  top:18px!important;
+  right:18px!important;
+  z-index:99999!important;
+  display:grid!important;
+  gap:8px!important;
+  max-width:380px!important;
+  pointer-events:none!important;
+}
+.toast{
+  opacity:0;
+  transform:translateY(-10px);
+  transition:.22s ease;
+  background:linear-gradient(180deg,#263861,#111d38)!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  border-radius:15px!important;
+  color:#fff!important;
+  padding:13px 15px!important;
+  box-shadow:0 20px 60px rgba(0,0,0,.45)!important;
+  font-weight:950!important;
+  line-height:1.45!important;
+  white-space:pre-wrap!important;
+}
+.toast.show{
+  opacity:1!important;
+  transform:translateY(0)!important;
+}
+@media(max-width:720px){
+  #toastWrap{left:12px!important;right:12px!important;top:12px!important;max-width:none!important}
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1708,22 +1742,54 @@ function formatBossRemain(totalSeconds){
 }
 
 
-let __lastAlertId = localStorage.getItem('lastAlertId') || '';
+
+
+
+function ensureToastWrap(){
+  let wrap=document.getElementById('toastWrap');
+  if(!wrap){
+    wrap=document.createElement('div');
+    wrap.id='toastWrap';
+    document.body.appendChild(wrap);
+  }
+  return wrap;
+}
+function showToast(msg){
+  const wrap=ensureToastWrap();
+  const el=document.createElement('div');
+  el.className='toast';
+  el.textContent=msg;
+  wrap.appendChild(el);
+  setTimeout(()=>el.classList.add('show'),10);
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),260);},4600);
+}
+function getSeenAlertIds(){
+  try{return new Set(JSON.parse(localStorage.getItem('seenAlertIds')||'[]'));}catch(e){return new Set();}
+}
+function saveSeenAlertIds(set){
+  try{localStorage.setItem('seenAlertIds', JSON.stringify(Array.from(set).slice(-120)));}catch(e){}
+}
 async function pollSystemAlerts(){
   try{
-    const r = await fetch('/api/alerts?since=' + encodeURIComponent(__lastAlertId), {cache:'no-store'});
-    const data = await r.json();
-    const alerts = data.alerts || [];
+    const r=await fetch('/api/alerts?_=' + Date.now(), {cache:'no-store'});
+    const data=await r.json();
+    const alerts=data.alerts||[];
+    const seen=getSeenAlertIds();
+    const now=Date.now();
     alerts.forEach(a=>{
-      if(a.id && String(a.id) > String(__lastAlertId)) __lastAlertId = String(a.id);
-      if(a.text) showToast(a.text);
+      const id=String(a.id||'');
+      if(!id || seen.has(id)) return;
+      const t=Date.parse(a.time||'');
+      const recent=!Number.isNaN(t) ? (now - t < 20000) : true;
+      seen.add(id);
+      if(recent && a.text) showToast(a.text);
     });
-    if(__lastAlertId) localStorage.setItem('lastAlertId', __lastAlertId);
+    saveSeenAlertIds(seen);
   }catch(e){}
 }
 document.addEventListener('DOMContentLoaded',()=>{
   pollSystemAlerts();
-  setInterval(pollSystemAlerts, 5000);
+  setInterval(pollSystemAlerts, 2500);
 });
 
 function toggleClanNotice(){
@@ -2755,14 +2821,22 @@ def api_copy_text(pid):
 
 
 
+
+
+@app.route("/api/test_toast")
+def api_test_toast():
+    d = load()
+    u = cur_user(d)
+    if is_admin(u):
+        system_notify(d, "🔔 토스트 알림 테스트입니다.")
+        save(d)
+        return {"ok": True}
+    return {"ok": False}
+
 @app.route("/api/alerts")
 def api_alerts():
     d = load()
-    since = request.args.get("since", "")
-    arr = d.get("alerts", [])[-30:]
-    if since:
-        arr = [a for a in arr if str(a.get("id","")) > since]
-    return {"alerts": arr}
+    return {"alerts": d.get("alerts", [])[-30:]}
 
 @app.route("/api/global_chat", methods=["GET","POST"])
 def api_global_chat():

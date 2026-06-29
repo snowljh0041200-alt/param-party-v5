@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v31.1-final"
+APP_VERSION = "v31.2-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1221,6 +1221,155 @@ input::placeholder,textarea::placeholder{color:#667694}
 }
 
 /* 화면이 좁으면 원래처럼 1열 */
+
+/* v31.2 force four-grid width */
+
+/* 전체 본문 폭을 화면 전체로 쓰기 */
+body.v312-force-grid .wrap,
+body.v312-force-grid .container,
+body.v312-force-grid main{
+  max-width:none!important;
+  width:100%!important;
+}
+
+/* 핵심: 모집글+오른쪽 패널 공통 부모를 2컬럼 고정 */
+@media(min-width:1000px){
+  body.v312-force-grid .v312-shell{
+    display:grid!important;
+    grid-template-columns:minmax(0, calc(100vw - 420px)) 360px!important;
+    gap:16px!important;
+    align-items:start!important;
+    width:100%!important;
+    max-width:none!important;
+  }
+
+  body.v312-force-grid .v312-left-recruit{
+    width:100%!important;
+    max-width:calc(100vw - 420px)!important;
+    min-width:0!important;
+    grid-column:1!important;
+  }
+
+  body.v312-force-grid .v312-right-live{
+    width:360px!important;
+    min-width:360px!important;
+    max-width:360px!important;
+    grid-column:2!important;
+    position:sticky!important;
+    top:12px!important;
+    align-self:start!important;
+    max-height:calc(100vh - 24px)!important;
+    overflow-y:auto!important;
+    z-index:30!important;
+  }
+
+  /* 모집글 리스트는 무조건 2열 4분할 */
+  body.v312-force-grid .v312-post-list{
+    display:grid!important;
+    grid-template-columns:repeat(2, minmax(0, 1fr))!important;
+    gap:14px!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    align-items:start!important;
+  }
+
+  body.v312-force-grid .v312-post-list > .post-card{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+  }
+}
+
+/* 기존 카드 폭 제한/부모 폭 제한 깨기 */
+body.v312-force-grid .post-card{
+  max-width:none!important;
+  box-sizing:border-box!important;
+}
+
+body.v312-force-grid .v312-left-recruit > *,
+body.v312-force-grid .v312-post-list > *{
+  min-width:0!important;
+}
+
+/* 카드 내부가 폭 때문에 터지지 않게 compact */
+body.v312-force-grid .post-card{
+  padding:14px!important;
+  border-radius:18px!important;
+}
+
+body.v312-force-grid .post-card h2,
+body.v312-force-grid .post-card h3{
+  font-size:20px!important;
+  margin:7px 0!important;
+}
+
+body.v312-force-grid .post-card .slot,
+body.v312-force-grid .post-card .job-slot,
+body.v312-force-grid .post-card .participant-row{
+  padding:10px 12px!important;
+  min-height:auto!important;
+}
+
+body.v312-force-grid .post-card .btn,
+body.v312-force-grid .post-card button{
+  padding:9px 13px!important;
+  font-size:14px!important;
+}
+
+/* 오른쪽 패널 안 채팅은 실시간으로 계속 보이게 */
+body.v312-force-grid .v312-right-live .global-chat-body,
+body.v312-force-grid .v312-right-live .global-chat-list,
+body.v312-force-grid .v312-right-live .chat-list,
+body.v312-force-grid .v312-right-live .chat-messages,
+body.v312-force-grid .v312-right-live .global-chat form,
+body.v312-force-grid .v312-right-live .chat-panel form{
+  display:block!important;
+}
+
+body.v312-force-grid .v312-right-live .global-chat,
+body.v312-force-grid .v312-right-live .chat-panel{
+  min-height:360px!important;
+}
+
+/* 승급지원은 정산/인원 숨김 유지 */
+body.v312-force-grid .post-card[data-category="승급지원"] .settle-box,
+body.v312-force-grid .post-card[data-category="승급지원"] .settlement-box,
+body.v312-force-grid .post-card[data-category="승급지원"] .farming-settle,
+body.v312-force-grid .post-card[data-category="승급지원"] .farm-settle,
+body.v312-force-grid .post-card[data-category="승급지원"] .settle-panel,
+body.v312-force-grid .post-card[data-category="승급지원"] [data-section="settle"],
+body.v312-force-grid .post-card[data-category="승급지원"] .settle,
+body.v312-force-grid .post-card[data-category="승급지원"] .calc-box,
+body.v312-force-grid .post-card[data-category="승급지원"] .capacity-badge,
+body.v312-force-grid .post-card[data-category="승급지원"] .count-badge,
+body.v312-force-grid .post-card[data-category="승급지원"] .people-count,
+body.v312-force-grid .post-card[data-category="승급지원"] .member-count,
+body.v312-force-grid .post-card[data-category="승급지원"] .cap-badge{
+  display:none!important;
+}
+
+@media(max-width:999px){
+  body.v312-force-grid .v312-shell{
+    display:block!important;
+  }
+  body.v312-force-grid .v312-post-list{
+    display:block!important;
+  }
+  body.v312-force-grid .v312-post-list > .post-card{
+    margin-bottom:14px!important;
+  }
+  body.v312-force-grid .v312-right-live{
+    position:static!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    max-height:none!important;
+  }
+}
+
 @media(max-width:980px){
   body.v311-layout .v311-post-list{
     display:block!important;
@@ -3181,6 +3330,77 @@ async function testToastFromSettings(){
   document.addEventListener('DOMContentLoaded', function(){
     applySafeLayout();
     setTimeout(applySafeLayout, 300);
+  });
+})();
+
+
+/* v31.2 force four-grid width */
+(function(){
+  function text(el){ return (el && el.textContent) || ''; }
+
+  function applyForceGrid(){
+    document.body.classList.add('v312-force-grid');
+
+    var cards = Array.from(document.querySelectorAll('.post-card'));
+    if(cards.length){
+      var list = cards[0].parentElement;
+      if(list){
+        list.classList.add('v312-post-list');
+
+        var sec = list;
+        var guard = 0;
+        while(sec && sec !== document.body && text(sec).indexOf('모집글') === -1 && guard < 8){
+          sec = sec.parentElement;
+          guard++;
+        }
+        if(sec && sec !== document.body){
+          sec.classList.add('v312-left-recruit');
+        }
+      }
+    }
+
+    var candidates = Array.from(document.querySelectorAll('aside, section, div'));
+    var best = null, score = 0;
+    candidates.forEach(function(el){
+      var t = text(el);
+      var s = 0;
+      if(t.indexOf('접속중') >= 0) s += 2;
+      if(t.indexOf('오늘 일정') >= 0) s += 2;
+      if(t.indexOf('통합채팅') >= 0) s += 3;
+      if(s > score && !el.classList.contains('v312-left-recruit') && !el.querySelector('.post-card')){
+        score = s; best = el;
+      }
+    });
+    if(best && score >= 4){
+      best.classList.add('v312-right-live');
+    }
+
+    var left = document.querySelector('.v312-left-recruit');
+    var right = document.querySelector('.v312-right-live');
+
+    if(left && right){
+      var parent = left.parentElement;
+      if(parent && parent.contains(right)){
+        parent.classList.add('v312-shell');
+      }else{
+        // 둘의 가장 가까운 공통 부모를 찾아 shell 클래스만 부여
+        var p = left.parentElement;
+        var tries = 0;
+        while(p && p !== document.body && !p.contains(right) && tries < 10){
+          p = p.parentElement;
+          tries++;
+        }
+        if(p && p !== document.body){
+          p.classList.add('v312-shell');
+        }
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    applyForceGrid();
+    setTimeout(applyForceGrid, 200);
+    setTimeout(applyForceGrid, 800);
   });
 })();
 

@@ -1,15 +1,15 @@
-v31.1 LAYOUT RECOVERY FIXED
+v31.2 FORCE FOUR GRID WIDTH
 
 수정:
-- v31.0의 위험한 DOM 이동 방식 제거
-- 원래처럼 오른쪽 실시간 패널은 오른쪽에 유지
-- 모집글 목록만 2열 그리드로 표시
-- 오른쪽 접속중/오늘일정/통합채팅이 아래로 밀리는 문제 복구
-- 승급지원 정산 숨김/기존 알림/링크 기능 유지
+- 모집글 카드 폭을 강제로 줄여 왼쪽 2열/4분할에 맞춤
+- 모집글 영역: 화면폭 - 오른쪽 패널 360px 기준으로 강제 계산
+- 오른쪽 접속중/오늘일정/통합채팅은 우측 360px 고정
+- DOM 이동 없이 클래스/CSS만 적용
+- 기존 알림/링크/참여 기능 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v31.1 layout recovery fixed"
+git commit -m "v31.2 force four grid width"
 git push

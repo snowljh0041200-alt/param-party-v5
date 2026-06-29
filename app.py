@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v32.0-final"
+APP_VERSION = "v33.0-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1284,12 +1284,14 @@ PENDING_HTML = """
   <div class='pending-icon'>⏳</div>
   <h1>승인 요청중</h1>
   <p class='meta'>관리자 승인 후 이용할 수 있습니다.</p>
-  <div class='notice'>문파 관리자에게 가입 승인을 요청해 주세요.</div>
+  <section class='panel notice-live-v33'>
+  <div class='notice-main-v33'>
+<div class='notice'>문파 관리자에게 가입 승인을 요청해 주세요.</div>
   <div class='toolbar pending-actions'>
     <a class='btn gray' href='/logout'>로그아웃</a><a class='btn gray nav-btn' href='/toast_test'>토스트테스트</a>
     <a class='btn gray' href='/login'>로그인</a>
   </div>
-</section>
+
 """
 
 
@@ -2000,102 +2002,116 @@ def max_count(p):
 
 BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ title }}</title><style>{{ css }}
 
-/* v32.0 flex inline-block layout final */
-html, body{
-  overflow-x:auto!important;
-}
 
+/* v33.0 notice realtime + two-column posts */
 .wrap{
-  max-width:none!important;
-  width:1240px!important;
-  min-width:1240px!important;
+  max-width:1220px!important;
+  width:min(1220px, calc(100vw - 24px))!important;
   margin:0 auto!important;
-  padding:16px!important;
+  padding:12px!important;
   box-sizing:border-box!important;
 }
 
-/* grid 대신 flex: 오른쪽 패널이 절대 아래로 내려가지 않게 */
+/* 더 이상 오른쪽 사이드바를 쓰지 않음 */
 .app-shell{
-  display:flex!important;
-  flex-direction:row!important;
-  align-items:flex-start!important;
-  gap:16px!important;
-  width:1208px!important;
-  min-width:1208px!important;
-  max-width:1208px!important;
-  flex-wrap:nowrap!important;
+  display:block!important;
+  width:100%!important;
 }
 
 .left-stack{
-  display:block!important;
-  width:832px!important;
-  min-width:832px!important;
-  max-width:832px!important;
-  flex:0 0 832px!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+}
+
+.side-stack-old-hidden{
+  display:none!important;
+}
+
+/* 공지사항 + 실시간 패널을 위쪽 2분할 */
+.notice-live-v33{
+  display:grid!important;
+  grid-template-columns:minmax(0, 1fr) 360px!important;
+  gap:14px!important;
+  align-items:stretch!important;
+}
+
+.notice-main-v33{
+  min-width:0!important;
+}
+
+.top-realtime-v33{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:12px!important;
+  min-width:0!important;
+  max-height:none!important;
+}
+
+.top-realtime-v33 .panel{
+  margin:0!important;
+  width:100%!important;
   box-sizing:border-box!important;
 }
 
-.side-stack{
-  display:block!important;
-  width:360px!important;
-  min-width:360px!important;
-  max-width:360px!important;
-  flex:0 0 360px!important;
-  position:sticky!important;
-  top:12px!important;
-  align-self:flex-start!important;
-  max-height:calc(100vh - 24px)!important;
-  overflow-y:auto!important;
-  box-sizing:border-box!important;
+.top-realtime-v33 .online-panel{
+  min-height:92px!important;
 }
 
-.quickbar.recruit-head{
-  width:832px!important;
-  max-width:832px!important;
-  box-sizing:border-box!important;
+.top-realtime-v33 .schedule-panel{
+  min-height:120px!important;
 }
 
-/* 모집글 카드만 inline-block 2열: grid/flex 부모 영향 안 받음 */
-.left-stack > .card{
-  display:inline-block!important;
-  vertical-align:top!important;
-  width:409px!important;
-  min-width:409px!important;
-  max-width:409px!important;
-  margin:0 10px 14px 0!important;
+.top-realtime-v33 .chat-panel{
+  min-height:360px!important;
+}
+
+.top-realtime-v33 .chatbox{
+  height:260px!important;
+  min-height:260px!important;
+}
+
+/* 모집글은 아래에서 카드만 2분할 */
+.post-grid-v33{
+  display:grid!important;
+  grid-template-columns:repeat(2, minmax(0, 1fr))!important;
+  gap:14px!important;
+  align-items:start!important;
+  width:100%!important;
+}
+
+.post-grid-v33 > .card{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin:0!important;
   box-sizing:border-box!important;
   overflow:hidden!important;
 }
 
-.left-stack > .card:nth-of-type(2n){
-  margin-right:0!important;
-}
-
-.left-stack > .empty{
-  display:block!important;
-  width:832px!important;
-  max-width:832px!important;
-  box-sizing:border-box!important;
+.post-grid-v33 > .empty{
+  grid-column:1 / -1!important;
+  width:100%!important;
+  max-width:100%!important;
 }
 
 /* 카드 내부 compact */
-.left-stack > .card{
+.post-grid-v33 > .card{
   padding:14px!important;
   border-radius:18px!important;
 }
 
-.left-stack > .card h2{
+.post-grid-v33 > .card h2{
   font-size:21px!important;
   margin:8px 0!important;
 }
 
-.left-stack > .card .meta{
+.post-grid-v33 > .card .meta{
   font-size:12px!important;
   line-height:1.45!important;
 }
 
-/* 슬롯 줄: 삭제 버튼 기준선 안으로 참여/외부 정렬 */
-.left-stack > .card .slot{
+.post-grid-v33 > .card .slot{
   display:grid!important;
   grid-template-columns:minmax(0,1fr) auto!important;
   gap:8px!important;
@@ -2106,12 +2122,12 @@ html, body{
   box-sizing:border-box!important;
 }
 
-.left-stack > .card .slot > div:first-child{
+.post-grid-v33 > .card .slot > div:first-child{
   min-width:0!important;
   overflow:hidden!important;
 }
 
-.left-stack > .card .slot .toolbar{
+.post-grid-v33 > .card .slot .toolbar{
   display:flex!important;
   justify-content:flex-end!important;
   flex-wrap:nowrap!important;
@@ -2119,14 +2135,14 @@ html, body{
   min-width:max-content!important;
 }
 
-.left-stack > .card .slot .btn,
-.left-stack > .card .slot button{
+.post-grid-v33 > .card .slot .btn,
+.post-grid-v33 > .card .slot button{
   padding:8px 10px!important;
   font-size:13px!important;
   white-space:nowrap!important;
 }
 
-.left-stack > .card .actions{
+.post-grid-v33 > .card .actions{
   display:flex!important;
   gap:7px!important;
   flex-wrap:wrap!important;
@@ -2134,53 +2150,12 @@ html, body{
   margin-top:10px!important;
 }
 
-.left-stack > .card .actions .btn{
+.post-grid-v33 > .card .actions .btn{
   padding:9px 12px!important;
   font-size:13px!important;
 }
 
-.side-stack .chatbox{
-  height:360px!important;
-}
-
-/* 기존 모바일 전환 무력화 */
-@media(max-width:980px){
-  .wrap{
-    width:1240px!important;
-    min-width:1240px!important;
-    max-width:none!important;
-  }
-  .app-shell{
-    display:flex!important;
-    flex-direction:row!important;
-    flex-wrap:nowrap!important;
-    width:1208px!important;
-    min-width:1208px!important;
-  }
-  .left-stack{
-    width:832px!important;
-    min-width:832px!important;
-    max-width:832px!important;
-    flex:0 0 832px!important;
-  }
-  .side-stack{
-    width:360px!important;
-    min-width:360px!important;
-    max-width:360px!important;
-    flex:0 0 360px!important;
-    position:sticky!important;
-    top:12px!important;
-  }
-  .left-stack > .card{
-    display:inline-block!important;
-    width:409px!important;
-    min-width:409px!important;
-    max-width:409px!important;
-    margin:0 10px 14px 0!important;
-  }
-}
-
-/* 승급지원 숨김 유지 */
+/* 승급지원 정산/정원 표시 숨김 유지 */
 .card[data-category="승급지원"] .settle-box,
 .card[data-category="승급지원"] .settlement-box,
 .card[data-category="승급지원"] .farming-settle,
@@ -2195,6 +2170,16 @@ html, body{
 .card[data-category="승급지원"] .member-count,
 .card[data-category="승급지원"] .cap-badge{
   display:none!important;
+}
+
+/* 좁은 화면에서는 위/아래로 자연스럽게 */
+@media(max-width:900px){
+  .notice-live-v33{
+    grid-template-columns:1fr!important;
+  }
+  .post-grid-v33{
+    grid-template-columns:1fr!important;
+  }
 }
 
 </style></head><body><div class='wrap'>"""
@@ -3251,7 +3236,7 @@ def toast_test_page():
     if not approved(u):
         return redirect("/gate")
     return render("""
-<section class='panel'>
+
   <a class='btn gray' href='/'>← 메인으로</a>
   <h1>🔔 토스트 알림 테스트</h1>
   <div class='notice'>버튼을 누르면 화면 우측 상단에 테스트 팝업이 떠야 합니다.</div>
@@ -3259,6 +3244,54 @@ def toast_test_page():
     <h3>토스트 테스트</h3>
     <p>이 버튼은 서버 저장 없이 브라우저에서 바로 토스트를 띄웁니다.</p>
     <button type="button" class="btn ok" onclick="testToastFromSettings()">토스트 테스트</button>
+  </div>
+</section>
+  </div>
+  <div class='top-realtime-v33'>
+<section class='panel online-panel'>
+      <div class='online-head'>
+        <h2>🟢 접속중 {{ online|length if online is defined else 1 }}명</h2>
+        <span class='meta'>최근 5분</span>
+      </div>
+      {% if online is defined and online %}
+        <div class='online-list'>
+        {% for o in online %}
+          <span class='pill online-pill'>{{ o.label }}{% if o.role != '일반' %}<small>{{ o.role }}</small>{% endif %}</span>
+        {% endfor %}
+        </div>
+      {% else %}
+        <span class='pill online-pill'>{{ char_label(c) }}</span>
+      {% endif %}
+    </section>
+    <section class='panel'>
+      <h2>📅 오늘 일정</h2>
+      {% for p in sched %}
+        <div class='schedule-row boss-timer' data-target='{{ countdown_target(p) }}'>
+          <div>
+            <b>{{p.place}}</b><br>
+            <span class='meta'>{{p.date}} · {{show_time(p.end_time or p.start_time)}} 젠</span>
+          </div>
+          <strong class='schedule-countdown'>--:--</strong>
+        </div>
+      {% else %}
+        <div class='empty'>등록된 파밍 일정 없음</div>
+      {% endfor %}
+    </section>
+
+    <section class='panel' id='global-chat'>
+      <h2>💬 통합채팅</h2>
+      <div class='chatbox' id='globalChatBox'>
+        {% for m in d.global_chat[-30:] %}
+          <div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}<br><span class='meta'>{{m.time}}</span></div>
+        {% else %}
+          <div class='empty'>메시지 없음</div>
+        {% endfor %}
+      </div>
+      <form class='toolbar' method='post' action='/global_chat' id='globalChatForm'>
+        <input name='text' id='globalChatInput' placeholder='메시지'>
+        <button>전송</button>
+      </form>
+    </section>
   </div>
 </section>
 """)
@@ -3329,7 +3362,8 @@ T_INDEX = """
       </div>
     </div>
 
-        {% for p in posts %}
+        <div class='post-grid-v33'>
+    {% for p in posts %}
     <section class='card {{ "closed" if p.closed else "" }}' data-category='{{p.category}}'>
       <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "모집 완료" if p.closed else "모집중" }}</span>{% if delete_after_text(p) %}<span class='tag auto-delete-tag'>{{ delete_after_text(p) }}</span>{% endif %}
       <span class='tag'>{{p.category}}</span>
@@ -3431,54 +3465,9 @@ T_INDEX = """
     {% else %}
       <div class='empty'>모집글 없음</div>
     {% endfor %}
+    </div>
   </main>
-
-  <aside class='side-stack'>
-    <section class='panel online-panel'>
-      <div class='online-head'>
-        <h2>🟢 접속중 {{ online|length if online is defined else 1 }}명</h2>
-        <span class='meta'>최근 5분</span>
-      </div>
-      {% if online is defined and online %}
-        <div class='online-list'>
-        {% for o in online %}
-          <span class='pill online-pill'>{{ o.label }}{% if o.role != '일반' %}<small>{{ o.role }}</small>{% endif %}</span>
-        {% endfor %}
-        </div>
-      {% else %}
-        <span class='pill online-pill'>{{ char_label(c) }}</span>
-      {% endif %}
-    </section>
-    <section class='panel'>
-      <h2>📅 오늘 일정</h2>
-      {% for p in sched %}
-        <div class='schedule-row boss-timer' data-target='{{ countdown_target(p) }}'>
-          <div>
-            <b>{{p.place}}</b><br>
-            <span class='meta'>{{p.date}} · {{show_time(p.end_time or p.start_time)}} 젠</span>
-          </div>
-          <strong class='schedule-countdown'>--:--</strong>
-        </div>
-      {% else %}
-        <div class='empty'>등록된 파밍 일정 없음</div>
-      {% endfor %}
-    </section>
-
-    <section class='panel' id='global-chat'>
-      <h2>💬 통합채팅</h2>
-      <div class='chatbox' id='globalChatBox'>
-        {% for m in d.global_chat[-30:] %}
-          <div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}<br><span class='meta'>{{m.time}}</span></div>
-        {% else %}
-          <div class='empty'>메시지 없음</div>
-        {% endfor %}
-      </div>
-      <form class='toolbar' method='post' action='/global_chat' id='globalChatForm'>
-        <input name='text' id='globalChatInput' placeholder='메시지'>
-        <button>전송</button>
-      </form>
-    </section>
-  </aside>
+  <aside class='side-stack side-stack-old-hidden'></aside>
 </div>
 
 <div id='settingsModal' class='modal-backdrop' onclick='closeSettingsModal(event)'>

@@ -1,18 +1,15 @@
-v32.0 FLEX INLINE-BLOCK LAYOUT
+v33.0 NOTICE REALTIME TWO COLUMN
 
 수정:
-- 올려준 v31.7 zip 기준 실제 app.py 구조 확인 후 수정
-- CSS grid/자동 감지 방식 제거
-- app-shell을 flex 고정폭으로 변경
-- left-stack 832px / side-stack 360px 고정
-- 모집글 카드는 inline-block 409px x 2열
-- 오른쪽 접속중/오늘일정/통합채팅이 아래로 내려가지 않게 고정
-- 화면이 좁으면 가로스크롤
+- 오른쪽 사이드바 구조 제거
+- 공지사항 오른쪽 빈 공간에 접속중/오늘일정/통합채팅 배치
+- 모집글 아래 영역은 카드만 2분할
+- 사이드바가 아래로 밀리는 문제 자체 제거
 - 기존 알림/링크/승급지원 기능 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v32.0 flex inlineblock layout"
+git commit -m "v33.0 notice realtime two column"
 git push

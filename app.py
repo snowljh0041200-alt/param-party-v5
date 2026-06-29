@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v27.1-stable"
+APP_VERSION = "v28.0-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1026,6 +1026,61 @@ input::placeholder,textarea::placeholder{color:#667694}
   margin:6px 0 10px;
   color:#9fb0d1;
   font-size:13px;
+}
+
+
+/* v28 final toast css override */
+#toastWrap{
+  position:fixed!important;
+  top:18px!important;
+  right:18px!important;
+  left:auto!important;
+  bottom:auto!important;
+  z-index:9999999!important;
+  display:grid!important;
+  gap:8px!important;
+  max-width:390px!important;
+  pointer-events:none!important;
+}
+#toastWrap .toast,
+.toast.v28-toast{
+  position:relative!important;
+  left:auto!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:auto!important;
+  opacity:0!important;
+  transform:translateY(-10px)!important;
+  transition:.22s ease!important;
+  background:linear-gradient(180deg,#263861,#111d38)!important;
+  border:1px solid rgba(255,255,255,.22)!important;
+  border-radius:15px!important;
+  color:#fff!important;
+  padding:13px 15px!important;
+  box-shadow:0 20px 60px rgba(0,0,0,.48)!important;
+  font-weight:950!important;
+  line-height:1.45!important;
+  white-space:pre-wrap!important;
+  text-align:left!important;
+  pointer-events:none!important;
+}
+#toastWrap .toast.show,
+.toast.v28-toast.show{
+  opacity:1!important;
+  transform:translateY(0)!important;
+}
+.toast-test-box{
+  margin-top:14px!important;
+  padding:14px!important;
+  border:1px solid rgba(88,116,255,.22)!important;
+  border-radius:16px!important;
+  background:rgba(8,17,38,.55)!important;
+}
+.toast-test-box .meta{
+  margin:6px 0 10px!important;
+}
+@media(max-width:720px){
+  #toastWrap{left:12px!important;right:12px!important;top:12px!important;max-width:none!important}
 }
 
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
@@ -2201,6 +2256,78 @@ async function testToastFromSettings(){
   try{ await fetch('/api/test_toast?_=' + Date.now(), {cache:'no-store'}); }catch(e){}
 }
 
+
+/* v28 final toast override */
+(function(){
+  function makeToast(msg){
+    var wrap = document.getElementById('toastWrap');
+    if(!wrap){
+      wrap = document.createElement('div');
+      wrap.id = 'toastWrap';
+      document.body.appendChild(wrap);
+    }
+    var el = document.createElement('div');
+    el.className = 'toast v28-toast';
+    el.textContent = msg || '🔔 토스트 알림입니다.';
+    wrap.appendChild(el);
+    setTimeout(function(){ el.classList.add('show'); }, 20);
+    setTimeout(function(){
+      el.classList.remove('show');
+      setTimeout(function(){ if(el && el.parentNode) el.parentNode.removeChild(el); }, 320);
+    }, 4500);
+  }
+
+  window.BaramToast = makeToast;
+  window.showToast = makeToast;
+
+  function showUrlToast(){
+    try{
+      var params = new URLSearchParams(window.location.search);
+      var msg = params.get('toast');
+      if(msg){
+        setTimeout(function(){ makeToast(msg); }, 250);
+        params.delete('toast');
+        var qs = params.toString();
+        history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+      }
+    }catch(e){}
+  }
+
+  async function pollAlerts(){
+    try{
+      var r = await fetch('/api/alerts?_=' + Date.now(), {cache:'no-store'});
+      var data = await r.json();
+      var alerts = data.alerts || [];
+      var seen = {};
+      try{ seen = JSON.parse(localStorage.getItem('v28SeenAlerts') || '{}'); }catch(e){ seen = {}; }
+      var now = Date.now();
+      alerts.forEach(function(a){
+        var id = String(a.id || '');
+        if(!id || seen[id]) return;
+        seen[id] = 1;
+        var t = Date.parse(a.time || '');
+        var recent = isNaN(t) ? true : (now - t < 20000);
+        if(recent && a.text) makeToast(a.text);
+      });
+      var keys = Object.keys(seen).slice(-120);
+      var slim = {};
+      keys.forEach(function(k){ slim[k] = 1; });
+      localStorage.setItem('v28SeenAlerts', JSON.stringify(slim));
+    }catch(e){}
+  }
+
+  window.testToastFromSettings = function(){
+    makeToast('🔔 토스트 알림 테스트입니다. 이 문구가 보이면 정상입니다.');
+    try{ fetch('/api/test_toast?_=' + Date.now(), {cache:'no-store'}); }catch(e){}
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    showUrlToast();
+    pollAlerts();
+    setInterval(pollAlerts, 3000);
+  });
+})();
+
 </script></body></html>"""
 
 def render(page, **kw):
@@ -2257,6 +2384,7 @@ T_INDEX = """
   <div class='toolbar'>
     <a class='btn nav-btn gray' href='/chars'>캐릭터</a>
     <button type='button' class='btn nav-btn gray' onclick='openSettingsModal()'>⚙ 설정</button>
+    <button type='button' class='btn nav-btn gray' onclick="window.BaramToast ? window.BaramToast('🔔 토스트 알림 테스트입니다.') : alert('토스트 함수가 아직 로드되지 않았습니다.')">토스트테스트</button>
     {% if is_admin(u) %}<a class='btn nav-btn gray' href='/admin'>관리자</a>{% endif %}
     <a class='btn nav-btn gray' href='/logout'>로그아웃</a>
   </div>
@@ -3045,6 +3173,7 @@ def api_test_toast():
 def api_alerts():
     d = load()
     return {"alerts": d.get("alerts", [])[-30:]}
+
 
 
 @app.route("/api/global_chat", methods=["GET","POST"])

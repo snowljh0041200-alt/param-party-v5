@@ -1,21 +1,22 @@
-v27.1 TOAST TEST SETTINGS
+v28.0 FINAL TOAST FIX
 
 수정:
-- 상단 메뉴에 토스트테스트 버튼 추가
-- /toast_test 테스트 페이지 추가
-- 설정/테스트 페이지에서 토스트 테스트 가능
-- 버튼 클릭 시 브라우저에서 즉시 우측 상단 토스트 표시
-- /api/test_toast 테스트 API 추가
-- 기존 v27.0 안정화 기능 유지
+- 현재 업로드한 app.py 기준으로 직접 수정
+- 설정창 안에 토스트 테스트 버튼 추가
+- 상단에도 토스트테스트 버튼 추가
+- 기존 토스트 CSS 충돌 해결(position:fixed/bottom-center 충돌 제거)
+- window.BaramToast / showToast 최종 오버라이드
+- URL toast + 서버 alerts 폴링 둘 다 유지
+- /api/test_toast 테스트 API 유지
 - 컴파일 통과
 
 테스트:
-1) 상단 '토스트테스트' 클릭
+1) 배포 후 메인 화면에서 '⚙ 설정' 클릭
 2) '토스트 테스트' 버튼 클릭
 3) 우측 상단에 팝업이 뜨면 정상
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v27.1 toast test settings"
+git commit -m "v28.0 final toast fix"
 git push

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v25.2"
+APP_VERSION = "v25.3"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -592,6 +592,54 @@ GATE_HTML = """
   </div>
 </section>
 """
+
+
+LOGIN_HTML = """
+<section class='panel auth-panel'>
+  <div class='auth-logo'>⚔</div>
+  <h1>로그인</h1>
+  <form method='post'>
+    <label>계정명</label>
+    <input name='account' value='{{form.get("account","")}}' placeholder='계정명'>
+    <label>비밀번호</label>
+    <input name='pin' type='password' inputmode='numeric' maxlength='6' placeholder='숫자 6자리'>
+    <button class='ok full'>로그인</button>
+  </form>
+  {% if error %}<div class='notice'>{{error}}</div>{% endif %}
+  <div class='toolbar auth-bottom'>
+    <a class='btn gray' href='/register'>문파원 등록</a>
+  </div>
+</section>
+"""
+
+
+REGISTER_HTML = """
+<section class='panel auth-panel'>
+  <div class='auth-logo'>⚔</div>
+  <h1>문파원 등록</h1>
+  <form method='post'>
+    <label>계정명</label>
+    <input name='account' value='{{form.get("account","")}}' placeholder='로그인에 사용할 계정명'>
+    <label>비밀번호 숫자 6자리</label>
+    <input name='pin' type='password' inputmode='numeric' maxlength='6' placeholder='숫자 6자리'>
+    <label>비밀번호 확인</label>
+    <input name='pin_confirm' type='password' inputmode='numeric' maxlength='6' placeholder='다시 입력'>
+    <label>대표 캐릭터명</label>
+    <input name='char_name' value='{{form.get("char_name","")}}'>
+    <label>직업</label>
+    {{ job_select('job')|safe }}
+    <label>관리자 비밀번호 <span class='meta'>(관리자만 입력)</span></label>
+    <input name='admin_password' type='password' placeholder='일반 문파원은 비워두세요'>
+    <button class='ok full'>승인 요청</button>
+  </form>
+  {% if error %}<div class='notice'>{{error}}</div>{% endif %}
+  <div class='toolbar auth-bottom'><a class='btn gray' href='/login'>이미 계정이 있나요? 로그인</a></div>
+</section>
+"""
+
+
+
+
 
 
 
@@ -1399,8 +1447,9 @@ def login():
                     u["selected_char_id"] = cs[0].get("id")
                     save(d)
                 return redirect("/")
-        return render(T_LOGIN, error="계정명 또는 비밀번호가 맞지 않습니다.", form=request.form)
-    return render(T_LOGIN, error="", form={})
+        return render(LOGIN_HTML, error="계정명 또는 비밀번호가 맞지 않습니다.", form=request.form)
+    return render(LOGIN_HTML, error="", form={})
+
 @app.route("/register", methods=["GET","POST"])
 def register():
     d = load()
@@ -1412,15 +1461,15 @@ def register():
         pin_confirm = request.form.get("pin_confirm","").strip()
         admin_pw = request.form.get("admin_password","").strip()
         if not acc or not name:
-            return render(T_REGISTER, error="계정명과 캐릭터명을 입력하세요.", form=request.form)
+            return render(REGISTER_HTML, error="계정명과 캐릭터명을 입력하세요.", form=request.form)
         if not valid_pin(pin):
-            return render(T_REGISTER, error="비밀번호는 숫자 6자리로 입력하세요.", form=request.form)
+            return render(REGISTER_HTML, error="비밀번호는 숫자 6자리로 입력하세요.", form=request.form)
         if pin != pin_confirm:
-            return render(T_REGISTER, error="비밀번호 확인이 맞지 않습니다.", form=request.form)
+            return render(REGISTER_HTML, error="비밀번호 확인이 맞지 않습니다.", form=request.form)
         if account_exists(d, acc):
-            return render(T_REGISTER, error="이미 등록된 계정명입니다.", form=request.form)
+            return render(REGISTER_HTML, error="이미 등록된 계정명입니다.", form=request.form)
         if char_name_exists(d, name):
-            return render(T_REGISTER, error="이미 등록된 캐릭터명입니다. 사칭 방지를 위해 다른 이름은 사용할 수 없습니다.", form=request.form)
+            return render(REGISTER_HTML, error="이미 등록된 캐릭터명입니다. 사칭 방지를 위해 다른 이름은 사용할 수 없습니다.", form=request.form)
         uid, cid = nid(), nid()
         first = len(d["users"]) == 0
         pw_ok = admin_password_ok(d, admin_pw)
@@ -1430,7 +1479,7 @@ def register():
         save(d)
         session["uid"] = uid
         return redirect("/") if status == "approved" else redirect("/pending")
-    return render(T_REGISTER, error="", form={})
+    return render(REGISTER_HTML, error="", form={})
 @app.route("/pending")
 def pending():
     return render(T_PENDING)

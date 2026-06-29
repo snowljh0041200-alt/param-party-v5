@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v22.3"
+APP_VERSION = "v22.4"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -21,11 +21,11 @@ JOB_GROUPS = {
     "도사 계열": ["도사","도인","명인","진인","진선"],
     "기타": ["기타"],
 }
-CATEGORIES = ["전체","사냥","600퀘","파밍"]
+CATEGORIES = ["전체","사냥","파밍","600퀘"]
 PLACES = {
-    "사냥": ["도삭산 900층", "흉노", "선비", "북방", "기타"],
-    "600퀘": ["600퀘", "기타"],
-    "파밍": ["해골왕", "흑룡", "묵룡", "진룡", "기타"],
+    "사냥": ["도삭산900", "흉노", "선비", "기타"],
+    "파밍": ["어금니", "해골왕", "기타"],
+    "600퀘": ["선비족", "도삭산 800층", "도삭산 900층"],
 }
 
 CSS = """
@@ -276,6 +276,9 @@ select option{background:#081126;color:#f5f8ff}
 .choice-card:has(input:checked){border-color:#19c46f;box-shadow:0 0 0 3px rgba(25,196,111,.14)}
 .farm-dist{font-weight:900}
 .closed .closed-tag,.closed-tag{font-size:13px}
+
+.group-badge{margin-left:6px;padding:3px 7px;border-radius:999px;background:rgba(244,212,122,.16);border:1px solid rgba(244,212,122,.3);color:#ffe5a0;font-size:11px}
+.remain{background:rgba(244,212,122,.12);border:1px solid rgba(244,212,122,.25);border-radius:999px;padding:3px 8px}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr}.farm-summary{grid-template-columns:1fr}}
 @media(max-width:980px){
   .app-shell{grid-template-columns:1fr}
@@ -290,6 +293,9 @@ select option{background:#081126;color:#f5f8ff}
 .choice-card:has(input:checked){border-color:#19c46f;box-shadow:0 0 0 3px rgba(25,196,111,.14)}
 .farm-dist{font-weight:900}
 .closed .closed-tag,.closed-tag{font-size:13px}
+
+.group-badge{margin-left:6px;padding:3px 7px;border-radius:999px;background:rgba(244,212,122,.16);border:1px solid rgba(244,212,122,.3);color:#ffe5a0;font-size:11px}
+.remain{background:rgba(244,212,122,.12);border:1px solid rgba(244,212,122,.25);border-radius:999px;padding:3px 8px}
 @media(max-width:720px){
   .wrap{padding:10px}
   .header{display:block}
@@ -547,14 +553,15 @@ def remaining_text(p):
     dt = post_datetime(p)
     diff = dt - now()
     minutes = int(diff.total_seconds() // 60)
+    prefix = "젠 " if p.get("category") == "파밍" else ""
     if minutes > 0:
         h = minutes // 60
         m = minutes % 60
         if h > 0:
-            return f"{h}시간 {m}분 남음"
-        return f"{m}분 남음"
+            return f"{prefix}{h}시간 {m}분 남음"
+        return f"{prefix}{m}분 남음"
     if minutes > -60:
-        return "젠시간"
+        return "젠시간" if p.get("category") == "파밍" else "진행중"
     return "종료"
 
 def farm_alert_tick(d):
@@ -568,7 +575,7 @@ def farm_alert_tick(d):
         for target in [30, 15, 5]:
             key = str(target)
             if left <= target and left >= target - 1 and key not in sent:
-                msg = f"🔔 {p.get('place','파밍')} 젠 {target}분 전입니다. 채널 {p.get('channel','')}"
+                msg = f"🔔 {p.get('place','파밍')} 젠 {target}분 전입니다. 채널 {p.get('channel','')} · {show_time(p.get('end_time') or p.get('start_time'))}"
                 d.setdefault("global_chat", []).append({"name":"알림","text":msg,"time":now_text()})
                 d["global_chat"] = d["global_chat"][-100:]
                 sent.append(key)
@@ -622,6 +629,34 @@ def farm_money_summary(p):
         "late_count": late_n,
     }
 
+
+def participant_group_label(p, part):
+    key = part.get("char_id") or part.get("uid")
+    if key in p.get("early_ids", []):
+        return "선집합"
+    if key in p.get("late_ids", []):
+        return "후집합"
+    return ""
+
+def farm_alert_status(d):
+    alerts = []
+    for p in d.get("posts", []):
+        if p.get("category") != "파밍" or p.get("closed"):
+            continue
+        left_text = remaining_text(p)
+        dt = post_datetime(p)
+        left = int((dt - now()).total_seconds() // 60)
+        alerts.append({
+            "id": p.get("id"),
+            "place": p.get("place", "파밍"),
+            "channel": p.get("channel", ""),
+            "left": left,
+            "text": left_text
+        })
+    return alerts
+
+
+
 def can_manage_post(u, p):
     if not u or not p:
         return False
@@ -661,12 +696,44 @@ function fmt(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);return v.length>=3?v.
 function addSlot(){let j=(qs('#slotJob')||document.querySelector("select[name='slotJob']"))?.value,b=qs('#slots');if(!j||!b)return;let d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+j+'</b><input type=hidden name=slot_job_'+slotN+' value=\"'+j+'\"><button type=button class=\"danger mini\" onclick=\"this.parentElement.remove()\">삭제</button>';b.appendChild(d);slotN++}
 function mode(){let c=qs('#cat')?.value;document.querySelectorAll('.place').forEach(x=>x.style.display=x.dataset.cat==c?'':'none');let s=qs('#slotsBox');if(s)s.style.display=c=='사냥'?'':'none'}
 document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.onchange=mode;mode()}document.querySelectorAll('input[name=start_time],input[name=end_time]').forEach(i=>i.oninput=()=>i.value=fmt(i.value))});
+
+let __farmVoiceSent = {};
+function speakFarmAlarm(text){
+  try{
+    if(!('speechSynthesis' in window)) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang='ko-KR';
+    u.rate=1;
+    u.volume=1;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+async function checkFarmAlarms(){
+  try{
+    const r = await fetch('/api/farm_alerts');
+    const j = await r.json();
+    (j.alerts||[]).forEach(a=>{
+      [30,15,5].forEach(t=>{
+        if(a.left<=t && a.left>=t-1){
+          const key=a.id+'-'+t;
+          if(!__farmVoiceSent[key]){
+            __farmVoiceSent[key]=true;
+            speakFarmAlarm(a.place+' 젠 '+t+'분 전입니다');
+          }
+        }
+      });
+    });
+  }catch(e){}
+}
+setInterval(checkFarmAlarms, 60000);
+document.addEventListener('DOMContentLoaded', checkFarmAlarms);
+
 </script></body></html>"""
 
 def render(page, **kw):
     kw.setdefault("title", APP_TITLE)
     kw.setdefault("css", CSS)
-    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
+    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, participant_group_label=participant_group_label, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
     return render_template_string(BASE_HEAD + page + BASE_TAIL, **kw)
 
 @app.route("/")
@@ -745,7 +812,7 @@ T_INDEX = """
       {% else %}
         <h3>참여자</h3>
         {% for a in p.participants %}
-          <span class='pill'>{{a.label}}</span>
+          <span class='pill'>{{a.label}}{% set g = participant_group_label(p,a) %}{% if g %}<small class='group-badge'>{{g}}</small>{% endif %}</span>
         {% else %}
           <p class='meta'>아직 참여자 없음</p>
         {% endfor %}
@@ -786,9 +853,9 @@ T_INDEX = """
 
       <div class='actions'>
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
-        {% if can_manage_post(u,p) %}
-          <a class='btn ok' href='/close/{{p.id}}'>모집완료</a>
-          <a class='btn gray' href='/edit/{{p.id}}'>수정</a>
+        {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
+          {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}
+          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>수정</a>{% endif %}
           <a class='btn danger' href='/delete/{{p.id}}'>삭제</a>
         {% endif %}
       </div>
@@ -875,7 +942,7 @@ def logout():
 def new_post():
     d=load(); u=cur_user(d)
     if not approved(u): return redirect("/register")
-    cats = ["사냥","600퀘"] + (["파밍"] if is_admin(u) else [])
+    cats = ["사냥"] + (["파밍"] if is_admin(u) else []) + ["600퀘"]
     return render(T_NEW, cats=cats)
 
 T_NEW = """
@@ -1145,6 +1212,16 @@ def role(uid,role):
                 x["role"]=role
         save(d)
     return redirect("/admin")
+
+
+
+@app.route("/api/farm_alerts")
+def api_farm_alerts():
+    d = load()
+    # 호출 시점에도 채팅 알림 기록 처리
+    if farm_alert_tick(d):
+        save(d)
+    return {"ok": True, "alerts": farm_alert_status(d)}
 
 @app.route("/health")
 def health():

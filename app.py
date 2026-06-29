@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v22.8"
+APP_VERSION = "v22.9"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -331,6 +331,58 @@ input[type='range']{padding:0;height:6px;accent-color:#19c46f}
 .admin-action-title{color:#ffe5a0;margin:8px 0 10px;font-size:14px}
 .danger-zone .toolbar{margin-bottom:12px}
 .admin-console h2{margin-top:24px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)}
+
+
+.btn{
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.11)!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.18);
+}
+.btn:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.18),transparent 42%);
+  pointer-events:none;
+}
+.btn.ok,.btn.primary,button.ok{
+  background:linear-gradient(180deg,#2bea94 0%,#16bd68 52%,#0f9f55 100%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 10px 22px rgba(16,189,104,.22)!important;
+}
+.btn.gray,button.gray{
+  background:linear-gradient(180deg,#65728f 0%,#4b5874 55%,#39445f 100%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.17),0 10px 22px rgba(0,0,0,.22)!important;
+}
+.btn.danger{
+  background:linear-gradient(180deg,#ff6969 0%,#e94343 55%,#c92e2e 100%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 10px 22px rgba(239,68,68,.2)!important;
+}
+.tab-chip{
+  font-size:14px!important;
+  font-weight:900!important;
+}
+.admin-post-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}
+.admin-post-section{
+  background:rgba(8,17,38,.45);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:18px;
+  padding:14px;
+  margin:12px 0;
+}
+.admin-post-section h3{margin:0 0 10px}
+.admin-post-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  background:#081126;
+  border:1px solid #263a64;
+  border-radius:15px;
+  padding:12px;
+  margin:8px 0;
+}
+@media(max-width:720px){.admin-post-row{flex-direction:column;align-items:flex-start}}
 
 @media(max-width:980px){.farm-form{grid-template-columns:1fr 1fr!important}}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr!important}}
@@ -1384,6 +1436,62 @@ def admin():
   </form>
   <div class='notice'>관리자 비밀번호를 아는 사람은 가입 시 바로 관리자 승인됩니다. 현재 기본값을 쓰고 있다면 꼭 변경하세요.</div>
 
+
+  <h2>모집글 관리</h2>
+  <div class='admin-post-tabs'>
+    <a class='btn tab-chip gray mini' href='#admin-farm'>파밍글</a>
+    <a class='btn tab-chip gray mini' href='#admin-hunt'>사냥글</a>
+    <a class='btn tab-chip gray mini' href='#admin-quest'>600퀘</a>
+  </div>
+
+  <div id='admin-farm' class='admin-post-section'>
+    <h3>파밍글</h3>
+    {% for p in posts if p.category == "파밍" %}
+      <div class='admin-post-row'>
+        <div>
+          <b>{{p.place}}</b>
+          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "마감" if p.closed else "모집중" }}</div>
+        </div>
+        <div class='toolbar'>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
+          <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 파밍글을 삭제할까요?')">삭제</a>
+        </div>
+      </div>
+    {% else %}<div class='empty'>파밍글 없음</div>{% endfor %}
+  </div>
+
+  <div id='admin-hunt' class='admin-post-section'>
+    <h3>사냥글</h3>
+    {% for p in posts if p.category == "사냥" %}
+      <div class='admin-post-row'>
+        <div>
+          <b>{{p.place}}</b>
+          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "마감" if p.closed else "모집중" }}</div>
+        </div>
+        <div class='toolbar'>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
+          <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 사냥글을 삭제할까요?')">삭제</a>
+        </div>
+      </div>
+    {% else %}<div class='empty'>사냥글 없음</div>{% endfor %}
+  </div>
+
+  <div id='admin-quest' class='admin-post-section'>
+    <h3>600퀘</h3>
+    {% for p in posts if p.category == "600퀘" %}
+      <div class='admin-post-row'>
+        <div>
+          <b>{{p.place}}</b>
+          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "마감" if p.closed else "모집중" }}</div>
+        </div>
+        <div class='toolbar'>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
+          <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 600퀘 글을 삭제할까요?')">삭제</a>
+        </div>
+      </div>
+    {% else %}<div class='empty'>600퀘 글 없음</div>{% endfor %}
+  </div>
+
   <h2>데이터 관리</h2>
   <div class='danger-zone'>
     <div class='admin-action-title'>종류별 삭제</div>
@@ -1442,6 +1550,16 @@ def admin_clear_chat():
     return redirect("/admin")
 
 
+
+
+
+@app.route("/admin/delete_post/<pid>")
+def admin_delete_post(pid):
+    d=load(); u=cur_user(d)
+    if is_admin(u):
+        d["posts"]=[p for p in d.get("posts", []) if p.get("id") != pid]
+        save(d)
+    return redirect("/admin")
 
 @app.route("/admin/clear_posts/<category>")
 def admin_clear_posts_category(category):

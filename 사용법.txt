@@ -1,15 +1,14 @@
-v22.8 ADMIN DELETE PREMIUM TABS
+v22.9 ADMIN POST LIST + PREMIUM BUTTONS
 
 수정:
-- 관리자 콘솔에 종류별 삭제 추가
-  파밍글 삭제 / 사냥글 삭제 / 600퀘 삭제 / 채팅 삭제
-- 설정 버튼 크기 통일
-- 상단 버튼 고급화
-- 카테고리 탭 고급화
-- 버튼 톤/간격 정리
-- 기존 기능 유지
+- 관리자 콘솔에서 올라온 글 목록 확인 가능
+  파밍글 / 사냥글 / 600퀘
+- 각 글을 개별 수정/삭제 가능
+- 기존 종류별 전체 삭제 유지
+- 버튼 디자인 고급화
+- 탭/관리자 글 목록 UI 정리
 
 배포:
 git add .
-git commit -m "v22.8 admin delete premium tabs"
+git commit -m "v22.9 admin post list premium buttons"
 git push

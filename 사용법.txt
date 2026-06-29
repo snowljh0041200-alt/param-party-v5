@@ -1,14 +1,14 @@
-v25.5 EXTERNAL + LIVE REFRESH
+v25.6 CANCEL + EXTERNAL REMOVE
 
 수정:
-- 사냥 모집글 작성자도 외부인 추가 가능
-- 관리자는 기존처럼 모든 사냥글 외부인 추가 가능
-- 외부인 추가 화면 문구 정리
-- 메인 화면 자동 갱신 추가
-- 입력 중/설정창 열림/탭 비활성 상태에서는 자동 갱신 중지
-- 자동 갱신 시 스크롤 위치 복구
+- 파밍/600퀘/승급지원 참여취소 추가
+- 참여취소 시 파밍 선집합/후집합 체크에서도 제거
+- 사냥 외부인 제거 추가
+- 사냥 내 자리 표시 추가
+- 외부 추가 버튼 명칭 '+ 외부'로 정리
+- 마감된 글은 참여취소/외부제거 불가
 
 배포:
 git add .
-git commit -m "v25.5 external live refresh"
+git commit -m "v25.6 cancel and external remove"
 git push

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v25.5"
+APP_VERSION = "v25.6"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -546,6 +546,10 @@ button:disabled,.btn[disabled]{
   filter:grayscale(.35);
 }
 
+
+.btn[disabled],button[disabled]{opacity:.55;cursor:not-allowed}
+.slot .tag.ok{margin-right:4px}
+
 @media(max-width:980px){.farm-form{grid-template-columns:1fr 1fr!important}}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr!important}}
 .btn{letter-spacing:-.2px}
@@ -917,6 +921,15 @@ def remaining_text(p):
     return "종료"
 
 
+
+def participant_for_user(p, u):
+    if not p or not u:
+        return None
+    for a in p.get("participants", []):
+        if a.get("uid") == u.get("id"):
+            return a
+    return None
+
 def can_join_post(p):
     if not p or p.get("closed"):
         return False
@@ -1258,7 +1271,7 @@ document.addEventListener('DOMContentLoaded',()=>{try{const y=sessionStorage.get
 def render(page, **kw):
     kw.setdefault("title", APP_TITLE)
     kw.setdefault("css", CSS)
-    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, join_block_reason=join_block_reason, can_join_post=can_join_post, participant_group_label=participant_group_label, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
+    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, participant_for_user=participant_for_user, join_block_reason=join_block_reason, can_join_post=can_join_post, participant_group_label=participant_group_label, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
     return render_template_string(BASE_HEAD + page + BASE_TAIL, **kw)
 
 @app.route("/")
@@ -1328,10 +1341,16 @@ T_INDEX = """
           <div class='toolbar'>
             {% if not p.closed %}
               {% if s.uid==u.id %}
+                <span class='tag ok'>내 자리</span>
                 <a class='btn mini gray' href='/leave_slot/{{p.id}}/{{loop.index0}}'>취소</a>
+              {% elif s.external %}
+                <span class='tag'>외부</span>
+                {% if is_admin(u) or p.owner_uid==u.id %}
+                  <a class='btn mini danger' href='/remove_external_slot/{{p.id}}/{{loop.index0}}'>외부제거</a>
+                {% endif %}
               {% elif not s.uid and not s.external %}
                 <a class='btn mini ok' href='/choose_slot/{{p.id}}/{{loop.index0}}'>참여</a>
-                {% if is_admin(u) or p.owner_uid==u.id %}<a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>외부</a>{% endif %}
+                {% if is_admin(u) or p.owner_uid==u.id %}<a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>+ 외부</a>{% endif %}
               {% endif %}
             {% endif %}
           </div>
@@ -1340,11 +1359,18 @@ T_INDEX = """
       {% else %}
         <h3>참여자</h3>
         {% for a in p.participants %}
-          <span class='pill'>{{a.label}}{% set g = participant_group_label(p,a) %}{% if g %}<small class='group-badge'>{{g}}</small>{% endif %}</span>
+          <span class='pill'>{{a.label}}{% if a.uid==u.id %}<small class='group-badge'>내 참여</small>{% endif %}{% set g = participant_group_label(p,a) %}{% if g %}<small class='group-badge'>{{g}}</small>{% endif %}</span>
         {% else %}
           <p class='meta'>아직 참여자 없음</p>
         {% endfor %}
-        {% if can_join_post(p) %}<a class='btn ok full' href='/choose_participant/{{p.id}}'>참여하기</a>{% elif join_block_reason(p) %}<div class='notice'>{{ join_block_reason(p) }}</div><button class='btn gray full' disabled>참여불가</button>{% endif %}
+        {% set my_part = participant_for_user(p,u) %}
+        {% if my_part and not p.closed %}
+          <a class='btn gray full' href='/leave_participant/{{p.id}}'>참여취소</a>
+        {% elif can_join_post(p) %}
+          <a class='btn ok full' href='/choose_participant/{{p.id}}'>참여하기</a>
+        {% elif join_block_reason(p) %}
+          <div class='notice'>{{ join_block_reason(p) }}</div><button class='btn gray full' disabled>참여불가</button>
+        {% endif %}
 
         {% if p.category == "파밍" %}
           <div class='farm-box'>
@@ -1679,6 +1705,24 @@ def leave_slot(pid,i):
     d=load(); u=cur_user(d); p=find_post(d,pid)
     if p and 0<=i<len(p["slots"]) and (p["slots"][i].get("uid")==u["id"] or is_admin(u)):
         p["slots"][i].update({"uid":"","label":"","external":""}); save(d)
+    return redirect("/")
+
+
+
+@app.route("/remove_external_slot/<pid>/<int:i>")
+def remove_external_slot(pid, i):
+    d = load()
+    u = cur_user(d)
+    p = find_post(d, pid)
+    if not p or p.get("closed"):
+        return redirect("/")
+    if not (is_admin(u) or p.get("owner_uid") == (u or {}).get("id")):
+        return redirect("/")
+    if 0 <= i < len(p.get("slots", [])):
+        s = p["slots"][i]
+        if s.get("external"):
+            s.update({"external": "", "uid": "", "label": "", "char_id": ""})
+            save(d)
     return redirect("/")
 
 @app.route("/external_slot/<pid>/<int:i>", methods=["GET","POST"])
@@ -2059,3 +2103,23 @@ def health():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT","7777"))
     app.run(host="0.0.0.0", port=port)
+
+@app.route("/leave_participant/<pid>")
+def leave_participant(pid):
+    d = load()
+    u = cur_user(d)
+    p = find_post(d, pid)
+    if not approved(u) or not p or p.get("closed"):
+        return redirect("/")
+    p["participants"] = [a for a in p.get("participants", []) if a.get("uid") != u.get("id")]
+    # 파밍 정산 체크에서도 제거
+    ids_to_remove = []
+    for c in u.get("chars", []):
+        ids_to_remove.append(c.get("id"))
+    ids_to_remove.append(u.get("id"))
+    p["early_ids"] = [x for x in p.get("early_ids", []) if x not in ids_to_remove]
+    p["late_ids"] = [x for x in p.get("late_ids", []) if x not in ids_to_remove]
+    save(d)
+    return redirect("/")
+
+

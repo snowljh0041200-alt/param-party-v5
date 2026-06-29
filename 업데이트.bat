@@ -2,6 +2,6 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 git add .
-git commit -m "v22.5 alarm settings premium ui"
+git commit -m "v22.7 admin console"
 git push
 pause

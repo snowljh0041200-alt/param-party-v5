@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v22.5"
+APP_VERSION = "v22.7"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -294,6 +294,34 @@ input[type='range']{padding:0;height:6px;accent-color:#19c46f}
 .actions .btn{min-width:72px}
 .farm-box{background:linear-gradient(180deg,rgba(8,17,38,.82),rgba(8,17,38,.58))}
 
+
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.58);backdrop-filter:blur(5px);z-index:1000;align-items:center;justify-content:center;padding:18px}
+.modal-backdrop.show{display:flex}
+.settings-modal{width:min(520px,100%);background:linear-gradient(180deg,#101b34,#081126);border:1px solid #38548d;border-radius:22px;padding:18px;box-shadow:0 30px 80px rgba(0,0,0,.55)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.modal-head h2{margin:0}
+.setting-card{display:flex;justify-content:space-between;align-items:center;gap:14px;background:rgba(8,17,38,.88);border:1px solid #263a64;border-radius:16px;padding:14px;margin:10px 0}
+.setting-card.vertical{display:block}
+.toggle input{display:none}
+.toggle span{display:block;width:54px;height:30px;border-radius:999px;background:#45506c;position:relative;box-shadow:inset 0 2px 6px rgba(0,0,0,.35)}
+.toggle span:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.15s}
+.toggle input:checked+span{background:#19c46f}
+.toggle input:checked+span:before{left:27px}
+.farm-form{grid-template-columns:110px minmax(130px,1fr) minmax(130px,1fr) 95px 95px 76px!important}
+
+.admin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.admin-card{background:#081126;border:1px solid #263a64;border-radius:15px;padding:13px}
+.admin-card span{color:#9fb0d1;font-size:13px}
+.admin-card strong{display:block;font-size:24px;margin-top:5px}
+.admin-form{display:grid;grid-template-columns:1fr 100px;gap:8px}
+.danger-zone{padding:12px;border:1px solid rgba(239,68,68,.35);border-radius:15px;background:rgba(239,68,68,.08)}
+@media(max-width:720px){.admin-grid{grid-template-columns:1fr 1fr}.admin-form{grid-template-columns:1fr}}
+
+@media(max-width:980px){.farm-form{grid-template-columns:1fr 1fr!important}}
+@media(max-width:720px){.farm-form{grid-template-columns:1fr!important}}
+.btn{letter-spacing:-.2px}
+.panel,.card{backdrop-filter:saturate(1.1)}
+
 @media(max-width:980px){
   .app-shell{grid-template-columns:1fr}
   .side-stack{position:static}
@@ -399,13 +427,14 @@ def show_time(value):
     return f"{p} {t}" if t else "시간 미정"
 
 def empty_data():
-    return {"users": [], "posts": [], "global_chat": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"]}}
+    return {"users": [], "posts": [], "global_chat": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234")}}
 
 def normalize(d):
     d.setdefault("users", [])
     d.setdefault("posts", [])
     d.setdefault("global_chat", [])
     d.setdefault("settings", {}).setdefault("farm_items", ["해뼈","흑룡","묵룡","진룡"])
+    d.setdefault("settings", {}).setdefault("admin_password", os.environ.get("ADMIN_PASSWORD", "1234"))
     for u in d["users"]:
         u.setdefault("id", nid())
         u.setdefault("account", "")
@@ -678,6 +707,11 @@ def can_manage_post(u, p):
         return is_admin(u)
     return p.get("owner_uid") == u.get("id") or is_admin(u)
 
+
+def admin_password_ok(d, value):
+    pw = str(d.get("settings", {}).get("admin_password", "1234"))
+    return bool(value and str(value).strip() == pw)
+
 def has_any_admin(d):
     return any(x.get("status") == "approved" and x.get("role") in ["관리자","부문파장","문파장","최고관리자"] for x in d.get("users", []))
 
@@ -713,6 +747,19 @@ document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.oncha
 
 
 let __farmVoiceSent = {};
+
+function openSettingsModal(){
+  const m=document.getElementById('settingsModal');
+  if(m){loadAlarmSettings();m.classList.add('show');}
+}
+function hideSettingsModal(){
+  const m=document.getElementById('settingsModal');
+  if(m)m.classList.remove('show');
+}
+function closeSettingsModal(e){
+  if(e && e.target && e.target.id==='settingsModal') hideSettingsModal();
+}
+
 function getAlarmSettings(){
   return {
     voice: localStorage.getItem('farmVoiceEnabled') !== '0',
@@ -814,6 +861,7 @@ T_INDEX = """
   <div class='toolbar'>
     <a class='btn ok' href='/new'>＋ 모집글 작성</a>
     <a class='btn gray' href='/chars'>내 캐릭터</a>
+    <button type='button' class='btn gray' onclick='openSettingsModal()'>⚙ 설정</button>
     {% if is_admin(u) %}<a class='btn gray' href='/admin'>관리자</a>{% endif %}
     <a class='btn gray' href='/logout'>로그아웃</a>
   </div>
@@ -896,6 +944,8 @@ T_INDEX = """
                 </select>
                 <input name='farm_item' value='{{p.farm_item}}' placeholder='아이템명'>
                 <input name='sale_amount' value='{{p.sale_amount}}' placeholder='판매금액'>
+                <input name='early_weight' value='{{p.early_weight or "1.0"}}' placeholder='선집합 기준'>
+                <input name='late_weight' value='{{p.late_weight or "0.88"}}' placeholder='후집합 기준'>
                 <button class='ok'>저장</button>
               </form>
               <div class='toolbar farm-tools'>
@@ -937,22 +987,6 @@ T_INDEX = """
         <span class='pill online-pill'>{{ char_label(c) }}</span>
       {% endif %}
     </section>
-
-
-    <section class='panel alarm-panel'>
-      <div class='online-head'>
-        <h2>🔔 알림 설정</h2>
-        <span class='meta'>30 · 15 · 5분</span>
-      </div>
-      <div class='alarm-row'>
-        <label class='switch-line'><input type='checkbox' id='alarmVoiceToggle' checked> 음성 알림</label>
-        <button type='button' class='btn gray mini' onclick='testFarmVoice()'>테스트</button>
-      </div>
-      <label class='volume-label'>음량 <span id='alarmVolumeText'>100%</span></label>
-      <input type='range' id='alarmVolume' min='0' max='100' value='100'>
-      <div class='meta'>같은 알림은 최대 2번만 알려줍니다.</div>
-    </section>
-
     <section class='panel'>
       <h2>📅 오늘 일정</h2>
       {% for p in sched %}
@@ -981,6 +1015,32 @@ T_INDEX = """
     </section>
   </aside>
 </div>
+
+<div id='settingsModal' class='modal-backdrop' onclick='closeSettingsModal(event)'>
+  <div class='settings-modal'>
+    <div class='modal-head'>
+      <h2>⚙ 설정</h2>
+      <button type='button' class='btn gray mini' onclick='hideSettingsModal()'>닫기</button>
+    </div>
+    <div class='setting-card'>
+      <div>
+        <b>음성 알림</b>
+        <div class='meta'>파밍 젠 30 · 15 · 5분 전 알림</div>
+      </div>
+      <label class='toggle'>
+        <input type='checkbox' id='alarmVoiceToggle' checked>
+        <span></span>
+      </label>
+    </div>
+    <div class='setting-card vertical'>
+      <label class='volume-label'>음량 <span id='alarmVolumeText'>100%</span></label>
+      <input type='range' id='alarmVolume' min='0' max='100' value='100'>
+      <button type='button' class='btn gray full' onclick='testFarmVoice()'>음성 테스트</button>
+      <div class='meta'>같은 알림은 최대 2번만 알려줍니다.</div>
+    </div>
+  </div>
+</div>
+
 """
 
 @app.route("/register", methods=["GET","POST"])
@@ -990,18 +1050,22 @@ def register():
         acc = request.form.get("account","").strip()
         name = request.form.get("char_name","").strip()
         job = request.form.get("job","검성")
+        admin_pw = request.form.get("admin_password","").strip()
         if not acc or not name:
             return render(T_REGISTER, error="계정명과 캐릭터명을 입력하세요.", form=request.form)
         uid, cid = nid(), nid()
         first = len(d["users"]) == 0
-        d["users"].append({"id":uid,"account":acc,"status":"approved" if first else "pending","role":"최고관리자" if first else "일반","selected_char_id":cid,"chars":[{"id":cid,"name":name,"job":job,"status":"approved" if first else "pending"}]})
+        pw_ok = admin_password_ok(d, admin_pw)
+        status = "approved" if (first or pw_ok) else "pending"
+        role = "최고관리자" if first else ("관리자" if pw_ok else "일반")
+        d["users"].append({"id":uid,"account":acc,"status":status,"role":role,"selected_char_id":cid,"chars":[{"id":cid,"name":name,"job":job,"status":status}]})
         save(d)
         session["uid"] = uid
         return redirect("/")
     return render(T_REGISTER, error="", form={})
 
 T_REGISTER = """
-<section class='panel'><h1>👤 문파원 등록</h1><form method='post'><label>계정명</label><input name='account' value='{{form.get("account","")}}'><label>대표 캐릭터명</label><input name='char_name' value='{{form.get("char_name","")}}'><label>직업</label>{{ job_select('job')|safe }}<button class='ok full'>승인 요청</button></form>{% if error %}<div class='notice'>{{error}}</div>{% endif %}</section>
+<section class='panel'><h1>👤 문파원 등록</h1><form method='post'><label>계정명</label><input name='account' value='{{form.get("account","")}}'><label>대표 캐릭터명</label><input name='char_name' value='{{form.get("char_name","")}}'><label>직업</label>{{ job_select('job')|safe }}<label>관리자 비밀번호 <span class='meta'>(관리자만 입력)</span></label><input name='admin_password' type='password' placeholder='일반 문파원은 비워두세요'><button class='ok full'>승인 요청</button></form>{% if error %}<div class='notice'>{{error}}</div>{% endif %}</section>
 """
 
 @app.route("/logout")
@@ -1209,6 +1273,8 @@ def farm_result(pid):
     p["farm_result"] = request.form.get("farm_result", "").strip()
     p["farm_item"] = request.form.get("farm_item", "").strip()
     p["sale_amount"] = digits(request.form.get("sale_amount", ""), 20)
+    p["early_weight"] = request.form.get("early_weight", p.get("early_weight","1.0")).strip() or "1.0"
+    p["late_weight"] = request.form.get("late_weight", p.get("late_weight","0.88")).strip() or "0.88"
     p.setdefault("early_ids", [])
     p.setdefault("late_ids", [])
     p.setdefault("early_weight", "1.0")
@@ -1257,7 +1323,117 @@ def admin():
         save(d)
     if not is_admin(u): return redirect("/")
     pending=[x for x in d["users"] if x["status"]=="pending"]
-    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>관리자</h1><h2>가입 승인</h2>{% for x in pending %}<div class='slot'><b>{{x.account}}</b><a class='btn mini ok' href='/admin/approve/{{x.id}}'>승인</a></div>{% else %}<p class='meta'>대기 없음</p>{% endfor %}<h2>권한</h2>{% for x in users %}<div class='slot'><div><b>{{x.account}}</b><br>{{x.status}} / {{x.role}}</div><div class='toolbar'><a class='btn mini gray' href='/admin/role/{{x.id}}/일반'>일반</a><a class='btn mini gray' href='/admin/role/{{x.id}}/관리자'>관리자</a><a class='btn mini gray' href='/admin/role/{{x.id}}/최고관리자'>최고</a></div></div>{% endfor %}</section>", users=d["users"], pending=pending)
+    pending_chars=[]
+    for x in d["users"]:
+        for ch in x.get("chars", []):
+            if ch.get("status") == "pending":
+                pending_chars.append({"user": x, "char": ch})
+    return render("""
+<section class='panel admin-console'>
+  <a class='btn gray' href='/'>← 메인</a>
+  <h1>관리자 콘솔</h1>
+  <div class='admin-grid'>
+    <div class='admin-card'><span>가입대기</span><strong>{{pending|length}}</strong></div>
+    <div class='admin-card'><span>캐릭터대기</span><strong>{{pending_chars|length}}</strong></div>
+    <div class='admin-card'><span>모집글</span><strong>{{posts|length}}</strong></div>
+    <div class='admin-card'><span>채팅</span><strong>{{chat_count}}</strong></div>
+  </div>
+
+  <h2>가입 승인</h2>
+  {% for x in pending %}
+    <div class='slot'><div><b>{{x.account}}</b><br><span class='meta'>{{x.chars[0].name if x.chars else ""}} / {{x.chars[0].job if x.chars else ""}}</span></div><a class='btn mini ok' href='/admin/approve/{{x.id}}'>승인</a></div>
+  {% else %}<div class='empty'>가입 승인 대기 없음</div>{% endfor %}
+
+  <h2>캐릭터 승인</h2>
+  {% for item in pending_chars %}
+    <div class='slot'><div><b>{{item.char.name}}({{item.char.job}})</b><br><span class='meta'>{{item.user.account}}</span></div><a class='btn mini ok' href='/admin/approve_char/{{item.user.id}}/{{item.char.id}}'>승인</a></div>
+  {% else %}<div class='empty'>캐릭터 승인 대기 없음</div>{% endfor %}
+
+  <h2>권한 관리</h2>
+  {% for x in users %}
+    <div class='slot'>
+      <div><b>{{x.account}}</b><br><span class='meta'>{{x.status}} / {{x.role}}</span>{% for ch in x.chars %}<br><span class='meta'>- {{ch.name}}({{ch.job}}) · {{ch.status}}</span>{% endfor %}</div>
+      <div class='toolbar'>
+        <a class='btn mini gray' href='/admin/role/{{x.id}}/일반'>일반</a>
+        <a class='btn mini gray' href='/admin/role/{{x.id}}/관리자'>관리자</a>
+        <a class='btn mini gray' href='/admin/role/{{x.id}}/최고관리자'>최고</a>
+        {% if x.id != me.id %}<a class='btn mini danger' href='/admin/delete_user/{{x.id}}' onclick="return confirm('유저를 삭제할까요?')">삭제</a>{% endif %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <h2>관리자 비밀번호</h2>
+  <form class='admin-form' method='post' action='/admin/password'>
+    <input name='admin_password' type='password' placeholder='새 관리자 비밀번호'>
+    <button class='ok'>변경</button>
+  </form>
+  <div class='notice'>관리자 비밀번호를 아는 사람은 가입 시 바로 관리자 승인됩니다. 현재 기본값을 쓰고 있다면 꼭 변경하세요.</div>
+
+  <h2>데이터 관리</h2>
+  <div class='toolbar danger-zone'>
+    <a class='btn danger' href='/admin/clear_chat' onclick="return confirm('통합채팅과 글 채팅을 전부 삭제할까요?')">채팅 전체 삭제</a>
+    <a class='btn danger' href='/admin/clear_posts' onclick="return confirm('모집글을 전부 삭제할까요?')">모집글 전체 삭제</a>
+  </div>
+</section>
+""", users=d["users"], pending=pending, pending_chars=pending_chars, posts=d["posts"], chat_count=len(d.get("global_chat", [])), me=u)
+
+
+@app.route("/admin/approve_char/<uid>/<cid>")
+def approve_char(uid, cid):
+    d=load(); u=cur_user(d)
+    if is_admin(u):
+        for x in d["users"]:
+            if x["id"]==uid:
+                x["status"]="approved"
+                for ch in x.get("chars", []):
+                    if ch.get("id")==cid:
+                        ch["status"]="approved"
+                if not x.get("selected_char_id") and x.get("chars"):
+                    x["selected_char_id"]=x["chars"][0]["id"]
+        save(d)
+    return redirect("/admin")
+
+@app.route("/admin/delete_user/<uid>")
+def admin_delete_user(uid):
+    d=load(); u=cur_user(d)
+    if is_admin(u) and uid != u.get("id"):
+        d["users"]=[x for x in d["users"] if x.get("id") != uid]
+        # 모집글/참여자에서 삭제 유저 정리
+        for p in d.get("posts", []):
+            p["participants"]=[a for a in p.get("participants", []) if a.get("uid") != uid]
+            for s in p.get("slots", []):
+                if s.get("uid") == uid:
+                    s.update({"uid":"","label":"","char_id":""})
+        save(d)
+    return redirect("/admin")
+
+@app.route("/admin/clear_chat")
+def admin_clear_chat():
+    d=load(); u=cur_user(d)
+    if is_admin(u):
+        d["global_chat"]=[]
+        for p in d.get("posts", []):
+            p["chat"]=[]
+        save(d)
+    return redirect("/admin")
+
+@app.route("/admin/clear_posts")
+def admin_clear_posts():
+    d=load(); u=cur_user(d)
+    if is_admin(u):
+        d["posts"]=[]
+        save(d)
+    return redirect("/admin")
+
+@app.route("/admin/password", methods=["POST"])
+def admin_password():
+    d=load(); u=cur_user(d)
+    if is_admin(u):
+        pw=request.form.get("admin_password","").strip()
+        if pw:
+            d.setdefault("settings", {})["admin_password"]=pw
+            save(d)
+    return redirect("/admin")
 
 @app.route("/admin/approve/<uid>")
 def approve(uid):

@@ -1,16 +1,15 @@
-v31.0 FOUR GRID REALTIME PANEL
+v31.1 LAYOUT RECOVERY FIXED
 
 수정:
-- 왼쪽 모집글 영역을 2열 x 2행 느낌의 4분할 그리드로 표시
-- 모집글이 많아지면 왼쪽 모집글 영역만 스크롤
-- 오른쪽 실시간 패널은 접속중/오늘일정/통합채팅을 계속 표시
-- 오른쪽 실시간 패널 sticky 고정
-- 통합채팅은 오른쪽에서 계속 보이게 표시
-- 기존 알림/링크/참여 기능 유지
+- v31.0의 위험한 DOM 이동 방식 제거
+- 원래처럼 오른쪽 실시간 패널은 오른쪽에 유지
+- 모집글 목록만 2열 그리드로 표시
+- 오른쪽 접속중/오늘일정/통합채팅이 아래로 밀리는 문제 복구
+- 승급지원 정산 숨김/기존 알림/링크 기능 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v31.0 four grid realtime panel"
+git commit -m "v31.1 layout recovery fixed"
 git push

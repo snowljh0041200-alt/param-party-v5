@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v36.2-final"
+APP_VERSION = "v36.4-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2317,6 +2317,34 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
   display:none!important;
 }
 
+
+/* v36.3 schedule + farm alert clarity */
+.schedule-item-v363{
+  display:block!important;
+  padding:12px 14px!important;
+  border-radius:14px!important;
+}
+.schedule-title-v363{
+  font-weight:900!important;
+  font-size:16px!important;
+  margin-bottom:5px!important;
+}
+.schedule-meta-v363{
+  font-size:12px!important;
+  opacity:.82!important;
+  margin-bottom:6px!important;
+}
+.schedule-left-v363{
+  display:inline-block!important;
+  padding:4px 9px!important;
+  border-radius:999px!important;
+  background:rgba(255,215,90,.15)!important;
+  border:1px solid rgba(255,215,90,.35)!important;
+  color:#ffe07a!important;
+  font-weight:900!important;
+  font-size:13px!important;
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -3301,13 +3329,9 @@ async function testToastFromSettings(){
 /* v28.8 farm alert toast + chrome notify */
 (function(){
   function farmKey(a){
-    return String(
-      (a.id || '') + '|' +
-      (a.post_id || '') + '|' +
-      (a.title || a.name || '') + '|' +
-      (a.minutes || a.left || a.remain || '') + '|' +
-      (a.text || a.message || '')
-    );
+    var id = a.id || a.pid || a.place || a.title || 'farm';
+    var mins = parseInt(a.minutes || a.before || a.left || a.remain || '', 10);
+    return String(id) + ':' + String(mins);
   }
 
   function farmMsg(a){
@@ -3338,6 +3362,9 @@ async function testToastFromSettings(){
         if(rawMsg.indexOf('종료') !== -1 || rawMsg.indexOf('끝') !== -1 || rawMsg.toLowerCase().indexOf('ended') !== -1) return;
         var mins = parseInt(a.minutes || a.left || a.remain || a.before || '', 10);
         if(!isNaN(mins) && mins < 0) return;
+        /* v36_3_only_30_15_5_once */
+        var onlyMin = parseInt(a.minutes || a.before || a.left || a.remain || '', 10);
+        if([30,15,5].indexOf(onlyMin) === -1) return;
         var k = farmKey(a);
         if(!k || seen[k]) return;
         seen[k] = Date.now();
@@ -3488,10 +3515,10 @@ T_INDEX = """
     <section class='panel schedule-panel'>
       <h2>🗓️ 오늘 일정</h2>
       {% for s in sched %}
-        <div class='schedule-item'>
-          <b>{{s.place}}</b>
-          <span>{{s.date}} · {{show_time(s.start_time)}} 젠</span>
-          <em>{{ remaining_text(s) }}</em>
+        <div class='schedule-item schedule-item-v363'>
+          <div class='schedule-title-v363'>{{s.place}}</div>
+          <div class='schedule-meta-v363'>📅 {{s.date}} · ⏰ {{show_time(s.start_time)}} 젠</div>
+          <div class='schedule-left-v363'>{{ remaining_text(s) }}</div>
         </div>
       {% else %}
         <div class='empty small'>등록된 파밍 일정 없음</div>
@@ -3568,7 +3595,7 @@ T_INDEX = """
                 {% elif not p.closed %}
                   <a class='btn mini ok' href='/join_slot/{{p.id}}/{{loop.index0}}'>참여</a>
                   {% if is_admin(u) or p.owner_uid==u.id %}
-                    <a class='btn mini gray' href='/add_external/{{p.id}}/{{loop.index0}}'>+ 외부</a>
+                    <a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}?next=/'>+ 외부</a>
                   {% endif %}
                 {% endif %}
               {% endif %}
@@ -4051,6 +4078,15 @@ def manage_choose_slot(pid, i):
   {% endif %}
 </div>
 """, p=p, slot=slot, choices=choices)
+
+
+@app.route("/add_external/<pid>/<int:i>", methods=["GET", "POST"])
+def add_external_alias(pid, i):
+    return external_slot(pid, i)
+
+@app.route("/add_external_slot/<pid>/<int:i>", methods=["GET", "POST"])
+def add_external_slot_alias(pid, i):
+    return external_slot(pid, i)
 
 @app.route("/external_slot/<pid>/<int:i>", methods=["GET","POST"])
 def external_slot(pid, i):
@@ -4630,10 +4666,31 @@ def role(uid,role):
 @app.route("/api/farm_alerts")
 def api_farm_alerts():
     d = load()
-    # 호출 시점에도 채팅 알림 기록 처리
-    if farm_alert_tick(d):
-        save(d)
-    return {"ok": True, "alerts": farm_alert_status(d)}
+    now_dt = now()
+    alerts = []
+    for s in d.get("schedule", []):
+        try:
+            date_s = s.get("date") or ""
+            time_s = s.get("start_time") or ""
+            if not date_s or not time_s:
+                continue
+            target = datetime.strptime(date_s + " " + time_s, "%Y-%m-%d %H:%M").replace(tzinfo=KST)
+            left_min = int((target - now_dt).total_seconds() // 60)
+            # v36.3: 크롬/토스트 파밍 알림은 30/15/5분 전만 보냄. 매분 반복 금지.
+            if left_min not in (30, 15, 5):
+                continue
+            alerts.append({
+                "id": str(s.get("id") or ""),
+                "place": s.get("place") or "파밍",
+                "minutes": left_min,
+                "text": f"{s.get('place') or '파밍'} 젠 {left_min}분 전",
+                "message": f"{s.get('place') or '파밍'} 젠 {left_min}분 전",
+                "time": time_s,
+                "date": date_s,
+            })
+        except Exception:
+            continue
+    return jsonify(alerts=alerts)
 
 @app.route("/health")
 def health():

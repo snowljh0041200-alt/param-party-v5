@@ -1,14 +1,14 @@
-v36.2 NOTICE AND ALERT FIX
+v36.4 EXTERNAL BUTTON FIX
 
 수정:
-- 공지사항 더보기 버튼 제거
-- 공지사항을 카드 안에 전체 표시
-- 공지사항 밑 빈공간 축소
-- 파밍 크롬 알림에서 종료/끝난 일정 제외
-- 파밍 정산칸 수정 유지
+- 외부 버튼 클릭 시 Not Found 뜨는 문제 수정
+- /add_external/<pid>/<idx> 라우트 추가
+- 기존 /external_slot/<pid>/<idx> 라우트와 연결
+- 템플릿 외부 버튼 링크도 /external_slot 로 정리
+- 기존 알림/공지/파밍정산 수정 유지
 - 컴파일 통과
 
 배포:
 git add .
-git commit -m "v36.2 notice and alert fix"
+git commit -m "v36.4 external button fix"
 git push

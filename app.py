@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v39.0-design-project"
+APP_VERSION = "v39.1-fantasy"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -3021,6 +3021,336 @@ textarea:focus{
   }
   .post-title-v39{
     font-size:21px!important;
+  }
+}
+
+
+/* =========================================================
+   v39.1 FANTASY LUXURY THEME - CSS ONLY
+   기능/라우트/DB/API 변경 없음
+   ========================================================= */
+
+/* 배경 오라 강화 */
+html,body{
+  background:
+    radial-gradient(circle at 12% -8%, rgba(79,124,255,.28), transparent 34%),
+    radial-gradient(circle at 88% 2%, rgba(39,239,150,.18), transparent 28%),
+    radial-gradient(circle at 50% 108%, rgba(255,214,95,.13), transparent 42%),
+    linear-gradient(180deg, #020611 0%, #061427 45%, #020713 100%)!important;
+}
+
+/* 전체에 은은한 게임 UI 질감 */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:-1;
+  background:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px);
+  background-size:32px 32px;
+  mask-image:linear-gradient(to bottom, rgba(0,0,0,.75), rgba(0,0,0,.18));
+}
+
+/* 헤더 화려하게 */
+.header{
+  border:1px solid rgba(255,220,125,.34)!important;
+  background:
+    radial-gradient(circle at 22% 0%, rgba(255,220,125,.18), transparent 30%),
+    radial-gradient(circle at 88% 16%, rgba(60,245,160,.2), transparent 32%),
+    linear-gradient(135deg, rgba(19,40,86,.96), rgba(6,17,38,.96))!important;
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.48),
+    0 0 42px rgba(58,122,255,.14),
+    inset 0 1px 0 rgba(255,255,255,.1)!important;
+}
+
+.header::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  pointer-events:none;
+  background:linear-gradient(110deg, transparent 0%, rgba(255,255,255,.18) 18%, transparent 35%, transparent 65%, rgba(255,220,125,.12) 82%, transparent 100%);
+  transform:translateX(-30%);
+  animation:v391-header-shine 6s ease-in-out infinite;
+}
+
+@keyframes v391-header-shine{
+  0%,100%{transform:translateX(-45%);opacity:.35}
+  50%{transform:translateX(25%);opacity:.75}
+}
+
+.header h1{
+  background:linear-gradient(180deg, #ffffff, #dce8ff 55%, #ffe599)!important;
+  -webkit-background-clip:text!important;
+  background-clip:text!important;
+  color:transparent!important;
+  text-shadow:none!important;
+}
+
+.brand-mark-v39{
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255,255,255,.35), transparent 28%),
+    linear-gradient(180deg, rgba(255,225,118,.46), rgba(111,75,24,.34))!important;
+  border-color:rgba(255,225,118,.55)!important;
+  box-shadow:
+    0 0 22px rgba(255,218,95,.28),
+    inset 0 1px 0 rgba(255,255,255,.22)!important;
+}
+
+/* 패널 금빛 테두리 느낌 */
+.panel,
+.card,
+.post-card-v36,
+.clan-notice-card,
+.schedule-panel,
+.chat-panel,
+.farm-box{
+  position:relative!important;
+  border-color:rgba(140,175,255,.28)!important;
+  box-shadow:
+    0 22px 55px rgba(0,0,0,.42),
+    0 0 0 1px rgba(255,225,125,.055),
+    inset 0 1px 0 rgba(255,255,255,.08)!important;
+}
+
+.panel::before,
+.card::before,
+.post-card-v36::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.13), transparent 24%, transparent 72%, rgba(255,220,125,.10));
+  opacity:.55;
+}
+
+/* 모집글 카드 더 화려하게 */
+.post-card-v36,
+.card{
+  background:
+    radial-gradient(circle at 12% 0%, rgba(83,130,255,.14), transparent 34%),
+    linear-gradient(180deg, rgba(19,36,72,.94), rgba(7,17,38,.96))!important;
+}
+
+.post-card-v36:hover,
+.card:hover{
+  transform:translateY(-4px) scale(1.006)!important;
+  border-color:rgba(255,224,132,.42)!important;
+  box-shadow:
+    0 28px 70px rgba(0,0,0,.52),
+    0 0 34px rgba(99,143,255,.18),
+    0 0 22px rgba(255,220,125,.08),
+    inset 0 1px 0 rgba(255,255,255,.10)!important;
+}
+
+/* 카드 제목 강조 */
+.post-title-v39{
+  color:#fff!important;
+  text-shadow:0 0 18px rgba(130,170,255,.25)!important;
+}
+
+.place-icon-v39{
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255,255,255,.22), transparent 35%),
+    linear-gradient(180deg, rgba(118,158,255,.25), rgba(31,50,100,.36))!important;
+  border-color:rgba(146,183,255,.38)!important;
+  box-shadow:0 0 18px rgba(118,158,255,.16)!important;
+}
+
+/* 모집중 태그 더 눈에 띄게 */
+.tag.ok,
+.ok.tag,
+.post-card-v36 .tag.ok{
+  background:
+    linear-gradient(180deg, #58ffad 0%, #20d982 48%, #0d9f5e 100%)!important;
+  border-color:rgba(110,255,190,.62)!important;
+  box-shadow:
+    0 0 22px rgba(35,217,130,.36),
+    inset 0 1px 0 rgba(255,255,255,.28)!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.22)!important;
+}
+
+/* 인원 배지 */
+.count{
+  background:
+    radial-gradient(circle at 35% 10%, rgba(255,255,255,.24), transparent 36%),
+    linear-gradient(180deg, rgba(82,115,205,.95), rgba(31,55,118,.95))!important;
+  border-color:rgba(160,195,255,.48)!important;
+  box-shadow:0 0 18px rgba(120,160,255,.16), inset 0 1px 0 rgba(255,255,255,.18)!important;
+}
+
+/* 버튼 화려하게 */
+.btn.primary,
+.recruit-write-btn,
+.btn.ok,
+button.ok,
+.ok{
+  background:
+    radial-gradient(circle at 35% 20%, rgba(255,255,255,.28), transparent 32%),
+    linear-gradient(180deg, #5bffb3 0%, #22dc86 45%, #0ba35f 100%)!important;
+  border-color:rgba(116,255,195,.65)!important;
+  box-shadow:
+    0 15px 34px rgba(25,210,125,.32),
+    0 0 24px rgba(25,210,125,.18),
+    inset 0 1px 0 rgba(255,255,255,.24)!important;
+}
+
+.btn.gray,
+.gray{
+  background:
+    radial-gradient(circle at 35% 20%, rgba(255,255,255,.14), transparent 34%),
+    linear-gradient(180deg, rgba(117,137,185,.96), rgba(56,73,114,.96))!important;
+  border-color:rgba(200,215,255,.28)!important;
+}
+
+.btn.danger,
+.danger{
+  background:
+    radial-gradient(circle at 35% 20%, rgba(255,255,255,.2), transparent 34%),
+    linear-gradient(180deg, #ff7a83, #e03e51 55%, #b82334)!important;
+  border-color:rgba(255,150,165,.55)!important;
+}
+
+.btn:hover,
+button:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:
+    0 18px 38px rgba(0,0,0,.34),
+    0 0 26px rgba(135,170,255,.14),
+    inset 0 1px 0 rgba(255,255,255,.18)!important;
+}
+
+/* 슬롯 직업 아이콘/박스 강화 */
+.slot,
+.post-card-v36 .slot{
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255,220,125,.09), transparent 34%),
+    linear-gradient(180deg, rgba(7,18,42,.86), rgba(3,10,26,.88))!important;
+  border-color:rgba(145,180,255,.30)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)!important;
+}
+
+.job-icon-v39{
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255,255,255,.22), transparent 36%),
+    linear-gradient(180deg, rgba(255,222,116,.24), rgba(90,62,22,.24))!important;
+  border-color:rgba(255,222,116,.36)!important;
+}
+
+/* 참여자 pill */
+.pill{
+  background:
+    linear-gradient(180deg, rgba(32,52,97,.75), rgba(17,32,65,.75))!important;
+  border-color:rgba(145,180,255,.25)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06)!important;
+}
+
+/* 공지 더 고급스럽게 */
+.clan-notice-card,
+.v36-notice-card{
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255,220,125,.13), transparent 35%),
+    linear-gradient(180deg, rgba(34,36,57,.95), rgba(8,18,39,.95))!important;
+  border-color:rgba(255,220,125,.36)!important;
+}
+
+.clan-notice-head h2{
+  text-shadow:0 0 16px rgba(255,220,125,.20)!important;
+}
+
+.clan-notice-preview,
+.v36-notice-full{
+  border-color:rgba(255,220,125,.18)!important;
+  background:
+    linear-gradient(180deg, rgba(6,15,34,.72), rgba(3,9,23,.72))!important;
+}
+
+/* 채팅 말풍선 강화 */
+.chatbox{
+  background:
+    radial-gradient(circle at 50% 0%, rgba(80,120,220,.08), transparent 40%),
+    rgba(3,10,25,.55)!important;
+}
+
+.chatmsg{
+  background:
+    linear-gradient(180deg, rgba(22,42,80,.92), rgba(8,19,42,.92))!important;
+  border-color:rgba(145,180,255,.28)!important;
+  box-shadow:0 8px 18px rgba(0,0,0,.20)!important;
+}
+
+.chatmsg b{
+  color:#ffe995!important;
+  text-shadow:0 0 12px rgba(255,220,125,.16)!important;
+}
+
+/* 보스 알림 */
+.schedule-item,
+.schedule-item-v363{
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255,220,125,.08), transparent 35%),
+    linear-gradient(180deg, rgba(8,20,46,.86), rgba(3,10,25,.88))!important;
+  border-color:rgba(145,180,255,.28)!important;
+}
+
+.schedule-left-v363,
+.remain{
+  background:rgba(255,220,125,.13)!important;
+  color:#ffe995!important;
+  border:1px solid rgba(255,220,125,.28)!important;
+  border-radius:999px!important;
+  padding:3px 8px!important;
+}
+
+/* 파밍 정산 */
+.farm-box,
+.farm-v36{
+  background:
+    radial-gradient(circle at 15% 0%, rgba(35,217,130,.08), transparent 36%),
+    linear-gradient(180deg, rgba(6,17,39,.76), rgba(3,10,25,.8))!important;
+  border-color:rgba(35,217,130,.20)!important;
+}
+
+/* 입력창 */
+input:focus,
+select:focus,
+textarea:focus{
+  border-color:rgba(255,220,125,.55)!important;
+  box-shadow:
+    0 0 0 3px rgba(255,220,125,.10),
+    0 0 18px rgba(255,220,125,.08)!important;
+}
+
+/* 상단 온라인 배지 */
+.header-online-v365{
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255,220,125,.12), transparent 34%),
+    linear-gradient(135deg, rgba(7,16,34,.88), rgba(16,31,60,.82))!important;
+  border-color:rgba(255,220,125,.34)!important;
+}
+
+/* 살짝 등장 애니메이션 */
+.post-card-v36,
+.card,
+.panel{
+  animation:v391-soft-in .28s ease both;
+}
+
+@keyframes v391-soft-in{
+  from{opacity:.85;transform:translateY(4px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* 너무 과하지 않게 모바일에서는 애니메이션 약화 */
+@media(max-width:900px){
+  .post-card-v36,
+  .card,
+  .panel{
+    animation:none!important;
   }
 }
 

@@ -1,13 +1,14 @@
-v26.19 FORCE EDIT MEMBER PANEL
+v26.20 EDIT JOB SLOTS
 
 수정:
-- 수정 페이지에 멤버 관리 패널 확실히 추가
-- 빈 자리: 참여자 추가 / 외부 추가
-- 채워진 자리: 제거
-- 모집완료에서 인원이 빠지면 모집중 복귀 유지
+- 수정 화면에서 사냥 직업 자리 추가/제거 가능
+- 참여자 추가가 아니라 모집글의 직업 자리 자체를 수정
+- 모집완료 상태에서 수정/자리 변경 시 자동 모집중 복귀
+- 인원이 다시 꽉 차면 자동 모집완료 유지
+- 기존 기능 유지
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v26.19 force edit member panel"
+git commit -m "v26.20 edit job slots"
 git push

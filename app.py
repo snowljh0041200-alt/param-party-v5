@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.19-service"
+APP_VERSION = "v26.20-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -781,6 +781,29 @@ input::placeholder,textarea::placeholder{color:#667694}
   .edit-slot-row{align-items:stretch;flex-direction:column}
 }
 
+
+/* v26.20 edit job slot panel */
+.edit-job-panel{margin-top:18px!important}
+.edit-slots{display:grid;gap:10px}
+.edit-slot-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px;
+  border:1px solid rgba(88,116,255,.22);
+  border-radius:15px;
+  background:rgba(8,17,38,.62);
+}
+.job-add-form{
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+@media(max-width:720px){
+  .edit-slot-row{align-items:stretch;flex-direction:column}
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1233,6 +1256,14 @@ def remaining_text(p):
 
 
 
+
+
+def reopen_on_edit_change(p):
+    if p and p.get("closed") and p.get("category") in ["사냥", "600퀘", "승급지원"]:
+        p["closed"] = False
+        p["closed_at"] = ""
+        return True
+    return False
 
 def reopen_if_not_full(p):
     try:
@@ -1958,7 +1989,7 @@ T_INDEX = """
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
           {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}
-          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>글수정</a><a class='btn gray' href='/edit/{{p.id}}'>멤버관리</a>{% endif %}
+          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>글수정</a><a class='btn gray' href='/edit/{{p.id}}'>자리수정</a>{% endif %}
           <a class='btn danger' href='/delete/{{p.id}}'>삭제</a>
         {% endif %}
       </div>
@@ -2393,13 +2424,13 @@ def edit(pid):
     d=load(); u=cur_user(d); p=find_post(d,pid)
     if not p or not can_manage_post(u, p): return redirect("/")
     if request.method=="POST":
-        p["channel"]=digits(request.form.get("channel"),4); p["date"]=request.form.get("date") or today(); p["start_time"]=to24(request.form.get("start_period"),request.form.get("start_time")); p["end_time"]=to24(request.form.get("end_period"),request.form.get("end_time")); p["memo"]=request.form.get("memo",""); save(d); return redirect("/")
+        p["channel"]=digits(request.form.get("channel"),4); p["date"]=request.form.get("date") or today(); p["start_time"]=to24(request.form.get("start_period"),request.form.get("start_time")); p["end_time"]=to24(request.form.get("end_period"),request.form.get("end_time")); p["memo"]=request.form.get("memo",""); reopen_on_edit_change(p); save(d); return redirect("/")
     sp,st=split12(p.get("start_time")); ep,et=split12(p.get("end_time"))
     return render("""
 <section class='panel'>
   <a class='btn gray' href='/'>← 메인</a>
   <h1>수정</h1>
-  <div class='notice'>관리자/작성자는 모집중/모집완료 상태에서도 멤버를 수정할 수 있습니다.</div>
+  <div class='notice'>수정하거나 직업 자리를 추가·제거하면 모집완료 글도 자동으로 모집중으로 돌아갑니다.</div>
   <form method='post'>
     <label>채널</label>
     <input name='channel' value='{{p.channel}}'>
@@ -2428,34 +2459,81 @@ def edit(pid):
 </section>
 
 {% if p.category == "사냥" %}
-<section class='panel edit-member-panel'>
-  <h2>👥 멤버 관리</h2>
-  <div class='notice'>모집중/모집완료 상태에서도 관리자와 작성자는 멤버를 추가·제거할 수 있습니다. 모집완료 글에서 인원이 빠지면 자동으로 모집중으로 돌아갑니다.</div>
+<section class='panel edit-job-panel'>
+  <h2>⚔ 사냥 직업 자리 수정</h2>
+  <div class='notice'>모집글의 직업 자리 자체를 추가하거나 제거합니다. 참여자가 있는 자리를 제거하면 해당 참여자도 함께 빠집니다.</div>
+
   <div class='edit-slots'>
     {% for s in p.slots %}
     <div class='edit-slot-row'>
       <div>
         <b>{{s.job}}</b>
         <div class='meta'>
-          {% if s.label %}{{s.label}}
-          {% elif s.external %}{{s.external}} <span class='tag'>외부</span>
-          {% else %}빈 자리{% endif %}
+          {% if s.label %}참여: {{s.label}}
+          {% elif s.external %}외부: {{s.external}}
+          {% else %}모집중{% endif %}
         </div>
       </div>
       <div class='toolbar'>
-        {% if s.uid or s.external %}
-          <a class='btn mini danger' href='/manage_clear_slot/{{p.id}}/{{loop.index0}}'>제거</a>
-        {% else %}
-          <a class='btn mini ok' href='/manage_choose_slot/{{p.id}}/{{loop.index0}}'>참여자 추가</a>
-          <a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}'>외부 추가</a>
-        {% endif %}
+        <a class='btn mini danger' href='/edit_remove_job_slot/{{p.id}}/{{loop.index0}}' onclick="return confirm('이 자리를 제거할까요? 참여자가 있으면 함께 빠집니다.')">자리 제거</a>
       </div>
     </div>
     {% endfor %}
   </div>
+
+  <form class='job-add-form' method='post' action='/edit_add_job_slot/{{p.id}}'>
+    <label>직업 자리 추가</label>
+    <div class='time-row'>
+      <select name='job'>
+        <optgroup label='전사 계열'>
+          <option>전사</option><option>검객</option><option>검제</option><option>검황</option><option>검성</option>
+        </optgroup>
+        <optgroup label='도적 계열'>
+          <option>도적</option><option>자객</option><option>진검</option><option>귀검</option><option>태성</option>
+        </optgroup>
+        <optgroup label='주술사 계열'>
+          <option>주술사</option><option>술사</option><option>현사</option><option>현인</option><option>현자</option>
+        </optgroup>
+        <optgroup label='도사 계열'>
+          <option>도사</option><option>도인</option><option>명인</option><option>진인</option><option>진선</option>
+        </optgroup>
+      </select>
+      <button class='ok'>자리 추가</button>
+    </div>
+  </form>
 </section>
 {% endif %}
 """, p=p,sp=sp,st=st,ep=ep,et=et)
+
+
+@app.route("/edit_add_job_slot/<pid>", methods=["POST"])
+def edit_add_job_slot(pid):
+    d = load()
+    u = cur_user(d)
+    p = find_post(d, pid)
+    if not p or not can_manage_post(u, p) or p.get("category") != "사냥":
+        return redirect("/")
+    job = request.form.get("job", "").strip()
+    if job:
+        p.setdefault("slots", []).append({"job": job, "uid": "", "label": "", "char_id": "", "external": ""})
+        reopen_on_edit_change(p)
+        refresh_post_status_after_member_change(d, p)
+        save(d)
+    return redirect(f"/edit/{pid}")
+
+@app.route("/edit_remove_job_slot/<pid>/<int:i>")
+def edit_remove_job_slot(pid, i):
+    d = load()
+    u = cur_user(d)
+    p = find_post(d, pid)
+    if not p or not can_manage_post(u, p) or p.get("category") != "사냥":
+        return redirect("/")
+    if 0 <= i < len(p.get("slots", [])):
+        p["slots"].pop(i)
+        reopen_on_edit_change(p)
+        refresh_post_status_after_member_change(d, p)
+        save(d)
+    return redirect(f"/edit/{pid}")
 
 @app.route("/close/<pid>")
 def close(pid):

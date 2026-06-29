@@ -5,7 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v21.0"
+APP_VERSION = "v21.2"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -13,7 +13,14 @@ DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v21-secret")
 
-JOBS = ["검성","검신","검황","진선","도사","전사","도적","주술사","궁사","기타"]
+JOBS = ["전사","검객","검제","검황","검성","도적","자객","진검","귀검","태성","주술사","술사","현사","현인","현자","도사","도인","명인","진인","진선","기타"]
+JOB_GROUPS = {
+    "전사 계열": ["전사","검객","검제","검황","검성"],
+    "도적 계열": ["도적","자객","진검","귀검","태성"],
+    "주술사 계열": ["주술사","술사","현사","현인","현자"],
+    "도사 계열": ["도사","도인","명인","진인","진선"],
+    "기타": ["기타"],
+}
 CATEGORIES = ["전체","사냥","600퀘","파밍"]
 PLACES = {
     "사냥": ["도삭산 900층", "흉노", "선비", "북방", "기타"],
@@ -22,7 +29,7 @@ PLACES = {
 }
 
 CSS = """
-*{box-sizing:border-box}body{margin:0;background:#071023;color:#f5f8ff;font-family:Arial,'Malgun Gothic',sans-serif;font-weight:700}.wrap{max-width:1100px;margin:0 auto;padding:16px}.panel,.card{background:#111b34;border:1px solid #2e3d62;border-radius:20px;padding:18px;margin:14px 0}.header{padding:18px 0;border-bottom:1px solid #2e3d62}.header h1{margin:0}.sub,.meta{color:#9fb0d1;font-size:14px}input,select,textarea{width:100%;background:#081126;border:1px solid #344466;color:#f5f8ff;border-radius:14px;padding:13px;font-size:16px;font-weight:800}label{display:block;margin:12px 0 6px;color:#bcd0ff}.btn,button{display:inline-flex;align-items:center;justify-content:center;background:#4d6bff;color:#fff;border:0;border-radius:13px;padding:11px 15px;text-decoration:none;font-weight:900;cursor:pointer}.ok{background:#18bf66}.danger{background:#ef4444}.gray{background:#465373}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.slot{display:flex;justify-content:space-between;gap:10px;align-items:center;background:#081126;border:1px solid #26365c;border-radius:16px;padding:12px;margin:10px 0}.mini{padding:8px 11px;border-radius:11px;font-size:14px}.tag{display:inline-flex;background:#24345f;border-radius:999px;padding:6px 10px;margin-right:5px}.notice{background:rgba(255,224,138,.16);border:1px solid rgba(255,224,138,.35);color:#ffe9a6;border-radius:14px;padding:12px;margin:12px 0}.closed{opacity:.55}.time-row{display:grid;grid-template-columns:95px 1fr;gap:8px}.dash{display:grid;grid-template-columns:1fr 1fr;gap:14px}.chatbox{height:280px;overflow:auto;background:#081126;border:1px solid #26365c;border-radius:16px;padding:12px}.chatmsg{background:#1a2748;border-radius:12px;padding:9px;margin:8px 0}.pill{display:inline-flex;background:#22345e;border-radius:999px;padding:7px 10px;margin:4px}.full{width:100%;margin-top:10px}.empty{text-align:center;color:#9fb0d1;border:1px dashed #2e3d62;border-radius:16px;padding:24px}@media(max-width:800px){.dash{grid-template-columns:1fr}.slot{flex-direction:column;align-items:flex-start}.wrap{padding:10px}}
+*{box-sizing:border-box}body{margin:0;background:#071023;color:#f5f8ff;font-family:Arial,'Malgun Gothic',sans-serif;font-weight:700}.wrap{max-width:1100px;margin:0 auto;padding:16px}.panel,.card{background:#111b34;border:1px solid #2e3d62;border-radius:20px;padding:18px;margin:14px 0}.header{padding:18px 0;border-bottom:1px solid #2e3d62}.header h1{margin:0}.sub,.meta{color:#9fb0d1;font-size:14px}input,select,textarea{width:100%;background:#081126;border:1px solid #344466;color:#f5f8ff;border-radius:14px;padding:13px;font-size:16px;font-weight:800}label{display:block;margin:12px 0 6px;color:#bcd0ff}.btn,button{display:inline-flex;align-items:center;justify-content:center;background:#4d6bff;color:#fff;border:0;border-radius:13px;padding:11px 15px;text-decoration:none;font-weight:900;cursor:pointer}.ok{background:#18bf66}.danger{background:#ef4444}.gray{background:#465373}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.slot{display:flex;justify-content:space-between;gap:10px;align-items:center;background:#081126;border:1px solid #26365c;border-radius:16px;padding:12px;margin:10px 0}.mini{padding:8px 11px;border-radius:11px;font-size:14px}.tag{display:inline-flex;background:#24345f;border-radius:999px;padding:6px 10px;margin-right:5px}.notice{background:rgba(255,224,138,.16);border:1px solid rgba(255,224,138,.35);color:#ffe9a6;border-radius:14px;padding:12px;margin:12px 0}.closed{opacity:.55}.time-row{display:grid;grid-template-columns:95px 1fr;gap:8px}.dash{display:grid;grid-template-columns:1fr 1fr;gap:14px}.chatbox{height:280px;overflow:auto;background:#081126;border:1px solid #26365c;border-radius:16px;padding:12px}.chatmsg{background:#1a2748;border-radius:12px;padding:9px;margin:8px 0}.pill{display:inline-flex;background:#22345e;border-radius:999px;padding:7px 10px;margin:4px}.full{width:100%;margin-top:10px}.empty{text-align:center;color:#9fb0d1;border:1px dashed #2e3d62;border-radius:16px;padding:24px}@media(max-width:800px){.dash{grid-template-columns:1fr}.slot{flex-direction:column;align-items:flex-start}.wrap{padding:10px}}select optgroup{background:#142141;color:#9fbbff;font-weight:900}select option{background:#081126;color:#f5f8ff}#slotJob,select[name='job']{border-color:#4d6bff;box-shadow:0 0 0 2px rgba(77,107,255,.12)}
 """
 
 def now():
@@ -39,6 +46,19 @@ def nid():
 
 def h(x):
     return html.escape(str(x or ""))
+
+
+def job_select(name="job", selected="", element_id=""):
+    id_attr = f" id='{h(element_id)}'" if element_id else ""
+    out = [f"<select name='{h(name)}'{id_attr}>"]
+    for group, jobs in JOB_GROUPS.items():
+        out.append(f"<optgroup label='{h(group)}'>")
+        for job in jobs:
+            sel = " selected" if job == selected else ""
+            out.append(f"<option value='{h(job)}'{sel}>{h(job)}</option>")
+        out.append("</optgroup>")
+    out.append("</select>")
+    return "".join(out)
 
 def digits(x, n=4):
     return re.sub(r"\D", "", str(x or ""))[:n]
@@ -211,7 +231,7 @@ document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.oncha
 def render(page, **kw):
     kw.setdefault("title", APP_TITLE)
     kw.setdefault("css", CSS)
-    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, categories=CATEGORIES, places=PLACES, show_time=show_time, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
+    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
     return render_template_string(BASE_HEAD + page + BASE_TAIL, **kw)
 
 @app.route("/")
@@ -272,7 +292,7 @@ def register():
     return render(T_REGISTER, error="", form={})
 
 T_REGISTER = """
-<section class='panel'><h1>👤 문파원 등록</h1><form method='post'><label>계정명</label><input name='account' value='{{form.get("account","")}}'><label>대표 캐릭터명</label><input name='char_name' value='{{form.get("char_name","")}}'><label>직업</label><select name='job'>{% for j in jobs %}<option>{{j}}</option>{% endfor %}</select><button class='ok full'>승인 요청</button></form>{% if error %}<div class='notice'>{{error}}</div>{% endif %}</section>
+<section class='panel'><h1>👤 문파원 등록</h1><form method='post'><label>계정명</label><input name='account' value='{{form.get("account","")}}'><label>대표 캐릭터명</label><input name='char_name' value='{{form.get("char_name","")}}'><label>직업</label>{{ job_select('job')|safe }}<button class='ok full'>승인 요청</button></form>{% if error %}<div class='notice'>{{error}}</div>{% endif %}</section>
 """
 
 @app.route("/logout")
@@ -288,7 +308,7 @@ def new_post():
     return render(T_NEW, cats=cats)
 
 T_NEW = """
-<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>모집글 올리기</h1><form method='post' action='/create'><label>종류</label><select name='category' id='cat'>{% for c in cats %}<option>{{c}}</option>{% endfor %}</select>{% for cat, arr in places.items() %}<div class='place' data-cat='{{cat}}'><label>장소</label><select name='place_{{cat}}'>{% for p in arr %}<option>{{p}}</option>{% endfor %}</select></div>{% endfor %}<label>채널</label><input name='channel' maxlength='4'><label>날짜</label><input name='date' type='date' value='{{today()}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' maxlength='5' placeholder='1107'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option>오후</option></select><input name='end_time' maxlength='5' placeholder='1120'></div><label>메모</label><textarea name='memo'></textarea><section class='panel' id='slotsBox'><h2>사냥 직업 자리 추가</h2><div class='toolbar'><select id='slotJob'>{% for j in jobs %}<option>{{j}}</option>{% endfor %}</select><button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slots'></div></section><div class='notice'>600퀘/파밍은 참여 버튼 방식입니다.</div><button class='ok full'>등록</button></form></section>
+<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>모집글 올리기</h1><form method='post' action='/create'><label>종류</label><select name='category' id='cat'>{% for c in cats %}<option>{{c}}</option>{% endfor %}</select>{% for cat, arr in places.items() %}<div class='place' data-cat='{{cat}}'><label>장소</label><select name='place_{{cat}}'>{% for p in arr %}<option>{{p}}</option>{% endfor %}</select></div>{% endfor %}<label>채널</label><input name='channel' maxlength='4'><label>날짜</label><input name='date' type='date' value='{{today()}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' maxlength='5' placeholder='1107'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option>오후</option></select><input name='end_time' maxlength='5' placeholder='1120'></div><label>메모</label><textarea name='memo'></textarea><section class='panel' id='slotsBox'><h2>사냥 직업 자리 추가</h2><div class='notice'>전사/도적/주술사/도사 계열 1~4차 기준입니다. 5차 직업과 는 제외했습니다.</div><div class='toolbar'>{{ job_select('slotJob', '', 'slotJob')|safe }}<button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slots'></div></section><div class='notice'>600퀘/파밍은 참여 버튼 방식입니다.</div><button class='ok full'>등록</button></form></section>
 """
 
 @app.route("/create", methods=["POST"])
@@ -391,7 +411,7 @@ def chars():
         name=request.form.get("name","").strip(); job=request.form.get("job","검성")
         if name: u["chars"].append({"id":nid(),"name":name,"job":job,"status":"pending"}); save(d)
         return redirect("/chars")
-    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>내 캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{c.status}}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'><select name='job'>{% for j in jobs %}<option>{{j}}</option>{% endfor %}</select><button class='ok'>추가</button></form></section>", u=u)
+    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>내 캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{c.status}}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'>{{ job_select('job')|safe }}<button class='ok'>추가</button></form></section>", u=u)
 
 @app.route("/select_char/<cid>")
 def select_char(cid):

@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v28.7-final"
+APP_VERSION = "v28.9-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1406,6 +1406,17 @@ def normalize(d):
             s.setdefault("external", "")
     return d
 
+
+def v28_9_reopen_promotion_posts(d):
+    try:
+        for p in d.get("posts", []):
+            if p.get("category") == "승급지원":
+                p["closed"] = False
+                p["status"] = "모집중"
+    except Exception:
+        pass
+    return d
+
 def load():
     if not DATA_PATH.exists():
         d = empty_data()
@@ -1676,6 +1687,11 @@ def reopen_if_not_full(p):
     return False
 
 def refresh_post_status_after_member_change(d, p):
+    if p.get("category") == "승급지원":
+        # 승급지원은 파밍처럼 정원 제한 없이 계속 모집중 유지
+        p["closed"] = False
+        p["status"] = "모집중"
+        return
     changed = reopen_if_not_full(p)
     try:
         if p and p.get("category") in ["사냥", "600퀘", "승급지원"] and not p.get("closed"):
@@ -1690,6 +1706,8 @@ def refresh_post_status_after_member_change(d, p):
 def auto_close_full_posts(d):
     changed = False
     for p in d.get("posts", []):
+        if p.get("category") == "승급지원":
+            continue
         if p.get("closed"):
             continue
         if p.get("category") in ["사냥", "600퀘", "승급지원"]:
@@ -1785,10 +1803,15 @@ def participant_for_user(p, u):
 def can_join_post(p):
     if not p or p.get("closed"):
         return False
-    if p.get("category") == "파밍":
-        left = int((post_datetime(p) - now()).total_seconds() // 60)
-        return left > 15
+    cat = p.get("category")
+    if cat in ["파밍", "승급지원"]:
+        return True
+    if cat == "600퀘":
+        return len(p.get("participants", [])) < int(p.get("capacity", 10) or 10)
+    if cat == "사냥":
+        return any(not s.get("uid") and not s.get("external") for s in p.get("slots", []))
     return True
+
 
 def join_block_reason(p):
     if p.get("category") == "파밍" and not can_join_post(p):
@@ -2934,6 +2957,64 @@ async function testToastFromSettings(){
   });
 })();
 
+
+/* v28.8 farm alert toast + chrome notify */
+(function(){
+  function farmKey(a){
+    return String(
+      (a.id || '') + '|' +
+      (a.post_id || '') + '|' +
+      (a.title || a.name || '') + '|' +
+      (a.minutes || a.left || a.remain || '') + '|' +
+      (a.text || a.message || '')
+    );
+  }
+
+  function farmMsg(a){
+    if(a.text) return a.text;
+    if(a.message) return a.message;
+
+    var title = a.title || a.name || a.boss || a.place || '파밍';
+    var left = a.minutes || a.left || a.remain || a.before || '';
+    if(left){
+      return '⏰ [' + title + '] 젠 ' + left + '분 전입니다.';
+    }
+    return '⏰ [' + title + '] 파밍 시간이 다가옵니다.';
+  }
+
+  async function pollFarmAlertsV288(){
+    try{
+      var r = await fetch('/api/farm_alerts?_=' + Date.now(), {cache:'no-store'});
+      var data = await r.json();
+      var arr = data.alerts || data.items || data || [];
+      if(!Array.isArray(arr)) return;
+
+      var seen = {};
+      try{ seen = JSON.parse(localStorage.getItem('v288FarmSeen') || '{}'); }catch(e){ seen = {}; }
+
+      arr.forEach(function(a){
+        var k = farmKey(a);
+        if(!k || seen[k]) return;
+        seen[k] = Date.now();
+
+        var msg = farmMsg(a);
+        if(window.BaramToast) window.BaramToast(msg);
+        if(window.sendChromeNotify) window.sendChromeNotify(msg);
+      });
+
+      var keys = Object.keys(seen).slice(-200);
+      var slim = {};
+      keys.forEach(function(k){ slim[k] = seen[k]; });
+      localStorage.setItem('v288FarmSeen', JSON.stringify(slim));
+    }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    pollFarmAlertsV288();
+    setInterval(pollFarmAlertsV288, 30000);
+  });
+})();
+
 </script></body></html>"""
 
 def render(page, **kw):
@@ -3079,7 +3160,7 @@ T_INDEX = """
           <div class='notice'>{{ join_block_reason(p) }}</div><button class='btn gray full' disabled>참여불가</button>
         {% endif %}
 
-        {% if p.category == "파밍" %}
+        {% if p.category in ["파밍","승급지원"] %}
           <div class='farm-box'>
             <div class='farm-head'>
               <h3>파밍 정산</h3>
@@ -3207,7 +3288,7 @@ T_INDEX = """
     </div>
     <div class='setting-card vertical toast-test-box'>
       <b>🔔 크롬 알림 설정</b>
-      <div class='meta'>크롬 알림센터로 참석 알림을 받으려면 권한 허용이 필요합니다.</div>
+      <div class='meta'>크롬 알림센터로 참석/취소/파밍 젠 알림을 받으려면 권한 허용이 필요합니다. 파밍 젠 알림도 토스트/크롬 알림으로 표시됩니다.</div>
       <div class='toolbar' style='margin-top:10px'>
         <button type='button' class='btn ok' onclick='requestChromeNotifyPermission()'>크롬 알림 켜기</button>
         <button type='button' class='btn gray' onclick='testChromeNotifyFromSettings()'>크롬 알림 테스트</button>
@@ -3367,7 +3448,7 @@ def choose_participant(pid):
                 chosen = c
         msg = ""
         if chosen:
-            if p.get("category")!="600퀘" or len(p.get("participants",[])) < 10:
+            if p.get("category") in ["파밍", "승급지원"] or len(p.get("participants",[])) < int(p.get("capacity", 10) or 10):
                 if not any(a.get("uid")==u["id"] and a.get("char_id")==chosen.get("id") for a in p["participants"]):
                     p["participants"].append({"uid":u["id"],"char_id":chosen.get("id"),"label":char_label(chosen)})
                     refresh_post_status_after_member_change(d, p)
@@ -3955,7 +4036,7 @@ def admin():
 
   <div id='admin-farm' class='admin-post-section'>
     <h3>파밍글</h3>
-    {% for p in posts if p.category == "파밍" %}
+    {% for p in posts if p.category in ["파밍","승급지원"] %}
       <div class='admin-post-row'>
         <div>
           <b>{{p.place}}</b>

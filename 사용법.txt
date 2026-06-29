@@ -1,22 +1,15 @@
-v28.7 CHROME ALERTS SPLIT FIX
+v28.9 PROMOTION OPEN JOIN FIX
 
 수정:
-- 화면 토스트는 계속 1개만 표시
-- /api/alerts는 빈 배열 유지해서 기존 중복 토스트 방지
-- /api/chrome_alerts 새로 추가
-- system_notify는 크롬 알림 전용 저장소 chrome_alerts에 저장
-- 크롬 알림은 /api/chrome_alerts만 폴링
-- 크롬 알림 테스트 API 다시 저장되게 수정
+- 승급지원은 파밍처럼 정원 제한 없이 계속 참여 가능
+- 승급지원 1명 참여 후 자동 모집완료 되는 문제 수정
+- auto_close_full_posts에서 승급지원 제외
+- 기존에 모집완료 처리된 승급지원 글도 자동으로 모집중 복구
+- 1/1명 정원 표시도 승급지원에서는 숨김/완화
 - 컴파일 통과
-
-크롬 알림이 안 뜨면:
-1) 설정 > 크롬 알림 켜기
-2) 브라우저 권한 허용
-3) 주소창 왼쪽 아이콘 클릭 > 사이트 설정 > 알림 허용 확인
-4) Windows 알림/집중 지원 꺼짐 확인
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v28.7 chrome alerts split fix"
+git commit -m "v28.9 promotion open join fix"
 git push

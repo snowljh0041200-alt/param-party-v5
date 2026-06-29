@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.20-service"
+APP_VERSION = "v26.21-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -804,6 +804,12 @@ input::placeholder,textarea::placeholder{color:#667694}
   .edit-slot-row{align-items:stretch;flex-direction:column}
 }
 
+
+/* v26.21 edit flow and notification polish */
+.edit-bottom-nav{
+  margin:12px 0 0 0!important;
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1257,6 +1263,32 @@ def remaining_text(p):
 
 
 
+
+
+def system_notify(d, msg):
+    try:
+        d.setdefault("global_chat", []).append({
+            "id": nid(),
+            "uid": "system",
+            "name": "시스템",
+            "text": msg,
+            "time": now().isoformat(timespec="seconds")
+        })
+        d["global_chat"] = d.get("global_chat", [])[-200:]
+        return True
+    except Exception:
+        return False
+
+def actor_label(u):
+    if not u:
+        return "관리자"
+    c = selected_char(u)
+    if c:
+        return f"{c.get('name')}({c.get('job')})"
+    return u.get("account", "관리자")
+
+def post_title(p):
+    return p.get("place") or p.get("category") or "모집글"
 
 def reopen_on_edit_change(p):
     if p and p.get("closed") and p.get("category") in ["사냥", "600퀘", "승급지원"]:
@@ -1989,7 +2021,7 @@ T_INDEX = """
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
           {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}
-          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>글수정</a><a class='btn gray' href='/edit/{{p.id}}'>자리수정</a>{% endif %}
+          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>수정</a>{% endif %}
           <a class='btn danger' href='/delete/{{p.id}}'>삭제</a>
         {% endif %}
       </div>
@@ -2146,7 +2178,7 @@ def new_post():
     return render(T_NEW, cats=cats)
 
 T_NEW = """
-<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>모집글 올리기</h1><form method='post' action='/create'><label>종류</label><select name='category' id='cat'>{% for c in cats %}<option>{{c}}</option>{% endfor %}</select>{% for cat, arr in places.items() %}<div class='place' data-cat='{{cat}}'><label>장소</label><select name='place_{{cat}}'>{% for p in arr %}<option>{{p}}</option>{% endfor %}</select></div>{% endfor %}<label>채널</label><input name='channel' maxlength='4'><label>날짜</label><input name='date' type='date' value='{{today()}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' maxlength='5' placeholder='1107'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option>오후</option></select><input name='end_time' maxlength='5' placeholder='1120'></div><label>메모</label><textarea name='memo'></textarea><section class='panel' id='slotsBox'><h2>사냥 직업 자리 추가</h2><div class='toolbar'>{{ job_select('slotJob', '', 'slotJob')|safe }}<button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slots'></div></section><button class='ok full'>등록</button></form></section>
+<section class='panel'><a class='btn gray' href='/'>← 메인으로</a><h1>모집글 올리기</h1><form method='post' action='/create'><label>종류</label><select name='category' id='cat'>{% for c in cats %}<option>{{c}}</option>{% endfor %}</select>{% for cat, arr in places.items() %}<div class='place' data-cat='{{cat}}'><label>장소</label><select name='place_{{cat}}'>{% for p in arr %}<option>{{p}}</option>{% endfor %}</select></div>{% endfor %}<label>채널</label><input name='channel' maxlength='4'><label>날짜</label><input name='date' type='date' value='{{today()}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' maxlength='5' placeholder='1107'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option>오후</option></select><input name='end_time' maxlength='5' placeholder='1120'></div><label>메모</label><textarea name='memo'></textarea><section class='panel' id='slotsBox'><h2>사냥 직업 자리 추가</h2><div class='toolbar'>{{ job_select('slotJob', '', 'slotJob')|safe }}<button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slots'></div></section><button class='ok full'>등록</button></form></section>
 """
 
 @app.route("/create", methods=["POST"])
@@ -2189,7 +2221,7 @@ def choose_slot(pid, i):
         return redirect("/")
     return render("""
 <section class='panel'>
-<a class='btn gray' href='/'>← 메인</a>
+<a class='btn gray' href='/'>← 메인으로</a>
 <h1>참여 캐릭터 선택</h1>
 <div class='notice'>{{slot.job}} 자리에는 같은 계열 캐릭터만 참여할 수 있습니다.</div>
 <form method='post'>
@@ -2223,7 +2255,7 @@ def choose_participant(pid):
         return redirect("/")
     return render("""
 <section class='panel'>
-<a class='btn gray' href='/'>← 메인</a>
+<a class='btn gray' href='/'>← 메인으로</a>
 <h1>참여 캐릭터 선택</h1>
 <form method='post'>
 {% for c in options %}
@@ -2254,7 +2286,7 @@ def farm_group(pid, group):
     title = "선집합 체크" if group=="early" else "후집합 체크"
     return render("""
 <section class='panel'>
-<a class='btn gray' href='/'>← 메인</a>
+<a class='btn gray' href='/'>← 메인으로</a>
 <h1>{{title}}</h1>
 <form method='post'>
 {% for m in members %}
@@ -2349,7 +2381,10 @@ def manage_clear_slot(pid, i):
     if not p or not can_manage_post(u, p):
         return redirect("/")
     if 0 <= i < len(p.get("slots", [])):
+        old = p["slots"][i].get("label") or p["slots"][i].get("external") or "참여자"
+        job = p["slots"][i].get("job","")
         p["slots"][i].update({"uid": "", "label": "", "char_id": "", "external": ""})
+        system_notify(d, f"❌ {actor_label(u)}님이 [{post_title(p)}] {job} 자리의 {old}님을 제거했습니다.")
         refresh_post_status_after_member_change(d, p)
         save(d)
     return redirect(f"/edit/{pid}")
@@ -2378,6 +2413,7 @@ def manage_choose_slot(pid, i):
         for c in choices:
             if key == c["uid"] + "|" + c["char_id"]:
                 slot.update({"uid": c["uid"], "char_id": c["char_id"], "label": c["label"], "external": ""})
+                system_notify(d, f"✅ {actor_label(u)}님이 [{post_title(p)}] {slot.get('job','')} 자리에 {c['label']}님을 추가했습니다.")
                 refresh_post_status_after_member_change(d, p)
                 save(d)
                 return redirect(f"/edit/{pid}")
@@ -2428,7 +2464,7 @@ def edit(pid):
     sp,st=split12(p.get("start_time")); ep,et=split12(p.get("end_time"))
     return render("""
 <section class='panel'>
-  <a class='btn gray' href='/'>← 메인</a>
+  <a class='btn gray' href='/'>← 메인으로</a>
   <h1>수정</h1>
   <div class='notice'>수정하거나 직업 자리를 추가·제거하면 모집완료 글도 자동으로 모집중으로 돌아갑니다.</div>
   <form method='post'>
@@ -2457,6 +2493,7 @@ def edit(pid):
     <button class='ok full'>저장</button>
   </form>
 </section>
+<div class='toolbar edit-bottom-nav'><a class='btn gray' href='/'>수정 완료 후 메인으로 돌아가기</a></div>
 
 {% if p.category == "사냥" %}
 <section class='panel edit-job-panel'>
@@ -2517,6 +2554,7 @@ def edit_add_job_slot(pid):
     if job:
         p.setdefault("slots", []).append({"job": job, "uid": "", "label": "", "char_id": "", "external": ""})
         reopen_on_edit_change(p)
+        system_notify(d, f"⚔ {actor_label(u)}님이 [{post_title(p)}] 모집글에 {job} 자리를 추가했습니다.")
         refresh_post_status_after_member_change(d, p)
         save(d)
     return redirect(f"/edit/{pid}")
@@ -2529,7 +2567,9 @@ def edit_remove_job_slot(pid, i):
     if not p or not can_manage_post(u, p) or p.get("category") != "사냥":
         return redirect("/")
     if 0 <= i < len(p.get("slots", [])):
+        removed_job = p["slots"][i].get("job","")
         p["slots"].pop(i)
+        system_notify(d, f"➖ {actor_label(u)}님이 [{post_title(p)}] 모집글에서 {removed_job} 자리를 제거했습니다.")
         reopen_on_edit_change(p)
         refresh_post_status_after_member_change(d, p)
         save(d)
@@ -2621,7 +2661,7 @@ def chat(pid):
         txt=request.form.get("text","").strip()
         if txt and c: p["chat"].append({"name":char_label(c),"text":txt,"time":now_text()}); save(d)
         return redirect(f"/chat/{pid}")
-    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>채팅</h1><div class='chatbox'>{% for m in p.chat %}<div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}</div>{% else %}<div class='empty'>메시지 없음</div>{% endfor %}</div><form method='post' class='toolbar'><input name='text'><button>전송</button></form></section>", p=p)
+    return render("<section class='panel'><a class='btn gray' href='/'>← 메인으로</a><h1>채팅</h1><div class='chatbox'>{% for m in p.chat %}<div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}</div>{% else %}<div class='empty'>메시지 없음</div>{% endfor %}</div><form method='post' class='toolbar'><input name='text'><button>전송</button></form></section>", p=p)
 
 @app.route("/chars", methods=["GET","POST"])
 def chars():
@@ -2631,7 +2671,7 @@ def chars():
         name=request.form.get("name","").strip(); job=request.form.get("job","검성")
         if name and not char_name_exists(d, name, exclude_uid=u.get("id","")): u["chars"].append({"id":nid(),"name":name,"job":job,"status":"approved" if u.get("status")=="approved" else "pending"}); save(d)
         return redirect("/chars")
-    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{ '승인됨' if c.status=='approved' else '승인대기' }}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'>{{ job_select('job')|safe }}<button class='ok'>추가</button></form></section>", u=u)
+    return render("<section class='panel'><a class='btn gray' href='/'>← 메인으로</a><h1>캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{ '승인됨' if c.status=='approved' else '승인대기' }}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'>{{ job_select('job')|safe }}<button class='ok'>추가</button></form></section>", u=u)
 
 @app.route("/select_char/<cid>")
 def select_char(cid):
@@ -2654,7 +2694,7 @@ def admin():
                 pending_chars.append({"user": x, "char": ch})
     return render("""
 <section class='panel admin-console'>
-  <a class='btn gray' href='/'>← 메인</a>
+  <a class='btn gray' href='/'>← 메인으로</a>
   <h1>관리자 콘솔</h1>
   <div class='admin-grid'>
     <div class='admin-card'><span>가입대기</span><strong>{{pending|length}}</strong></div>
@@ -2725,7 +2765,7 @@ def admin():
           <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
-          <a class='btn mini gray' href='/edit/{{p.id}}'>글수정</a>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
           <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 파밍글을 삭제할까요?')">삭제</a>
         </div>
       </div>
@@ -2741,7 +2781,7 @@ def admin():
           <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
-          <a class='btn mini gray' href='/edit/{{p.id}}'>글수정</a>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
           <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 사냥글을 삭제할까요?')">삭제</a>
         </div>
       </div>
@@ -2757,7 +2797,7 @@ def admin():
           <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
-          <a class='btn mini gray' href='/edit/{{p.id}}'>글수정</a>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
           <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 600퀘 글을 삭제할까요?')">삭제</a>
         </div>
       </div>
@@ -2774,7 +2814,7 @@ def admin():
           <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "모집 완료" if p.closed else "모집중" }}</div>
         </div>
         <div class='toolbar'>
-          <a class='btn mini gray' href='/edit/{{p.id}}'>글수정</a>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
           <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 승급지원 글을 삭제할까요?')">삭제</a>
         </div>
       </div>

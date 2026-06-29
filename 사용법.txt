@@ -1,14 +1,14 @@
-v26.20 EDIT JOB SLOTS
+v26.21 EDIT FLOW + NOTIFICATIONS
 
 수정:
-- 수정 화면에서 사냥 직업 자리 추가/제거 가능
-- 참여자 추가가 아니라 모집글의 직업 자리 자체를 수정
-- 모집완료 상태에서 수정/자리 변경 시 자동 모집중 복귀
-- 인원이 다시 꽉 차면 자동 모집완료 유지
+- 외부인 추가 후 수정 화면에 그대로 머물도록 수정
+- 수정 화면 상단/하단 메인으로 버튼 강화
+- 글수정/자리수정 중복 제거, 수정 하나로 통일
+- 참여/취소/외부추가/관리자추가/자리추가/자리제거/제거 시 통합채팅 시스템 알림 추가
 - 기존 기능 유지
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v26.20 edit job slots"
+git commit -m "v26.21 edit flow notifications"
 git push

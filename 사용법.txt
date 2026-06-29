@@ -1,15 +1,17 @@
-v28.2 SETTINGS NOTIFY FIX
+v28.3 SETTINGS + CHOOSE NOTIFY FIX
 
 수정:
-- 상단에 잘못 표시되던 크롬 알림 설정 박스 제거
-- 토스트테스트/크롬알림 버튼을 설정창 안으로 이동
-- 참여 시 토스트 + 크롬 알림이 오도록 join_slot 재수정
-- 취소 알림 유지
-- 취소 404 alias 유지
+- 설정창 안에만 토스트/크롬 알림 테스트 배치
+- 상단 테스트 버튼/알림 박스 제거
+- 실제 참여 흐름인 /choose_slot POST에 알림 추가
+- 600퀘/파밍/승급지원 참여 흐름인 /choose_participant POST에 알림 추가
+- /leave_slot 취소 라우트 추가로 Not Found 방지
+- /remove_external_slot 외부제거 라우트 추가
+- 사이트 토스트 + 크롬 알림 둘 다 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v28.2 settings notify fix"
+git commit -m "v28.3 settings choose notify fix"
 git push

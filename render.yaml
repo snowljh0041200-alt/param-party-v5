@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: baram-party-v28-final
+    name: baram-party-v28-3-final
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app

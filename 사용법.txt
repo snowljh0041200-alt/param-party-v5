@@ -1,13 +1,13 @@
-v26.4 COPY TEXT ONLY
+v26.5 AUTOCLOSE + COPY FORMAT
 
 수정:
-- 공유 버튼을 글복사 버튼으로 변경
-- 모바일 공유창 호출 제거
-- 누르면 카톡 붙여넣기용 문구가 클립보드에 복사됨
-- 복사 완료 토스트 표시
-- 기존 기능 유지
+- 사냥/600퀘/승급지원 인원이 꽉 차면 자동 모집완료
+- 자동 모집완료 시 closed_at 기록
+- 완료 후 1시간 자동삭제 흐름 유지
+- 글복사 문구를 카톡용 줄바꿈 형식으로 변경
+- 사냥글은 직업별 자리/참여자 상태가 복사됨
 
 배포:
 git add .
-git commit -m "v26.4 copy text only"
+git commit -m "v26.5 autoclose copy format"
 git push

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.4"
+APP_VERSION = "v26.5"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1011,6 +1011,22 @@ def remaining_text(p):
 
 
 
+
+def auto_close_full_posts(d):
+    changed = False
+    for p in d.get("posts", []):
+        if p.get("closed"):
+            continue
+        if p.get("category") in ["사냥", "600퀘", "승급지원"]:
+            try:
+                if max_count(p) > 0 and joined_count(p) >= max_count(p):
+                    p["closed"] = True
+                    p["closed_at"] = now().isoformat(timespec="seconds")
+                    changed = True
+            except Exception:
+                pass
+    return changed
+
 def cleanup_closed_posts(d):
     changed = False
     keep = []
@@ -1044,25 +1060,44 @@ def delete_after_text(p):
     return f"{m}분 후 자동삭제"
 
 def share_text(p):
-    title = f"월하 연가 연희 {p.get('category','')} 모집"
-    place = p.get("place","")
-    channel = p.get("channel","")
-    date = p.get("date","")
-    start = show_time(p.get("start_time",""))
-    end = show_time(p.get("end_time",""))
-    memo = p.get("memo","").strip()
-    count = f"{joined_count(p)} / {max_count(p)}명"
-    lines = [
-        f"[{title}]",
-        f"장소: {place}",
-        f"채널: {channel}채널" if channel else "채널: 미정",
-        f"시간: {date} {start} ~ {end}",
-        f"인원: {count}",
-    ]
+    cat = p.get("category", "")
+    place = p.get("place", "")
+    channel = p.get("channel", "")
+    start = show_time(p.get("start_time", ""))
+    end = show_time(p.get("end_time", ""))
+    writer = p.get("owner_label", "")
+    if cat == "사냥":
+        lines = [f"[사냥] {place}"]
+    elif cat == "파밍":
+        lines = [f"[파밍] {place}"]
+    elif cat == "600퀘":
+        lines = [f"[600퀘] {place}"]
+    elif cat == "승급지원":
+        lines = [f"[승급지원] {place}"]
+    else:
+        lines = [f"[{cat}] {place}"]
+    if channel:
+        lines.append(f"채널 {channel}")
+    lines.append(f"{start} ~ {end}")
+    if writer:
+        lines.append(f"작성자 {writer}")
+    if cat == "사냥":
+        for s in p.get("slots", []):
+            job = s.get("job", "")
+            who = s.get("label") or s.get("external") or "모집중"
+            lines.append(f"{job} - {who}")
+    else:
+        if p.get("participants"):
+            lines.append("참여자")
+            for a in p.get("participants", []):
+                lines.append(f"- {a.get('label','')}")
+        else:
+            lines.append("참여자 모집중")
+    memo = p.get("memo", "").strip()
     if memo:
-        lines.append(f"메모: {memo}")
-    lines.append("참여는 파티모집 사이트에서 해주세요.")
+        lines.append(f"메모 {memo}")
     return "\\n".join(lines)
+
 
 def participant_for_user(p, u):
     if not p or not u:
@@ -1468,7 +1503,9 @@ def render(page, **kw):
 @app.route("/")
 def index():
     d = load()
-    if cleanup_closed_posts(d):
+    changed_autoclose = auto_close_full_posts(d)
+    changed_cleanup = cleanup_closed_posts(d)
+    if changed_autoclose or changed_cleanup:
         save(d)
     u = cur_user(d)
     if not u:

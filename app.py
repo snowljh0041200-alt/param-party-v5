@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.11-service"
+APP_VERSION = "v26.12-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -688,6 +688,83 @@ input::placeholder,textarea::placeholder{color:#667694}
   resize:vertical;
   line-height:1.55;
 }
+
+/* v26.12 notice layout service polish */
+.wrap{
+  max-width:1180px!important;
+  margin:0 auto!important;
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+.header{
+  margin-bottom:14px!important;
+}
+.clan-notice-card{
+  width:100%!important;
+  max-width:none!important;
+  margin:0 0 18px 0!important;
+  padding:18px!important;
+  border-radius:20px!important;
+  border-color:rgba(244,212,122,.26)!important;
+  background:
+    linear-gradient(135deg,rgba(244,212,122,.10),rgba(88,116,255,.06)),
+    rgba(10,18,36,.96)!important;
+}
+.clan-notice-head{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  gap:10px!important;
+  margin-bottom:12px!important;
+}
+.clan-notice-head h2{
+  margin:0!important;
+  font-size:21px!important;
+  letter-spacing:-.4px!important;
+}
+.clan-notice-preview,
+.clan-notice-full{
+  white-space:pre-wrap!important;
+  line-height:1.65!important;
+  color:#eef4ff!important;
+  background:rgba(8,17,38,.58)!important;
+  border:1px solid rgba(255,255,255,.06)!important;
+  border-radius:16px!important;
+  padding:14px!important;
+  font-size:14px!important;
+}
+.clan-notice-full{display:none!important}
+.clan-notice-card.expanded .clan-notice-preview{display:none!important}
+.clan-notice-card.expanded .clan-notice-full{display:block!important}
+.clan-notice-card button{
+  margin-top:12px!important;
+}
+.app-shell{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 360px!important;
+  gap:16px!important;
+  align-items:start!important;
+}
+.app-shell > main,
+.main-col{
+  min-width:0!important;
+}
+.app-shell h2{
+  margin-top:0!important;
+}
+.filters,.tabs{
+  align-items:center!important;
+}
+.summary-grid,.summary-card,.mini-stats{
+  display:none!important;
+}
+@media(max-width:980px){
+  .wrap{padding-left:12px!important;padding-right:12px!important}
+  .app-shell{grid-template-columns:1fr!important}
+  .clan-notice-card{padding:15px!important}
+  .clan-notice-head h2{font-size:19px!important}
+}
+
 @media(max-width:980px){
   .app-shell{
     grid-template-columns:1fr!important;
@@ -1719,12 +1796,7 @@ T_INDEX = """
   <main class='left-stack'>
     <div class='quickbar'>
       
-{% if notice.text %}
-<section class='panel clan-notice-card'>
-  <div class='clan-notice-head'>
-    <h2>📢 {{ notice.title }}</h2>
-    {% if notice_new %}<span class='tag ok'>NEW</span>{% endif %}
-  </div>
+</div>
   <div class='clan-notice-preview' id='clanNoticePreview'>{{ notice_preview_text(notice.text) }}</div>
   <div class='clan-notice-full' id='clanNoticeFull'>{{ notice.text }}</div>
   <button type='button' class='btn gray mini' onclick='toggleClanNotice()' id='clanNoticeBtn'>더보기</button>

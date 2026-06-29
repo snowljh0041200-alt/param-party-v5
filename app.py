@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v22.1"
+APP_VERSION = "v22.2"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -260,6 +260,16 @@ select option{background:#081126;color:#f5f8ff}
 .remain{color:#ffe189}
 .farm-box{margin-top:12px;padding:12px;border:1px solid #263a64;border-radius:16px;background:rgba(8,17,38,.55)}
 .farm-tools{margin-top:8px}
+
+.farm-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.farm-head h3{margin:0}
+.farm-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.farm-summary span{background:#081126;border:1px solid #23375f;border-radius:12px;padding:10px;color:#9fb0d1}
+.farm-summary b{display:block;color:#fff;margin-top:4px}
+.farm-dist{background:rgba(244,212,122,.12);border:1px solid rgba(244,212,122,.24);border-radius:12px;padding:10px;color:#ffe5a0;margin:8px 0}
+.farm-form{display:grid;grid-template-columns:120px 1fr 1fr 86px;gap:8px;margin-top:10px}
+.farm-form button{width:100%}
+@media(max-width:720px){.farm-form{grid-template-columns:1fr}.farm-summary{grid-template-columns:1fr}}
 @media(max-width:980px){
   .app-shell{grid-template-columns:1fr}
   .side-stack{position:static}
@@ -682,22 +692,31 @@ T_INDEX = """
 
         {% if p.category == "파밍" %}
           <div class='farm-box'>
-            <h3>파밍 결과</h3>
-            <div class='meta'>결과: {{ p.farm_result or "미등록" }} / 아이템: {{ p.farm_item or "-" }} / 판매금액: {{ p.sale_amount or "0" }}</div>
+            <div class='farm-head'>
+              <h3>파밍 정산</h3>
+              <span class='tag'>{{ p.farm_result or "미등록" }}</span>
+            </div>
+            <div class='farm-summary'>
+              <span>아이템 <b>{{ p.farm_item or "-" }}</b></span>
+              <span>판매 <b>{{ p.sale_amount or "0" }}</b></span>
+            </div>
             {% set dist = farm_distribution(p) %}
             {% if dist.amount > 0 %}
-              <div class='notice'>선집합 1인 {{ dist.early_each }}전 · 후집합 1인 {{ dist.late_each }}전</div>
+              <div class='farm-dist'>선집합 {{ dist.early_each }}전 · 후집합 {{ dist.late_each }}전</div>
             {% endif %}
             {% if p.owner_uid==u.id or is_admin(u) %}
-              <form method='post' action='/farm_result/{{p.id}}'>
-                <select name='farm_result'><option {% if p.farm_result=="노득" %}selected{% endif %}>노득</option><option {% if p.farm_result=="득템" %}selected{% endif %}>득템</option></select>
+              <form class='farm-form' method='post' action='/farm_result/{{p.id}}'>
+                <select name='farm_result'>
+                  <option {% if p.farm_result=="노득" %}selected{% endif %}>노득</option>
+                  <option {% if p.farm_result=="득템" %}selected{% endif %}>득템</option>
+                </select>
                 <input name='farm_item' value='{{p.farm_item}}' placeholder='아이템명'>
                 <input name='sale_amount' value='{{p.sale_amount}}' placeholder='판매금액'>
-                <button class='ok full'>결과 저장</button>
+                <button class='ok'>저장</button>
               </form>
               <div class='toolbar farm-tools'>
-                <a class='btn gray mini' href='/farm_group/{{p.id}}/early'>선집합 체크</a>
-                <a class='btn gray mini' href='/farm_group/{{p.id}}/late'>후집합 체크</a>
+                <a class='btn gray mini' href='/farm_group/{{p.id}}/early'>선집합</a>
+                <a class='btn gray mini' href='/farm_group/{{p.id}}/late'>후집합</a>
               </div>
             {% endif %}
           </div>
@@ -976,6 +995,27 @@ def delete(pid):
     d=load(); u=cur_user(d)
     d["posts"]=[p for p in d["posts"] if not (p["id"]==pid and (p["owner_uid"]==u["id"] or is_admin(u)))]
     save(d); return redirect("/")
+
+
+
+@app.route("/farm_result/<pid>", methods=["POST"])
+def farm_result(pid):
+    d = load()
+    u = cur_user(d)
+    p = find_post(d, pid)
+    if not p or p.get("category") != "파밍":
+        return redirect("/")
+    if not (is_admin(u) or p.get("owner_uid") == (u or {}).get("id")):
+        return redirect("/")
+    p["farm_result"] = request.form.get("farm_result", "").strip()
+    p["farm_item"] = request.form.get("farm_item", "").strip()
+    p["sale_amount"] = digits(request.form.get("sale_amount", ""), 20)
+    p.setdefault("early_ids", [])
+    p.setdefault("late_ids", [])
+    p.setdefault("early_weight", "1.0")
+    p.setdefault("late_weight", "0.88")
+    save(d)
+    return redirect("/")
 
 @app.route("/global_chat", methods=["POST"])
 def global_chat():

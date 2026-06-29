@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v28.4-final"
+APP_VERSION = "v28.5-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1085,6 +1085,29 @@ input::placeholder,textarea::placeholder{color:#667694}
 
 
 /* v28.4 toast duplicate guard css */
+#toastWrap{
+  position:fixed!important;
+  top:18px!important;
+  right:18px!important;
+  left:auto!important;
+  bottom:auto!important;
+  z-index:9999999!important;
+  display:grid!important;
+  gap:8px!important;
+  max-width:390px!important;
+  pointer-events:none!important;
+}
+#toastWrap .toast,
+.toast.v28-toast{
+  position:relative!important;
+  left:auto!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:auto!important;
+}
+
+
+/* v28.5 single toast css */
 #toastWrap{
   position:fixed!important;
   top:18px!important;
@@ -2476,6 +2499,144 @@ async function testToastFromSettings(){
   }
 
   document.addEventListener('DOMContentLoaded', handleUrlToastOnce);
+})();
+
+
+/* v28.5 single toast final guard */
+(function(){
+  var shown = {};
+  function keyOf(msg){ return String(msg || '').replace(/\s+/g, ' ').trim(); }
+
+  function makeOnlyOneToast(msg){
+    msg = msg || '🔔 알림입니다.';
+    var key = keyOf(msg);
+    var now = Date.now();
+    if(shown[key] && now - shown[key] < 10000) return;
+    shown[key] = now;
+
+    var wrap = document.getElementById('toastWrap');
+    if(!wrap){
+      wrap = document.createElement('div');
+      wrap.id = 'toastWrap';
+      document.body.appendChild(wrap);
+    }
+
+    // 같은 문구가 이미 화면에 떠 있으면 추가하지 않음
+    var nodes = wrap.querySelectorAll('.toast');
+    for(var i=0;i<nodes.length;i++){
+      if(keyOf(nodes[i].textContent) === key) return;
+    }
+
+    var el = document.createElement('div');
+    el.className = 'toast v28-toast';
+    el.textContent = msg;
+    wrap.appendChild(el);
+
+    setTimeout(function(){ el.classList.add('show'); }, 20);
+    setTimeout(function(){
+      el.classList.remove('show');
+      setTimeout(function(){ if(el && el.parentNode) el.parentNode.removeChild(el); }, 320);
+    }, 4500);
+  }
+
+  // 기존 함수 전부 마지막에 덮어쓰기
+  window.BaramToast = makeOnlyOneToast;
+  window.showToast = makeOnlyOneToast;
+
+  window.testToastFromSettings = function(){
+    makeOnlyOneToast('🔔 토스트 알림 테스트입니다. 이 문구가 보이면 정상입니다.');
+  };
+
+  window.sendChromeNotify = function(msg){
+    try{
+      if(!('Notification' in window)) return;
+      if(localStorage.getItem('chromeNotifyEnabled') !== '1') return;
+      if(Notification.permission !== 'granted') return;
+      var key = 'chrome:' + keyOf(msg);
+      var now = Date.now();
+      if(shown[key] && now - shown[key] < 10000) return;
+      shown[key] = now;
+      new Notification('월하 · 연가 · 연희', {body: msg || '새 알림이 있습니다.'});
+    }catch(e){}
+  };
+
+  window.requestChromeNotifyPermission = async function(){
+    if(!('Notification' in window)){
+      makeOnlyOneToast('이 브라우저는 크롬 알림을 지원하지 않습니다.');
+      return;
+    }
+    var result = await Notification.requestPermission();
+    if(result === 'granted'){
+      localStorage.setItem('chromeNotifyEnabled','1');
+      new Notification('월하 · 연가 · 연희', {body:'크롬 알림이 켜졌습니다.'});
+      makeOnlyOneToast('🔔 크롬 알림이 켜졌습니다.');
+    }else{
+      localStorage.setItem('chromeNotifyEnabled','0');
+      makeOnlyOneToast('크롬 알림 권한이 허용되지 않았습니다.');
+    }
+  };
+
+  window.testChromeNotifyFromSettings = function(){
+    if(!('Notification' in window)){
+      makeOnlyOneToast('이 브라우저는 크롬 알림을 지원하지 않습니다.');
+      return;
+    }
+    if(Notification.permission !== 'granted'){
+      window.requestChromeNotifyPermission();
+      return;
+    }
+    localStorage.setItem('chromeNotifyEnabled','1');
+    window.sendChromeNotify('크롬 알림 테스트입니다.');
+    makeOnlyOneToast('🔔 크롬 알림 테스트를 보냈습니다.');
+  };
+
+  function handleUrlToast(){
+    try{
+      var params = new URLSearchParams(location.search);
+      var msg = params.get('toast');
+      if(msg){
+        setTimeout(function(){
+          makeOnlyOneToast(msg);
+          window.sendChromeNotify(msg);
+        }, 250);
+        params.delete('toast');
+        var qs = params.toString();
+        history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+      }
+    }catch(e){}
+  }
+
+  // 다른 사람 알림용: 화면 토스트는 절대 띄우지 않고 크롬 알림만 보냄
+  async function chromeOnlyPoll(){
+    try{
+      var r = await fetch('/api/alerts?_=' + Date.now(), {cache:'no-store'});
+      var data = await r.json();
+      var alerts = data.alerts || [];
+      var seen = {};
+      try{ seen = JSON.parse(localStorage.getItem('v285SeenAlerts') || '{}'); }catch(e){ seen = {}; }
+      var now = Date.now();
+      alerts.forEach(function(a){
+        var id = String(a.id || '');
+        if(!id || seen[id]) return;
+        seen[id] = 1;
+        var t = Date.parse(a.time || '');
+        var recent = isNaN(t) ? true : (now - t < 20000);
+        if(recent && a.text){
+          window.sendChromeNotify(a.text);
+        }
+      });
+      var keys = Object.keys(seen).slice(-150);
+      var slim = {};
+      keys.forEach(function(k){ slim[k] = 1; });
+      localStorage.setItem('v285SeenAlerts', JSON.stringify(slim));
+    }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    handleUrlToast();
+    chromeOnlyPoll();
+    setInterval(chromeOnlyPoll, 3000);
+  });
 })();
 
 </script></body></html>"""

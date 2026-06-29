@@ -1,14 +1,14 @@
-v22.9 ADMIN POST LIST + PREMIUM BUTTONS
+v23.0 SLIM PREMIUM UI
 
 수정:
-- 관리자 콘솔에서 올라온 글 목록 확인 가능
-  파밍글 / 사냥글 / 600퀘
-- 각 글을 개별 수정/삭제 가능
-- 기존 종류별 전체 삭제 유지
-- 버튼 디자인 고급화
-- 탭/관리자 글 목록 UI 정리
+- 기능 로직 유지
+- 상단 버튼 슬림화
+- 카테고리 탭 고급화
+- 관리자 탭/버튼 톤 정리
+- 버튼 그림자/광택 과하지 않게 조정
+- 전체 UI를 실사용 사이트 느낌으로 정리
 
 배포:
 git add .
-git commit -m "v22.9 admin post list premium buttons"
+git commit -m "v23.0 slim premium ui"
 git push

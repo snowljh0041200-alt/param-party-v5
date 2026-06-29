@@ -2,6 +2,6 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 git add .
-git commit -m "v22.9 admin post list premium buttons"
+git commit -m "v23.0 slim premium ui"
 git push
 pause

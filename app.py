@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v22.9"
+APP_VERSION = "v23.0"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -383,6 +383,108 @@ input[type='range']{padding:0;height:6px;accent-color:#19c46f}
   margin:8px 0;
 }
 @media(max-width:720px){.admin-post-row{flex-direction:column;align-items:flex-start}}
+
+
+/* v23 slim premium buttons */
+.btn,button{
+  min-height:40px;
+  padding:0 15px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10)!important;
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:-.25px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    0 8px 18px rgba(0,0,0,.18)!important;
+}
+.btn:before,button:before{
+  background:linear-gradient(180deg,rgba(255,255,255,.13),transparent 48%);
+}
+.nav-btn{
+  min-height:44px!important;
+  padding:0 17px!important;
+  border-radius:13px!important;
+}
+.nav-btn.primary{
+  background:linear-gradient(180deg,#25d985 0%,#13b465 100%)!important;
+  box-shadow:0 10px 24px rgba(19,180,101,.18)!important;
+}
+.header .toolbar{
+  padding:5px!important;
+  gap:6px!important;
+  background:rgba(8,17,38,.34)!important;
+  border:1px solid rgba(255,255,255,.055)!important;
+  border-radius:16px!important;
+}
+.category-bar{
+  padding:4px!important;
+  gap:4px!important;
+  border-radius:14px!important;
+  background:rgba(8,17,38,.48)!important;
+}
+.tab-chip{
+  min-width:56px!important;
+  min-height:34px!important;
+  padding:0 13px!important;
+  border-radius:11px!important;
+  font-size:13px!important;
+  background:transparent!important;
+  border:1px solid transparent!important;
+  box-shadow:none!important;
+  color:#aebddd!important;
+}
+.tab-chip.ok{
+  color:#fff!important;
+  background:linear-gradient(180deg,#22d47e,#12aa5e)!important;
+  border-color:rgba(73,255,162,.18)!important;
+  box-shadow:0 8px 18px rgba(18,170,94,.16)!important;
+}
+.tab-chip.gray:hover{
+  background:rgba(255,255,255,.055)!important;
+  color:#fff!important;
+}
+.btn.gray,button.gray{
+  background:linear-gradient(180deg,#53607a,#3e4963)!important;
+}
+.btn.danger{
+  background:linear-gradient(180deg,#f45b5b,#d83b3b)!important;
+}
+.btn.ok,button.ok{
+  background:linear-gradient(180deg,#24d985,#10ad5d)!important;
+}
+.actions{
+  gap:6px!important;
+}
+.actions .btn{
+  min-width:64px;
+}
+.summary-card{
+  padding:13px 15px!important;
+  border-radius:17px!important;
+}
+.summary-card strong{
+  font-size:24px!important;
+}
+.card,.panel{
+  border-radius:19px!important;
+}
+.card h2{
+  font-size:24px!important;
+}
+.admin-post-tabs{
+  background:rgba(8,17,38,.45);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:14px;
+  padding:5px;
+  width:max-content;
+  max-width:100%;
+}
+@media(max-width:720px){
+  .nav-btn{min-height:42px!important}
+  .tab-chip{flex:1}
+  .admin-post-tabs{width:100%}
+}
 
 @media(max-width:980px){.farm-form{grid-template-columns:1fr 1fr!important}}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr!important}}
@@ -926,8 +1028,8 @@ T_INDEX = """
     <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
   </div>
   <div class='toolbar'>
-    <a class='btn nav-btn primary' href='/new'>＋ 모집글 작성</a>
-    <a class='btn nav-btn gray' href='/chars'>내 캐릭터</a>
+    <a class='btn nav-btn primary' href='/new'>＋ 모집</a>
+    <a class='btn nav-btn gray' href='/chars'>캐릭터</a>
     <button type='button' class='btn nav-btn gray' onclick='openSettingsModal()'>⚙ 설정</button>
     {% if is_admin(u) %}<a class='btn nav-btn gray' href='/admin'>관리자</a>{% endif %}
     <a class='btn nav-btn gray' href='/logout'>로그아웃</a>
@@ -937,7 +1039,7 @@ T_INDEX = """
 <div class='summary-grid'>
   <div class='summary-card'><span>오늘 파밍</span><strong>{{ sched|length }}</strong></div>
   <div class='summary-card'><span>진행중 모집</span><strong>{{ posts|selectattr('closed','equalto',False)|list|length }}</strong></div>
-  <div class='summary-card'><span>내 캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong></div>
+  <div class='summary-card'><span>캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong></div>
 </div>
 
 <div class='app-shell'>
@@ -1374,7 +1476,7 @@ def chars():
         name=request.form.get("name","").strip(); job=request.form.get("job","검성")
         if name: u["chars"].append({"id":nid(),"name":name,"job":job,"status":"pending"}); save(d)
         return redirect("/chars")
-    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>내 캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{c.status}}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'>{{ job_select('job')|safe }}<button class='ok'>추가</button></form></section>", u=u)
+    return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{c.status}}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'>{{ job_select('job')|safe }}<button class='ok'>추가</button></form></section>", u=u)
 
 @app.route("/select_char/<cid>")
 def select_char(cid):

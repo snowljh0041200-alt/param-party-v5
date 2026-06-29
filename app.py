@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.9-stable"
+APP_VERSION = "v26.10"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -621,6 +621,34 @@ input::placeholder,textarea::placeholder{color:#667694}
   display:none;
 }
 
+
+.summary-grid,.mini-stats{display:none!important}
+
+.admin-notice-editor form{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:10px!important;
+}
+.admin-notice-editor label{
+  color:#c8d6f5;
+  font-weight:900;
+  margin-top:4px;
+}
+.admin-notice-editor input,
+.admin-notice-editor textarea{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+.admin-notice-editor textarea{
+  resize:vertical;
+  min-height:280px;
+  line-height:1.55;
+}
+.notice-card{
+  margin-top:12px!important;
+  margin-bottom:18px!important;
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -831,7 +859,7 @@ def normalize(d):
     d.setdefault("global_chat", [])
     d.setdefault("settings", {}).setdefault("farm_items", ["해뼈","흑룡","묵룡","진룡"])
     d.setdefault("settings", {}).setdefault("admin_password", os.environ.get("ADMIN_PASSWORD", "1234"))
-    d.setdefault("settings", {}).setdefault("notice", {"title":"공성 관련 협의 사항 안내", "text":"", "updated_at":""})
+    d.setdefault("settings", {}).setdefault("notice", {"title":"공성 관련 협의 사항 안내", "text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.", "updated_at":""})
     for u in d["users"]:
         u.setdefault("id", nid())
         u.setdefault("account", "")
@@ -1636,17 +1664,8 @@ T_INDEX = """
     {% if is_admin(u) %}<a class='btn nav-btn gray' href='/admin'>관리자</a>{% endif %}
     <a class='btn nav-btn gray' href='/logout'>로그아웃</a>
   </div>
-
-    <div class='mini-stats'>
-      <span>💰 파밍 <b>{{ sched|length }}</b></span>
-      <span>⚔ 진행 <b>{{ posts|selectattr('closed','equalto',False)|list|length }}</b></span>
-      <span>👤 캐릭터 <b>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</b></span>
-    </div>
-
 </header>
 
-<div class='summary-grid'>
-  <div class='summary-card'><span>오늘 파밍</span><strong>{{ sched|length }}</strong></div>
   <div class='summary-card'><span>진행중 모집</span><strong>{{ posts|selectattr('closed','equalto',False)|list|length }}</strong></div>
   <div class='summary-card'><span>캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong></div>
 </div>
@@ -2257,15 +2276,20 @@ def admin():
       </div>
     </div>
   {% endfor %}
+  <section class='panel admin-notice-editor'>
+    <h2>📢 문파 공지사항</h2>
+    <form method='post' action='/admin/notice'>
+      <label>공지 제목</label>
+      <input name='notice_title' value='{{notice.title}}' placeholder='예: 공성 관련 협의 사항 안내'>
 
+      <label>공지 내용</label>
+      <textarea name='notice_text' rows='14' placeholder='공지 내용을 입력하세요'>{{notice.text}}</textarea>
 
-  <h2>문파 공지사항</h2>
-  <form class='admin-form vertical' method='post' action='/admin/notice'>
-    <input name='notice_title' value='{{notice.title}}' placeholder='공지 제목'>
-    <textarea name='notice_text' rows='9' placeholder='문파원에게 보여줄 공지사항'>{{notice.text}}</textarea>
-    <button class='ok'>공지 저장</button>
-  </form>
-  <div class='notice'>저장한 공지는 메인 상단 공지사항 카드에 표시됩니다.</div>
+      <button class='ok full'>공지 저장</button>
+    </form>
+    <div class='notice'>저장하면 메인 상단 공지사항 카드에 바로 표시됩니다.</div>
+  </section>
+
 
   <h2>관리자 비밀번호</h2>
   <form class='admin-form' method='post' action='/admin/password'>

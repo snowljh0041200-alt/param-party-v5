@@ -1,17 +1,16 @@
-v31.4 TRUE TWO COLUMN RECOVER
+v31.5 POST GRID FINAL FIX
 
 수정:
 - v29 안정버전 기준으로 복구
-- 기존 980px 이하에서 오른쪽 패널이 아래로 내려가던 문제 수정
-- 760px 이상에서는 무조건:
-  왼쪽 모집글 2열 / 오른쪽 접속중·오늘일정·통합채팅 고정
-- 모집글 카드 폭 축소
-- 슬롯 안 참여/외부 버튼을 카드 안쪽 오른쪽 기준선에 맞춤
+- 모집글 카드만 post-grid-v315 박스로 감싸서 2열 적용
+- 모집글 제목/필터는 그리드에서 제외
+- 오른쪽 접속중/오늘일정/통합채팅은 760px 이상에서 오른쪽 고정
+- 첫 번째 카드만 맞고 두 번째부터 깨지는 문제 수정
 - 기존 알림/링크/승급지원 정산 숨김 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v31.4 true two column recover"
+git commit -m "v31.5 post grid final fix"
 git push

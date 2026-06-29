@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v31.4-final"
+APP_VERSION = "v31.5-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1999,38 +1999,21 @@ def max_count(p):
     return max(len(p["participants"]), 0)
 
 BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ title }}</title><style>{{ css }}
-/* v31.4 true two-column recover */
-/* 핵심: 기존 980px 모바일 전환을 무력화하고, 760px 이상은 오른쪽 패널을 항상 오른쪽에 둔다 */
+/* v31.5 post grid final fix */
+/* 760px 이상에서는 오른쪽 실시간 패널이 절대 아래로 내려가지 않게 고정 */
 @media (min-width:760px){
   .app-shell{
     display:grid!important;
-    grid-template-columns:minmax(0, 1fr) 340px!important;
-    gap:14px!important;
+    grid-template-columns:minmax(0, 1fr) 360px!important;
+    gap:16px!important;
     align-items:start!important;
     width:100%!important;
-    max-width:none!important;
   }
 
   .left-stack{
+    display:block!important;
     min-width:0!important;
     width:100%!important;
-    display:grid!important;
-    grid-template-columns:repeat(2, minmax(0, 1fr))!important;
-    gap:14px!important;
-    align-items:start!important;
-  }
-
-  .left-stack > .quickbar,
-  .left-stack > .empty{
-    grid-column:1 / -1!important;
-  }
-
-  .left-stack > .card{
-    width:100%!important;
-    max-width:100%!important;
-    min-width:0!important;
-    margin:0!important;
-    box-sizing:border-box!important;
   }
 
   .side-stack{
@@ -2038,35 +2021,40 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
     position:sticky!important;
     top:12px!important;
     align-self:start!important;
-    width:340px!important;
-    min-width:340px!important;
-    max-width:340px!important;
+    width:360px!important;
+    min-width:360px!important;
+    max-width:360px!important;
     max-height:calc(100vh - 24px)!important;
     overflow-y:auto!important;
-    display:block!important;
   }
 
-  .side-stack > .panel{
+  .post-grid-v315{
+    display:grid!important;
+    grid-template-columns:repeat(2, minmax(0, 1fr))!important;
+    gap:14px!important;
+    align-items:start!important;
     width:100%!important;
-    box-sizing:border-box!important;
-    margin-bottom:12px!important;
+    min-width:0!important;
   }
 
-  .chatbox{
-    height:360px!important;
+  .post-grid-v315 > .card,
+  .post-grid-v315 > .empty{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+  }
+
+  .post-grid-v315 > .empty{
+    grid-column:1 / -1!important;
   }
 }
 
-/* 760px 미만에서만 한 줄로 내려감 */
+/* 760px 미만만 모바일 1열 */
 @media (max-width:759px){
   .app-shell{
     display:block!important;
-  }
-  .left-stack{
-    display:block!important;
-  }
-  .left-stack > .card{
-    margin-bottom:14px!important;
   }
   .side-stack{
     position:static!important;
@@ -2075,62 +2063,75 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
     max-width:none!important;
     max-height:none!important;
   }
+  .post-grid-v315{
+    display:block!important;
+  }
+  .post-grid-v315 > .card{
+    margin-bottom:14px!important;
+  }
 }
 
-/* 모집글 카드 내부 폭 정리 */
-.left-stack > .card{
+/* 카드 내부 compact: 삭제 버튼 기준선 안에 참여/외부가 들어오게 */
+.post-grid-v315 > .card{
   overflow:hidden!important;
   padding:14px!important;
   border-radius:18px!important;
 }
 
-.left-stack > .card h2{
+.post-grid-v315 > .card h2{
   font-size:21px!important;
   margin:8px 0!important;
 }
 
-.left-stack > .card .meta{
+.post-grid-v315 > .card .meta{
   font-size:12px!important;
   line-height:1.45!important;
 }
 
-.left-stack > .card .slot{
+.post-grid-v315 > .card .slot{
   display:grid!important;
-  grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-columns:minmax(0, 1fr) auto!important;
   gap:8px!important;
   align-items:center!important;
   padding:10px 11px!important;
   margin:8px 0!important;
 }
 
-.left-stack > .card .slot > div:first-child{
+.post-grid-v315 > .card .slot > div:first-child{
   min-width:0!important;
 }
 
-.left-stack > .card .slot .toolbar{
+.post-grid-v315 > .card .slot .toolbar{
+  display:flex!important;
   justify-content:flex-end!important;
   flex-wrap:nowrap!important;
   gap:6px!important;
   min-width:max-content!important;
 }
 
-.left-stack > .card .slot .btn,
-.left-stack > .card .slot button{
+.post-grid-v315 > .card .slot .btn,
+.post-grid-v315 > .card .slot button{
   padding:8px 10px!important;
   font-size:13px!important;
   white-space:nowrap!important;
 }
 
-.left-stack > .card .actions{
+.post-grid-v315 > .card .actions{
   display:flex!important;
   gap:7px!important;
   flex-wrap:wrap!important;
   align-items:center!important;
+  margin-top:10px!important;
 }
 
-.left-stack > .card .actions .btn{
+.post-grid-v315 > .card .actions .btn{
   padding:9px 12px!important;
   font-size:13px!important;
+}
+
+/* 오른쪽 실시간 패널 채팅 유지 */
+.side-stack .chatbox{
+  height:360px!important;
 }
 
 /* 승급지원 파밍정산/정원 표시 숨김 유지 */
@@ -3282,6 +3283,7 @@ T_INDEX = """
       </div>
     </div>
 
+    <div class='post-grid-v315'>
     {% for p in posts %}
     <section class='card {{ "closed" if p.closed else "" }}' data-category='{{p.category}}'>
       <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "모집 완료" if p.closed else "모집중" }}</span>{% if delete_after_text(p) %}<span class='tag auto-delete-tag'>{{ delete_after_text(p) }}</span>{% endif %}
@@ -3384,6 +3386,7 @@ T_INDEX = """
     {% else %}
       <div class='empty'>모집글 없음</div>
     {% endfor %}
+    </div>
   </main>
 
   <aside class='side-stack'>

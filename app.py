@@ -14,12 +14,27 @@ import time
 import random
 import string
 
-APP_VERSION = "v28.5-final"
+APP_VERSION = "v28.6-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
 
 app = Flask(__name__)
+
+def auto_link_text(value):
+    text = html.escape(str(value or ""))
+    text = re.sub(
+        r'(https?://[^\s<]+)',
+        r'<a href="\1" target="_blank" rel="noopener noreferrer" class="memo-link">\1</a>',
+        text
+    )
+    return text.replace("\n", "<br>")
+
+try:
+    app.jinja_env.filters["autolink"] = auto_link_text
+except Exception:
+    pass
+
 app.secret_key = os.environ.get("SECRET_KEY", "baram-party-v21-secret")
 
 JOBS = ["전사","검객","검제","검황","검성","도적","자객","진검","귀검","태성","주술사","술사","현사","현인","현자","도사","도인","명인","진인","진선","기타"]
@@ -1129,6 +1144,15 @@ input::placeholder,textarea::placeholder{color:#667694}
   bottom:auto!important;
 }
 
+
+/* v28.6 memo link */
+.memo-link{
+  color:#ffe082!important;
+  text-decoration:underline!important;
+  font-weight:900!important;
+  word-break:break-all!important;
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1605,19 +1629,9 @@ def action_msg(p, text):
     return f"🔔 [{post_title(p)}] {text}"
 
 def system_notify(d, msg):
-    try:
-        item = {
-            "id": nid(),
-            "uid": "system",
-            "name": "알림",
-            "text": msg,
-            "time": now().isoformat(timespec="seconds")
-        }
-        d.setdefault("alerts", []).append(item)
-        d["alerts"] = d.get("alerts", [])[-80:]
-        return True
-    except Exception:
-        return False
+    # v28.6: 화면 토스트 중복 방지를 위해 서버 alerts 저장을 하지 않습니다.
+    # 참여/취소/외부변경 알림은 toast_redirect URL 토스트 1개로만 표시됩니다.
+    return True
 
 
 def actor_label(u):
@@ -2639,6 +2653,119 @@ async function testToastFromSettings(){
   });
 })();
 
+
+/* v28.6 true single toast + clear old alert stores */
+(function(){
+  try{
+    localStorage.removeItem('v28SeenAlerts');
+    localStorage.removeItem('v281SeenAlerts');
+    localStorage.removeItem('v283SeenAlerts');
+    localStorage.removeItem('v285SeenAlerts');
+    localStorage.removeItem('seenAlertIds');
+    localStorage.removeItem('lastAlertId');
+  }catch(e){}
+
+  var shownMap = {};
+  function keyOf(msg){ return String(msg || '').replace(/\s+/g, ' ').trim(); }
+
+  function oneToast(msg){
+    msg = msg || '🔔 알림입니다.';
+    var key = keyOf(msg);
+    var now = Date.now();
+    if(shownMap[key] && now - shownMap[key] < 12000) return;
+    shownMap[key] = now;
+
+    var wrap = document.getElementById('toastWrap');
+    if(!wrap){
+      wrap = document.createElement('div');
+      wrap.id = 'toastWrap';
+      document.body.appendChild(wrap);
+    }
+    var nodes = wrap.querySelectorAll('.toast');
+    for(var i=0;i<nodes.length;i++){
+      if(keyOf(nodes[i].textContent) === key) return;
+    }
+
+    var el = document.createElement('div');
+    el.className = 'toast v28-toast';
+    el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(function(){ el.classList.add('show'); }, 20);
+    setTimeout(function(){
+      el.classList.remove('show');
+      setTimeout(function(){ if(el && el.parentNode) el.parentNode.removeChild(el); }, 320);
+    }, 4500);
+  }
+
+  window.BaramToast = oneToast;
+  window.showToast = oneToast;
+
+  window.testToastFromSettings = function(){
+    oneToast('🔔 토스트 알림 테스트입니다. 이 문구가 보이면 정상입니다.');
+  };
+
+  window.sendChromeNotify = function(msg){
+    try{
+      if(!('Notification' in window)) return;
+      if(localStorage.getItem('chromeNotifyEnabled') !== '1') return;
+      if(Notification.permission !== 'granted') return;
+      var key = 'chrome:' + keyOf(msg);
+      var now = Date.now();
+      if(shownMap[key] && now - shownMap[key] < 12000) return;
+      shownMap[key] = now;
+      new Notification('월하 · 연가 · 연희', {body: msg || '새 알림이 있습니다.'});
+    }catch(e){}
+  };
+
+  window.requestChromeNotifyPermission = async function(){
+    if(!('Notification' in window)){
+      oneToast('이 브라우저는 크롬 알림을 지원하지 않습니다.');
+      return;
+    }
+    var result = await Notification.requestPermission();
+    if(result === 'granted'){
+      localStorage.setItem('chromeNotifyEnabled','1');
+      new Notification('월하 · 연가 · 연희', {body:'크롬 알림이 켜졌습니다.'});
+      oneToast('🔔 크롬 알림이 켜졌습니다.');
+    }else{
+      localStorage.setItem('chromeNotifyEnabled','0');
+      oneToast('크롬 알림 권한이 허용되지 않았습니다.');
+    }
+  };
+
+  window.testChromeNotifyFromSettings = function(){
+    if(!('Notification' in window)){
+      oneToast('이 브라우저는 크롬 알림을 지원하지 않습니다.');
+      return;
+    }
+    if(Notification.permission !== 'granted'){
+      window.requestChromeNotifyPermission();
+      return;
+    }
+    localStorage.setItem('chromeNotifyEnabled','1');
+    window.sendChromeNotify('크롬 알림 테스트입니다.');
+    oneToast('🔔 크롬 알림 테스트를 보냈습니다.');
+  };
+
+  function handleUrlToastOnly(){
+    try{
+      var params = new URLSearchParams(location.search);
+      var msg = params.get('toast');
+      if(msg){
+        setTimeout(function(){
+          oneToast(msg);
+          window.sendChromeNotify(msg);
+        }, 250);
+        params.delete('toast');
+        var qs = params.toString();
+        history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+      }
+    }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', handleUrlToastOnly);
+})();
+
 </script></body></html>"""
 
 def render(page, **kw):
@@ -2741,7 +2868,7 @@ T_INDEX = """
       <h2>{{p.place}}</h2>
       <div class='meta'>📍 {{p.channel}}채널 · ⏰ {{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}{% if p.category=="파밍" %} · <b class='remain'>{{ remaining_text(p) }}</b>{% endif %}</div>
       <div class='meta'>👑 {{p.owner_label}} · {{p.created}}</div>
-      {% if p.memo %}<div class='notice'>{{p.memo}}</div>{% endif %}
+      {% if p.memo %}<div class='notice'>{{p.memo|autolink|safe}}</div>{% endif %}
 
       {% if p.category == "사냥" %}
         {% for s in p.slots %}
@@ -3356,7 +3483,7 @@ def edit(pid):
       <input name='end_time' value='{{et}}'>
     </div>
     <label>메모</label>
-    <textarea name='memo'>{{p.memo}}</textarea>
+    <textarea name='memo'>{{p.memo|autolink|safe}}</textarea>
     <button class='ok full'>저장</button>
   </form>
 </section>
@@ -3509,18 +3636,14 @@ def api_copy_text(pid):
 
 @app.route("/api/test_toast")
 def api_test_toast():
-    d = load()
-    u = cur_user(d)
-    if is_admin(u):
-        system_notify(d, "🔔 토스트 알림 테스트입니다.")
-        save(d)
-        return {"ok": True}
+    return {"ok": True, "message": "toast test ok"}
+
     return {"ok": False}
 
 @app.route("/api/alerts")
 def api_alerts():
-    d = load()
-    return {"alerts": d.get("alerts", [])[-30:]}
+    return {"alerts": []}
+
 
 
 

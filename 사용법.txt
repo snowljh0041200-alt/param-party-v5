@@ -1,15 +1,19 @@
-v28.5 SINGLE TOAST FIX
+v28.6 SINGLE TOAST + LINKIFY MEMO
 
 수정:
-- 화면 토스트가 2개씩 뜨는 문제 수정
-- 버튼을 누른 사람은 URL 토스트 1개만 표시
-- /api/alerts 폴링은 화면 토스트를 띄우지 않고 크롬 알림만 처리
-- 같은 문구는 10초 안에 1번만 표시
-- 기존 참여/취소/크롬 알림 기능 유지
+- 토스트가 2개씩 뜨는 원인 제거
+- system_notify 서버 alerts 저장 중단
+- /api/alerts 빈 배열 반환으로 기존 폴링 토스트 차단
+- 버튼 누른 사람은 URL 토스트 1개만 표시
+- 메모에 https://discord.gg/... 같은 링크 입력 시 클릭 가능
 - 컴파일 통과
+
+디스코드 링크 사용:
+메모에 그대로 입력:
+https://discord.gg/r3xYmR5AD
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v28.5 single toast fix"
+git commit -m "v28.6 single toast linkify memo"
 git push

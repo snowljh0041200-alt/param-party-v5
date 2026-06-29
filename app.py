@@ -5,7 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v21.2"
+APP_VERSION = "v21.4"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -29,7 +29,158 @@ PLACES = {
 }
 
 CSS = """
-*{box-sizing:border-box}body{margin:0;background:#071023;color:#f5f8ff;font-family:Arial,'Malgun Gothic',sans-serif;font-weight:700}.wrap{max-width:1100px;margin:0 auto;padding:16px}.panel,.card{background:#111b34;border:1px solid #2e3d62;border-radius:20px;padding:18px;margin:14px 0}.header{padding:18px 0;border-bottom:1px solid #2e3d62}.header h1{margin:0}.sub,.meta{color:#9fb0d1;font-size:14px}input,select,textarea{width:100%;background:#081126;border:1px solid #344466;color:#f5f8ff;border-radius:14px;padding:13px;font-size:16px;font-weight:800}label{display:block;margin:12px 0 6px;color:#bcd0ff}.btn,button{display:inline-flex;align-items:center;justify-content:center;background:#4d6bff;color:#fff;border:0;border-radius:13px;padding:11px 15px;text-decoration:none;font-weight:900;cursor:pointer}.ok{background:#18bf66}.danger{background:#ef4444}.gray{background:#465373}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.slot{display:flex;justify-content:space-between;gap:10px;align-items:center;background:#081126;border:1px solid #26365c;border-radius:16px;padding:12px;margin:10px 0}.mini{padding:8px 11px;border-radius:11px;font-size:14px}.tag{display:inline-flex;background:#24345f;border-radius:999px;padding:6px 10px;margin-right:5px}.notice{background:rgba(255,224,138,.16);border:1px solid rgba(255,224,138,.35);color:#ffe9a6;border-radius:14px;padding:12px;margin:12px 0}.closed{opacity:.55}.time-row{display:grid;grid-template-columns:95px 1fr;gap:8px}.dash{display:grid;grid-template-columns:1fr 1fr;gap:14px}.chatbox{height:280px;overflow:auto;background:#081126;border:1px solid #26365c;border-radius:16px;padding:12px}.chatmsg{background:#1a2748;border-radius:12px;padding:9px;margin:8px 0}.pill{display:inline-flex;background:#22345e;border-radius:999px;padding:7px 10px;margin:4px}.full{width:100%;margin-top:10px}.empty{text-align:center;color:#9fb0d1;border:1px dashed #2e3d62;border-radius:16px;padding:24px}@media(max-width:800px){.dash{grid-template-columns:1fr}.slot{flex-direction:column;align-items:flex-start}.wrap{padding:10px}}select optgroup{background:#142141;color:#9fbbff;font-weight:900}select option{background:#081126;color:#f5f8ff}#slotJob,select[name='job']{border-color:#4d6bff;box-shadow:0 0 0 2px rgba(77,107,255,.12)}
+:root{
+  --bg:#060b18;
+  --bg2:#0a1224;
+  --panel:#111b34;
+  --panel2:#0c152b;
+  --line:#2b3d66;
+  --line2:#3e5aa0;
+  --text:#f5f8ff;
+  --muted:#9fb0d1;
+  --blue:#5d78ff;
+  --green:#19c46f;
+  --red:#ef4444;
+  --gold:#f6d36b;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at top left, rgba(93,120,255,.18), transparent 34%),
+    radial-gradient(circle at top right, rgba(25,196,111,.10), transparent 28%),
+    linear-gradient(180deg,#060b18,#081126 55%,#050914);
+  color:var(--text);
+  font-family:Arial,'Malgun Gothic',sans-serif;
+  font-weight:700;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:18px}
+.header{
+  padding:22px 18px;
+  margin:0 0 16px;
+  border:1px solid var(--line);
+  border-radius:24px;
+  background:linear-gradient(135deg,rgba(93,120,255,.22),rgba(17,27,52,.92));
+  box-shadow:0 18px 40px rgba(0,0,0,.28);
+}
+.header h1{margin:0;font-size:30px;letter-spacing:-.5px}
+.sub,.meta{color:var(--muted);font-size:14px}
+.panel,.card{
+  background:linear-gradient(180deg,rgba(17,27,52,.96),rgba(10,18,36,.96));
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:18px;
+  margin:14px 0;
+  box-shadow:0 14px 32px rgba(0,0,0,.24);
+}
+.card{position:relative;overflow:hidden}
+.card:before{
+  content:"";
+  position:absolute;
+  left:0;top:0;bottom:0;width:5px;
+  background:linear-gradient(180deg,var(--blue),var(--green));
+}
+.card h2,.panel h2{margin-top:8px}
+input,select,textarea{
+  width:100%;
+  background:#081126;
+  border:1px solid #344466;
+  color:var(--text);
+  border-radius:14px;
+  padding:13px;
+  font-size:16px;
+  font-weight:800;
+  outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(93,120,255,.16)}
+label{display:block;margin:12px 0 6px;color:#c9d7ff}
+.btn,button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(180deg,#647dff,#4d66ee);
+  color:#fff;
+  border:0;
+  border-radius:14px;
+  padding:11px 15px;
+  text-decoration:none;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 8px 18px rgba(0,0,0,.22);
+}
+.btn:hover,button:hover{filter:brightness(1.08)}
+.ok{background:linear-gradient(180deg,#22d983,#16b966)!important}
+.danger{background:linear-gradient(180deg,#ff5b5b,#e23d3d)!important}
+.gray{background:linear-gradient(180deg,#586783,#43506c)!important}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.slot{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  background:rgba(8,17,38,.92);
+  border:1px solid #26365c;
+  border-radius:17px;
+  padding:13px;
+  margin:10px 0;
+}
+.slot b{font-size:16px}
+.mini{padding:8px 12px;border-radius:12px;font-size:14px}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  background:#24345f;
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:999px;
+  padding:7px 11px;
+  margin-right:5px;
+  font-size:13px;
+}
+.tag.ok{background:rgba(25,196,111,.22);border-color:rgba(25,196,111,.35)}
+.count{
+  float:right;
+  border:1px solid var(--line2);
+  background:rgba(93,120,255,.12);
+  border-radius:999px;
+  padding:8px 13px;
+  color:#dbe5ff;
+}
+.notice{
+  background:rgba(246,211,107,.13);
+  border:1px solid rgba(246,211,107,.28);
+  color:#ffe7a1;
+  border-radius:14px;
+  padding:12px;
+  margin:12px 0;
+}
+.closed{opacity:.55;filter:grayscale(.35)}
+.time-row{display:grid;grid-template-columns:95px 1fr;gap:8px}
+.dash{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.chatbox{
+  height:280px;
+  overflow:auto;
+  background:#081126;
+  border:1px solid #26365c;
+  border-radius:16px;
+  padding:12px;
+}
+.chatmsg{background:#1a2748;border-radius:12px;padding:10px;margin:8px 0}
+.pill{display:inline-flex;background:#22345e;border-radius:999px;padding:8px 12px;margin:4px}
+.full{width:100%;margin-top:10px}
+.empty{text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:16px;padding:24px}
+.place{animation:fadeIn .15s ease}
+select optgroup{background:#142141;color:#9fbbff;font-weight:900}
+select option{background:#081126;color:#f5f8ff}
+#slotJob,select[name='job']{border-color:#5d78ff;box-shadow:0 0 0 2px rgba(93,120,255,.13)}
+@keyframes fadeIn{from{opacity:.25;transform:translateY(3px)}to{opacity:1;transform:none}}
+@media(max-width:800px){
+  .wrap{padding:10px}
+  .dash{grid-template-columns:1fr}
+  .header h1{font-size:24px}
+  .slot{flex-direction:column;align-items:flex-start}
+  .time-row{grid-template-columns:88px 1fr}
+  .toolbar .btn,.toolbar button{flex:1}
+}
 """
 
 def now():
@@ -223,7 +374,7 @@ BASE_TAIL = """</div><script>
 let slotN=0;
 function qs(s){return document.querySelector(s)}
 function fmt(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);return v.length>=3?v.slice(0,v.length-2)+':'+v.slice(v.length-2):v}
-function addSlot(){let j=qs('#slotJob')?.value,b=qs('#slots');if(!j||!b)return;let d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+j+'</b><input type=hidden name=slot_job_'+slotN+' value=\"'+j+'\"><button type=button class=\"danger mini\" onclick=\"this.parentElement.remove()\">삭제</button>';b.appendChild(d);slotN++}
+function addSlot(){let j=(qs('#slotJob')||document.querySelector("select[name='slotJob']"))?.value,b=qs('#slots');if(!j||!b)return;let d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+j+'</b><input type=hidden name=slot_job_'+slotN+' value=\"'+j+'\"><button type=button class=\"danger mini\" onclick=\"this.parentElement.remove()\">삭제</button>';b.appendChild(d);slotN++}
 function mode(){let c=qs('#cat')?.value;document.querySelectorAll('.place').forEach(x=>x.style.display=x.dataset.cat==c?'':'none');let s=qs('#slotsBox');if(s)s.style.display=c=='사냥'?'':'none'}
 document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.onchange=mode;mode()}document.querySelectorAll('input[name=start_time],input[name=end_time]').forEach(i=>i.oninput=()=>i.value=fmt(i.value))});
 </script></body></html>"""
@@ -308,7 +459,7 @@ def new_post():
     return render(T_NEW, cats=cats)
 
 T_NEW = """
-<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>모집글 올리기</h1><form method='post' action='/create'><label>종류</label><select name='category' id='cat'>{% for c in cats %}<option>{{c}}</option>{% endfor %}</select>{% for cat, arr in places.items() %}<div class='place' data-cat='{{cat}}'><label>장소</label><select name='place_{{cat}}'>{% for p in arr %}<option>{{p}}</option>{% endfor %}</select></div>{% endfor %}<label>채널</label><input name='channel' maxlength='4'><label>날짜</label><input name='date' type='date' value='{{today()}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' maxlength='5' placeholder='1107'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option>오후</option></select><input name='end_time' maxlength='5' placeholder='1120'></div><label>메모</label><textarea name='memo'></textarea><section class='panel' id='slotsBox'><h2>사냥 직업 자리 추가</h2><div class='notice'>전사/도적/주술사/도사 계열 1~4차 기준입니다. 5차 직업과 는 제외했습니다.</div><div class='toolbar'>{{ job_select('slotJob', '', 'slotJob')|safe }}<button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slots'></div></section><div class='notice'>600퀘/파밍은 참여 버튼 방식입니다.</div><button class='ok full'>등록</button></form></section>
+<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>모집글 올리기</h1><form method='post' action='/create'><label>종류</label><select name='category' id='cat'>{% for c in cats %}<option>{{c}}</option>{% endfor %}</select>{% for cat, arr in places.items() %}<div class='place' data-cat='{{cat}}'><label>장소</label><select name='place_{{cat}}'>{% for p in arr %}<option>{{p}}</option>{% endfor %}</select></div>{% endfor %}<label>채널</label><input name='channel' maxlength='4'><label>날짜</label><input name='date' type='date' value='{{today()}}'><label>시작시간</label><div class='time-row'><select name='start_period'><option>오전</option><option>오후</option></select><input name='start_time' maxlength='5' placeholder='1107'></div><label>종료시간</label><div class='time-row'><select name='end_period'><option>오전</option><option>오후</option></select><input name='end_time' maxlength='5' placeholder='1120'></div><label>메모</label><textarea name='memo'></textarea><section class='panel' id='slotsBox'><h2>사냥 직업 자리 추가</h2><div class='notice'>직업 선택 후 추가를 누르면 모집 자리가 생성됩니다.</div><div class='notice'>전사/도적/주술사/도사 계열 1~4차 기준입니다. 과 는 제외했습니다.</div><div class='toolbar'>{{ job_select('slotJob', '', 'slotJob')|safe }}<button type='button' class='ok' onclick='addSlot()'>추가</button></div><div id='slots'></div></section><div class='notice'>600퀘/파밍은 참여 버튼 방식입니다.</div><button class='ok full'>등록</button></form></section>
 """
 
 @app.route("/create", methods=["POST"])

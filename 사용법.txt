@@ -1,14 +1,15 @@
-v36.7 ONLINE ADMIN ONLY
+v36.8 CHARACTER MANAGEMENT FIX
 
 수정:
-- 상단 접속중은 전체 인원수 표시
-- 최고관리자/관리자만 이름과 배지 표시
-- 일반 문원은 이름 대신 '일반 n명'으로 표시
-- 접속자가 많아도 UI 깨짐 방지
-- 기존 캐릭터 수정/외부 버튼/알림 수정 유지
+- 캐릭터 페이지를 새로 구성
+- 각 캐릭터마다 선택 / 수정 / 삭제 버튼 표시
+- 수정에서 캐릭터명과 직업/차수 변경 가능
+- 진인 → 진선 승급 후 수정 가능
+- 캐릭터 추가 기능 유지
+- 기존 접속중/알림/외부 버튼 수정 유지
 - 컴파일 통과
 
 배포:
 git add .
-git commit -m "v36.7 online admin only"
+git commit -m "v36.8 character management fix"
 git push

@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v36.7-final"
+APP_VERSION = "v36.8-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2471,6 +2471,54 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
   flex:0 0 auto!important;
 }
 
+
+/* v36.8 character management fix */
+.char-manage-v368{
+  max-width:none!important;
+}
+.char-list-v368{
+  display:grid!important;
+  gap:10px!important;
+  margin:18px 0!important;
+}
+.char-row-v368{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:12px!important;
+  align-items:center!important;
+  padding:14px!important;
+  border:1px solid rgba(90,130,210,.35)!important;
+  border-radius:14px!important;
+  background:rgba(5,14,34,.35)!important;
+}
+.char-actions-v368{
+  display:flex!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  justify-content:flex-end!important;
+}
+.char-form-v368{
+  display:grid!important;
+  gap:8px!important;
+}
+.char-form-v368 input,
+.char-form-v368 select{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+.edit-char-form-v368 label{
+  font-weight:800!important;
+  margin-top:6px!important;
+}
+@media(max-width:700px){
+  .char-row-v368{
+    grid-template-columns:1fr!important;
+  }
+  .char-actions-v368{
+    justify-content:flex-start!important;
+  }
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -3539,6 +3587,107 @@ def v36_2_filter_farm_alerts_py(alerts):
         out.append(a)
     return out  # v36_2_filter_farm_alerts_py
 
+
+T_CHARS_MANAGE = """
+<section class='panel char-manage-v368'>
+  <a class='btn gray' href='/'>← 메인으로</a>
+  <h1>캐릭터</h1>
+
+  <div class='char-list-v368'>
+  {% for ch in u.chars %}
+    <div class='char-row-v368'>
+      <div>
+        <b>{{ch.name}}({{ch.job}})</b>
+        <div class='meta'>
+          {% if selected_char(u) and selected_char(u).id == ch.id %}
+            현재 선택됨
+          {% else %}
+            승인됨
+          {% endif %}
+        </div>
+      </div>
+      <div class='char-actions-v368'>
+        <a class='btn ok' href='/select_char/{{ch.id}}'>선택</a>
+        <a class='btn gray' href='/edit_char/{{ch.id}}'>수정</a>
+        <a class='btn danger' href='/delete_char/{{ch.id}}' onclick='return confirm("이 캐릭터를 삭제할까요?")'>삭제</a>
+      </div>
+    </div>
+  {% else %}
+    <div class='empty'>등록된 캐릭터 없음</div>
+  {% endfor %}
+  </div>
+
+  <h2>추가</h2>
+  <form method='post' action='/add_char' class='char-form-v368'>
+    <input name='name' placeholder='캐릭터명' required>
+    <select name='job'>
+      {% for j in jobs %}
+        <option value='{{j}}'>{{j}}</option>
+      {% endfor %}
+    </select>
+    <button class='ok'>추가</button>
+  </form>
+</section>
+"""
+
+T_EDIT_CHAR_V368 = """
+<section class='panel char-manage-v368'>
+  <a class='btn gray' href='/chars'>← 캐릭터</a>
+  <h1>캐릭터 수정</h1>
+
+  <form method='post' class='char-form-v368 edit-char-form-v368'>
+    <label>캐릭터명</label>
+    <input name='name' value='{{ch.name}}' required>
+
+    <label>직업/차수</label>
+    <select name='job'>
+      {% for j in jobs %}
+        <option value='{{j}}' {% if ch.job==j %}selected{% endif %}>{{j}}</option>
+      {% endfor %}
+    </select>
+
+    <button class='ok'>저장</button>
+  </form>
+</section>
+"""
+
+
+
+def find_user_char(u, cid):
+    for ch in u.get("chars", []):
+        if str(ch.get("id")) == str(cid):
+            return ch
+    return None
+
+@app.route("/delete_char/<cid>")
+def delete_char(cid):
+    d = load()
+    u = current_user()
+    chars = u.get("chars", [])
+    u["chars"] = [ch for ch in chars if str(ch.get("id")) != str(cid)]
+    if u.get("selected_char_id") == cid:
+        u["selected_char_id"] = u["chars"][0]["id"] if u.get("chars") else None
+    save(d)
+    return redirect("/chars")
+
+@app.route("/add_char", methods=["POST"])
+def add_char():
+    d = load()
+    u = current_user()
+    name = (request.form.get("name") or "").strip()
+    job = (request.form.get("job") or "").strip()
+    if name:
+        u.setdefault("chars", []).append({
+            "id": uid(),
+            "name": name,
+            "job": job or (JOBS[0] if JOBS else ""),
+            "status": "approved"
+        })
+        if not u.get("selected_char_id"):
+            u["selected_char_id"] = u["chars"][-1]["id"]
+        save(d)
+    return redirect("/chars")
+
 @app.route("/toast_test")
 def toast_test_page():
     u = cur_user()
@@ -4524,33 +4673,11 @@ def chat(pid):
     return render("<section class='panel'><a class='btn gray' href='/'>← 메인으로</a><h1>채팅</h1><div class='chatbox'>{% for m in p.chat %}<div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}</div>{% else %}<div class='empty'>메시지 없음</div>{% endfor %}</div><form method='post' class='toolbar'><input name='text'><button>전송</button></form></section>", p=p)
 
 
-T_EDIT_CHAR = """
-<section class='panel'>
-  <a class='btn gray' href='/chars'>← 캐릭터</a>
-  <h1>캐릭터 수정</h1>
-  <form method='post' class='stack-form'>
-    <label>캐릭터명</label>
-    <input name='name' value='{{ch.name}}' required>
-    <label>직업/차수</label>
-    <select name='job'>
-      {% for j in jobs %}
-        <option value='{{j}}' {% if ch.job==j %}selected{% endif %}>{{j}}</option>
-      {% endfor %}
-    </select>
-    <button class='ok'>저장</button>
-  </form>
-</section>
-"""
-
 @app.route("/edit_char/<cid>", methods=["GET","POST"])
 def edit_char(cid):
     d = load()
     u = current_user()
-    ch = None
-    for c in u.get("chars", []):
-        if str(c.get("id")) == str(cid):
-            ch = c
-            break
+    ch = find_user_char(u, cid)
     if not ch:
         return redirect("/chars")
     if request.method == "POST":
@@ -4560,20 +4687,16 @@ def edit_char(cid):
             ch["name"] = name
         if job:
             ch["job"] = job
+        ch["status"] = ch.get("status") or "approved"
         save(d)
         return redirect("/chars")
-    return render_template_string(BASE_HEAD + T_EDIT_CHAR + BASE_TAIL, d=d, u=u, c=selected_char(u), ch=ch, jobs=JOBS, app_version=APP_VERSION)
+    return render_template_string(BASE_HEAD + T_EDIT_CHAR_V368 + BASE_TAIL, d=d, u=u, c=selected_char(u), ch=ch, jobs=JOBS, app_version=APP_VERSION)
 
-
-@app.route("/chars", methods=["GET","POST"])
+@app.route("/chars")
 def chars():
-    d=load(); u=cur_user(d)
-    if not approved(u): return redirect("/pending")
-    if request.method=="POST":
-        name=request.form.get("name","").strip(); job=request.form.get("job","검성")
-        if name and not char_name_exists(d, name, exclude_uid=u.get("id","")): u["chars"].append({"id":nid(),"name":name,"job":job,"status":"approved" if u.get("status")=="approved" else "pending"}); save(d)
-        return redirect("/chars")
-    return render("<section class='panel'><a class='btn gray' href='/'>← 메인으로</a><h1>캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{ '승인됨' if c.status=='approved' else '승인대기' }}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'>{{ job_select('job')|safe }}<button class='ok'>추가</button></form></section>", u=u)
+    d = load()
+    u = current_user()
+    return render_template_string(BASE_HEAD + T_CHARS_MANAGE + BASE_TAIL, d=d, u=u, c=selected_char(u), jobs=JOBS, app_version=APP_VERSION)
 
 @app.route("/select_char/<cid>")
 def select_char(cid):

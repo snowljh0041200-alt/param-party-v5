@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.0"
+APP_VERSION = "v26.2"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -606,6 +606,21 @@ input::placeholder,textarea::placeholder{color:#667694}
 .admin-post-row:hover,.admin-card:hover{border-color:rgba(88,116,255,.25)}
 .schedule-row strong,.remain{color:#ffe28a!important}
 .group-badge{white-space:nowrap}
+
+.share-btn{
+  background:linear-gradient(180deg,#6b7896,#4b5874)!important;
+}
+
+
+.auto-delete-tag{
+  background:rgba(244,212,122,.14)!important;
+  border-color:rgba(244,212,122,.32)!important;
+  color:#ffe5a0!important;
+}
+.closed .actions .btn.ok{
+  display:none;
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -844,6 +859,7 @@ def normalize(d):
         p.setdefault("owner_label", "")
         p.setdefault("created", now_text())
         p.setdefault("closed", False)
+        p.setdefault("closed_at", "")
         p.setdefault("slots", [])
         p.setdefault("participants", [])
         p.setdefault("chat", [])
@@ -906,7 +922,9 @@ def char_label(c):
 
 def touch_online():
     d = load()
-    if farm_alert_tick(d):
+    changed_cleanup = cleanup_closed_posts(d)
+    changed_alert = farm_alert_tick(d)
+    if changed_cleanup or changed_alert:
         save(d)
     u = cur_user(d)
     if not u:
@@ -990,6 +1008,61 @@ def remaining_text(p):
     return "종료"
 
 
+
+
+
+def cleanup_closed_posts(d):
+    changed = False
+    keep = []
+    for p in d.get("posts", []):
+        if p.get("closed") and p.get("category") in ["사냥", "600퀘", "승급지원"]:
+            closed_at = p.get("closed_at", "")
+            try:
+                ts = datetime.fromisoformat(closed_at).timestamp()
+            except Exception:
+                ts = 0
+            if ts and now().timestamp() - ts >= 3600:
+                changed = True
+                continue
+        keep.append(p)
+    if changed:
+        d["posts"] = keep
+    return changed
+
+def delete_after_text(p):
+    if not p.get("closed") or p.get("category") == "파밍":
+        return ""
+    closed_at = p.get("closed_at", "")
+    try:
+        ts = datetime.fromisoformat(closed_at).timestamp()
+    except Exception:
+        return ""
+    remain = int(3600 - (now().timestamp() - ts))
+    if remain <= 0:
+        return "곧 삭제"
+    m = max(1, remain // 60)
+    return f"{m}분 후 자동삭제"
+
+def share_text(p):
+    title = f"월하 연가 연희 {p.get('category','')} 모집"
+    place = p.get("place","")
+    channel = p.get("channel","")
+    date = p.get("date","")
+    start = show_time(p.get("start_time",""))
+    end = show_time(p.get("end_time",""))
+    memo = p.get("memo","").strip()
+    count = f"{joined_count(p)} / {max_count(p)}명"
+    lines = [
+        f"[{title}]",
+        f"장소: {place}",
+        f"채널: {channel}채널" if channel else "채널: 미정",
+        f"시간: {date} {start} ~ {end}",
+        f"인원: {count}",
+    ]
+    if memo:
+        lines.append(f"메모: {memo}")
+    lines.append("참여는 파티모집 사이트에서 해주세요.")
+    return "\\n".join(lines)
 
 def participant_for_user(p, u):
     if not p or not u:
@@ -1184,6 +1257,32 @@ document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.oncha
 
 
 
+
+async function sharePost(btn){
+  const text = btn?.dataset?.share || '';
+  if(!text)return;
+  try{
+    if(navigator.share){
+      await navigator.share({text});
+      return;
+    }
+  }catch(e){}
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast('카톡 공유 문구를 복사했습니다');
+  }catch(e){
+    const box=document.createElement('textarea');
+    box.value=text;
+    box.style.position='fixed';
+    box.style.left='-9999px';
+    document.body.appendChild(box);
+    box.select();
+    try{document.execCommand('copy');showToast('카톡 공유 문구를 복사했습니다');}
+    catch(err){alert(text);}
+    document.body.removeChild(box);
+  }
+}
+
 function showToast(message){
   try{
     let t=document.getElementById('appToast');
@@ -1366,12 +1465,14 @@ document.addEventListener('DOMContentLoaded',()=>{try{const y=sessionStorage.get
 def render(page, **kw):
     kw.setdefault("title", APP_TITLE)
     kw.setdefault("css", CSS)
-    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, participant_for_user=participant_for_user, join_block_reason=join_block_reason, can_join_post=can_join_post, participant_group_label=participant_group_label, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
+    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, delete_after_text=delete_after_text, share_text=share_text, participant_for_user=participant_for_user, join_block_reason=join_block_reason, can_join_post=can_join_post, participant_group_label=participant_group_label, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
     return render_template_string(BASE_HEAD + page + BASE_TAIL, **kw)
 
 @app.route("/")
 def index():
     d = load()
+    if cleanup_closed_posts(d):
+        save(d)
     u = cur_user(d)
     if not u:
         return redirect("/gate")
@@ -1503,6 +1604,7 @@ T_INDEX = """
       {% endif %}
 
       <div class='actions'>
+        <button type='button' class='btn gray share-btn' onclick='sharePost(this)' data-share='{{ share_text(p)|e }}'>공유</button>
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
           {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}
@@ -1849,7 +1951,10 @@ def edit(pid):
 @app.route("/close/<pid>")
 def close(pid):
     d=load(); u=cur_user(d); p=find_post(d,pid)
-    if p and can_manage_post(u, p): p["closed"]=True; save(d)
+    if p and can_manage_post(u, p):
+        p["closed"]=True
+        p["closed_at"]=now().isoformat(timespec="seconds")
+        save(d)
     return redirect("/")
 
 @app.route("/delete/<pid>")

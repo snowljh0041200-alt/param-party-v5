@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v28.6-final"
+APP_VERSION = "v28.7-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1355,7 +1355,7 @@ def show_time(value):
     return f"{p} {t}" if t else "시간 미정"
 
 def empty_data():
-    return {"users": [], "posts": [], "global_chat": [], "alerts": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"title":"공성 관련 협의 사항 안내","text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.","updated_at":""}}}
+    return {"users": [], "posts": [], "global_chat": [], "alerts": [], "chrome_alerts": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"title":"공성 관련 협의 사항 안내","text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.","updated_at":""}}}
 
 def normalize(d):
     d.setdefault("users", [])
@@ -1629,9 +1629,21 @@ def action_msg(p, text):
     return f"🔔 [{post_title(p)}] {text}"
 
 def system_notify(d, msg):
-    # v28.6: 화면 토스트 중복 방지를 위해 서버 alerts 저장을 하지 않습니다.
-    # 참여/취소/외부변경 알림은 toast_redirect URL 토스트 1개로만 표시됩니다.
-    return True
+    # v28.7: 화면 토스트 중복 방지를 위해 /api/alerts는 비워두고,
+    # 크롬 알림 전용 저장소 chrome_alerts에만 저장합니다.
+    try:
+        item = {
+            "id": nid(),
+            "uid": "system",
+            "name": "알림",
+            "text": msg,
+            "time": now().isoformat(timespec="seconds")
+        }
+        d.setdefault("chrome_alerts", []).append(item)
+        d["chrome_alerts"] = d.get("chrome_alerts", [])[-80:]
+        return True
+    except Exception:
+        return False
 
 
 def actor_label(u):
@@ -2766,6 +2778,162 @@ async function testToastFromSettings(){
   document.addEventListener('DOMContentLoaded', handleUrlToastOnly);
 })();
 
+
+/* v28.7 split chrome alerts final */
+(function(){
+  try{
+    localStorage.removeItem('v28SeenAlerts');
+    localStorage.removeItem('v281SeenAlerts');
+    localStorage.removeItem('v283SeenAlerts');
+    localStorage.removeItem('v285SeenAlerts');
+    localStorage.removeItem('seenAlertIds');
+    localStorage.removeItem('lastAlertId');
+  }catch(e){}
+
+  var shown = {};
+  function keyOf(msg){ return String(msg || '').replace(/\s+/g, ' ').trim(); }
+
+  function oneToast(msg){
+    msg = msg || '🔔 알림입니다.';
+    var key = keyOf(msg);
+    var now = Date.now();
+    if(shown[key] && now - shown[key] < 12000) return;
+    shown[key] = now;
+
+    var wrap = document.getElementById('toastWrap');
+    if(!wrap){
+      wrap = document.createElement('div');
+      wrap.id = 'toastWrap';
+      document.body.appendChild(wrap);
+    }
+    var nodes = wrap.querySelectorAll('.toast');
+    for(var i=0;i<nodes.length;i++){
+      if(keyOf(nodes[i].textContent) === key) return;
+    }
+
+    var el = document.createElement('div');
+    el.className = 'toast v28-toast';
+    el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(function(){ el.classList.add('show'); }, 20);
+    setTimeout(function(){
+      el.classList.remove('show');
+      setTimeout(function(){ if(el && el.parentNode) el.parentNode.removeChild(el); }, 320);
+    }, 4500);
+  }
+
+  window.BaramToast = oneToast;
+  window.showToast = oneToast;
+
+  function canChromeNotify(){
+    return ('Notification' in window) &&
+           localStorage.getItem('chromeNotifyEnabled') === '1' &&
+           Notification.permission === 'granted';
+  }
+
+  window.sendChromeNotify = function(msg){
+    try{
+      if(!canChromeNotify()) return false;
+      var key = 'chrome:' + keyOf(msg);
+      var now = Date.now();
+      if(shown[key] && now - shown[key] < 12000) return false;
+      shown[key] = now;
+      new Notification('월하 · 연가 · 연희', {
+        body: msg || '새 알림이 있습니다.',
+        icon: '/favicon.ico'
+      });
+      return true;
+    }catch(e){
+      return false;
+    }
+  };
+
+  window.requestChromeNotifyPermission = async function(){
+    if(!('Notification' in window)){
+      oneToast('이 브라우저는 크롬 알림을 지원하지 않습니다.');
+      return;
+    }
+    var result = await Notification.requestPermission();
+    if(result === 'granted'){
+      localStorage.setItem('chromeNotifyEnabled','1');
+      try{
+        new Notification('월하 · 연가 · 연희', { body:'크롬 알림이 켜졌습니다.' });
+      }catch(e){}
+      oneToast('🔔 크롬 알림이 켜졌습니다.');
+    }else{
+      localStorage.setItem('chromeNotifyEnabled','0');
+      oneToast('크롬 알림 권한이 허용되지 않았습니다.');
+    }
+  };
+
+  window.testToastFromSettings = function(){
+    oneToast('🔔 토스트 알림 테스트입니다. 이 문구가 보이면 정상입니다.');
+  };
+
+  window.testChromeNotifyFromSettings = async function(){
+    if(!('Notification' in window)){
+      oneToast('이 브라우저는 크롬 알림을 지원하지 않습니다.');
+      return;
+    }
+    if(Notification.permission !== 'granted'){
+      await window.requestChromeNotifyPermission();
+      return;
+    }
+    localStorage.setItem('chromeNotifyEnabled','1');
+    var ok = window.sendChromeNotify('크롬 알림 테스트입니다.');
+    if(ok) oneToast('🔔 크롬 알림 테스트를 보냈습니다.');
+    else oneToast('크롬 알림이 차단되어 있습니다. 주소창 왼쪽 사이트 권한에서 알림 허용을 확인하세요.');
+  };
+
+  function handleUrlToast(){
+    try{
+      var params = new URLSearchParams(location.search);
+      var msg = params.get('toast');
+      if(msg){
+        setTimeout(function(){
+          oneToast(msg);
+          window.sendChromeNotify(msg);
+        }, 250);
+        params.delete('toast');
+        var qs = params.toString();
+        history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+      }
+    }catch(e){}
+  }
+
+  // 크롬 알림 전용 폴링: 화면 토스트는 띄우지 않음
+  async function chromeAlertPoll(){
+    try{
+      var r = await fetch('/api/chrome_alerts?_=' + Date.now(), {cache:'no-store'});
+      var data = await r.json();
+      var alerts = data.alerts || [];
+      var seen = {};
+      try{ seen = JSON.parse(localStorage.getItem('v287ChromeSeen') || '{}'); }catch(e){ seen = {}; }
+      var now = Date.now();
+      alerts.forEach(function(a){
+        var id = String(a.id || '');
+        if(!id || seen[id]) return;
+        seen[id] = 1;
+        var t = Date.parse(a.time || '');
+        var recent = isNaN(t) ? true : (now - t < 20000);
+        if(recent && a.text){
+          window.sendChromeNotify(a.text);
+        }
+      });
+      var keys = Object.keys(seen).slice(-150);
+      var slim = {};
+      keys.forEach(function(k){ slim[k] = 1; });
+      localStorage.setItem('v287ChromeSeen', JSON.stringify(slim));
+    }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    handleUrlToast();
+    chromeAlertPoll();
+    setInterval(chromeAlertPoll, 3000);
+  });
+})();
+
 </script></body></html>"""
 
 def render(page, **kw):
@@ -3636,13 +3804,25 @@ def api_copy_text(pid):
 
 @app.route("/api/test_toast")
 def api_test_toast():
-    return {"ok": True, "message": "toast test ok"}
+    d = load()
+    msg = "🔔 서버 크롬 알림 테스트입니다."
+    system_notify(d, msg)
+    save(d)
+    return {"ok": True, "message": msg}
+
 
     return {"ok": False}
+
+
+@app.route("/api/chrome_alerts")
+def api_chrome_alerts():
+    d = load()
+    return {"alerts": d.get("chrome_alerts", [])[-30:]}
 
 @app.route("/api/alerts")
 def api_alerts():
     return {"alerts": []}
+
 
 
 

@@ -1,19 +1,22 @@
-v28.6 SINGLE TOAST + LINKIFY MEMO
+v28.7 CHROME ALERTS SPLIT FIX
 
 수정:
-- 토스트가 2개씩 뜨는 원인 제거
-- system_notify 서버 alerts 저장 중단
-- /api/alerts 빈 배열 반환으로 기존 폴링 토스트 차단
-- 버튼 누른 사람은 URL 토스트 1개만 표시
-- 메모에 https://discord.gg/... 같은 링크 입력 시 클릭 가능
+- 화면 토스트는 계속 1개만 표시
+- /api/alerts는 빈 배열 유지해서 기존 중복 토스트 방지
+- /api/chrome_alerts 새로 추가
+- system_notify는 크롬 알림 전용 저장소 chrome_alerts에 저장
+- 크롬 알림은 /api/chrome_alerts만 폴링
+- 크롬 알림 테스트 API 다시 저장되게 수정
 - 컴파일 통과
 
-디스코드 링크 사용:
-메모에 그대로 입력:
-https://discord.gg/r3xYmR5AD
+크롬 알림이 안 뜨면:
+1) 설정 > 크롬 알림 켜기
+2) 브라우저 권한 허용
+3) 주소창 왼쪽 아이콘 클릭 > 사이트 설정 > 알림 허용 확인
+4) Windows 알림/집중 지원 꺼짐 확인
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v28.6 single toast linkify memo"
+git commit -m "v28.7 chrome alerts split fix"
 git push

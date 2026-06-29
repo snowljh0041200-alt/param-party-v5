@@ -1,14 +1,14 @@
-v36.4 EXTERNAL BUTTON FIX
+v36.5 ONLINE HEADER CHAT EXPAND
 
 수정:
-- 외부 버튼 클릭 시 Not Found 뜨는 문제 수정
-- /add_external/<pid>/<idx> 라우트 추가
-- 기존 /external_slot/<pid>/<idx> 라우트와 연결
-- 템플릿 외부 버튼 링크도 /external_slot 로 정리
-- 기존 알림/공지/파밍정산 수정 유지
+- 접속중을 상단 제목 옆에 작게 표시
+- 접속자 이름 옆 관리자/최고관리자 배지 복구
+- 오른쪽 접속중 패널 제거
+- 통합채팅 공간 확장
+- 기존 외부 버튼 오류 수정 유지
 - 컴파일 통과
 
 배포:
 git add .
-git commit -m "v36.4 external button fix"
+git commit -m "v36.5 online header chat expand"
 git push

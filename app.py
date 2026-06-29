@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v36.4-final"
+APP_VERSION = "v36.5-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2345,6 +2345,92 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
   font-size:13px!important;
 }
 
+
+/* v36.5 online header + chat expand */
+.title-online-v365{
+  display:flex!important;
+  align-items:center!important;
+  gap:16px!important;
+  min-width:0!important;
+}
+
+.header-online-v365{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  padding:8px 12px!important;
+  border:1px solid rgba(110,140,190,.28)!important;
+  border-radius:999px!important;
+  background:rgba(9,21,45,.45)!important;
+  color:#eaf2ff!important;
+  font-size:13px!important;
+  white-space:nowrap!important;
+  max-width:520px!important;
+  overflow:hidden!important;
+}
+
+.online-dot-v365{
+  width:10px!important;
+  height:10px!important;
+  border-radius:50%!important;
+  background:#48f08a!important;
+  box-shadow:0 0 10px rgba(72,240,138,.9)!important;
+  flex:0 0 auto!important;
+}
+
+.header-online-list-v365{
+  display:flex!important;
+  gap:6px!important;
+  align-items:center!important;
+  overflow:hidden!important;
+}
+
+.mini-online-v365{
+  font-size:12px!important;
+  padding:5px 8px!important;
+  max-width:190px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+.role-badge-v365{
+  margin-left:5px!important;
+  color:#ffe36d!important;
+  font-weight:900!important;
+}
+
+/* 오른쪽에서 접속중 박스를 뺀 만큼 통합채팅 확장 */
+.live-box-v36{
+  gap:12px!important;
+}
+
+.live-box-v36 .schedule-panel{
+  min-height:92px!important;
+}
+
+.live-box-v36 .chat-panel{
+  min-height:430px!important;
+  flex:1 1 auto!important;
+}
+
+.live-box-v36 .chatbox{
+  height:315px!important;
+  min-height:315px!important;
+}
+
+/* 좁은 화면에서는 제목 아래로 접속중 표시 */
+@media(max-width:900px){
+  .title-online-v365{
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    gap:8px!important;
+  }
+  .header-online-v365{
+    max-width:100%!important;
+    border-radius:14px!important;
+  }
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -3472,9 +3558,25 @@ def nl2br_filter(s):
 
 T_INDEX = """
 <header class='header'>
-  <div>
-    <h1>⚔ 월하 · 연가 · 연희</h1>
-    <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
+  <div class='title-online-v365'>
+    <div>
+      <h1>⚔ 월하 · 연가 · 연희</h1>
+      <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
+    </div>
+    <div class='header-online-v365'>
+      <span class='online-dot-v365'></span>
+      <b>접속중 {{ online|length }}명</b>
+      <div class='header-online-list-v365'>
+        {% for o in online %}
+          <span class='pill mini-online-v365'>
+            {{o.label}}
+            {% if o.role %}
+              <small class='group-badge role-badge-v365'>{{o.role}}</small>
+            {% endif %}
+          </span>
+        {% endfor %}
+      </div>
+    </div>
   </div>
   <div class='toolbar'>
     <a class='btn nav-btn gray' href='/chars'>캐릭터</a>
@@ -3498,21 +3600,7 @@ T_INDEX = """
   </div>
 
   <aside class='live-box-v36'>
-    <section class='panel online-panel'>
-      <div class='panel-head'>
-        <h2>🟢 접속중 {{ online|length }}명</h2>
-        <span class='meta'>최근 5분</span>
-      </div>
-      <div class='online-list'>
-        {% for o in online %}
-          <span class='pill'>{{o.label}}{% if o.role=="super" %}<small class='group-badge'>최고관리자</small>{% endif %}</span>
-        {% else %}
-          <div class='empty small'>접속자 없음</div>
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class='panel schedule-panel'>
+<section class='panel schedule-panel'>
       <h2>🗓️ 오늘 일정</h2>
       {% for s in sched %}
         <div class='schedule-item schedule-item-v363'>

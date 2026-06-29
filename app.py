@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v38.0-design"
+APP_VERSION = "v39.0-design-project"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2538,259 +2538,304 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
 /* v37.3 add char fix */
 
 /* =========================================================
-   v38.0 DESIGN REMASTER - CSS ONLY
-   기능/라우트/DB/API 수정 없음
+   v39.0 DESIGN PROJECT REMASTER
+   기능/라우트/DB/API 변경 없음
+   HTML 클래스/텍스트와 CSS 디자인만 개선
    ========================================================= */
 
 :root{
-  --bg0:#030712;
-  --bg1:#06111f;
-  --bg2:#0a1730;
-  --panel:#0f1b34;
-  --panel2:#111f3d;
-  --line:rgba(129,161,226,.28);
-  --line2:rgba(255,220,130,.25);
-  --text:#eef5ff;
-  --muted:#a9b8d6;
-  --gold:#f6d36b;
-  --gold2:#fff0a8;
-  --green:#20d17a;
-  --green2:#42f2a0;
-  --blue:#7aa7ff;
-  --red:#ff5c68;
-  --shadow:0 18px 46px rgba(0,0,0,.42);
-  --glow:0 0 22px rgba(44,216,138,.22);
-}
-
-*{
-  scrollbar-width:thin;
-  scrollbar-color:rgba(130,160,220,.55) rgba(5,14,30,.45);
-}
-
-::-webkit-scrollbar{
-  width:10px;
-  height:10px;
-}
-::-webkit-scrollbar-track{
-  background:rgba(5,14,30,.45);
-  border-radius:999px;
-}
-::-webkit-scrollbar-thumb{
-  background:linear-gradient(180deg, rgba(132,160,220,.75), rgba(70,92,145,.75));
-  border-radius:999px;
-  border:2px solid rgba(5,14,30,.7);
+  --v39-bg:#030812;
+  --v39-bg2:#071323;
+  --v39-panel:rgba(14,26,52,.86);
+  --v39-panel2:rgba(10,20,42,.92);
+  --v39-line:rgba(140,170,235,.26);
+  --v39-line-gold:rgba(245,205,104,.32);
+  --v39-text:#f4f8ff;
+  --v39-muted:#a9b8d4;
+  --v39-gold:#f4d36d;
+  --v39-green:#23d982;
+  --v39-blue:#86adff;
+  --v39-red:#ff6370;
+  --v39-shadow:0 20px 55px rgba(0,0,0,.42);
 }
 
 html,body{
   background:
-    radial-gradient(circle at 15% -10%, rgba(41,88,174,.22), transparent 35%),
-    radial-gradient(circle at 88% 6%, rgba(30,211,129,.13), transparent 28%),
-    radial-gradient(circle at 50% 110%, rgba(246,211,107,.08), transparent 35%),
-    linear-gradient(180deg, var(--bg0), var(--bg1) 45%, #040b16)!important;
-  color:var(--text)!important;
-  letter-spacing:-.02em;
+    radial-gradient(circle at 10% -10%, rgba(47,91,190,.22), transparent 34%),
+    radial-gradient(circle at 90% 0%, rgba(35,217,130,.12), transparent 28%),
+    radial-gradient(circle at 50% 112%, rgba(244,211,109,.08), transparent 38%),
+    linear-gradient(180deg, #020611, #061323 45%, #030812)!important;
+  color:var(--v39-text)!important;
+  letter-spacing:-.025em!important;
 }
 
 .wrap{
-  filter:none!important;
+  max-width:1240px!important;
 }
 
-/* 상단 헤더 - 게임 런처 느낌 */
+/* 헤더 */
 .header{
-  position:relative;
-  overflow:hidden;
-  border:1px solid rgba(130,160,230,.26)!important;
+  position:relative!important;
+  overflow:hidden!important;
+  border-radius:26px!important;
+  padding:18px 20px!important;
+  border:1px solid rgba(135,166,235,.26)!important;
   background:
-    linear-gradient(135deg, rgba(18,34,71,.92), rgba(8,24,40,.92)),
-    radial-gradient(circle at 88% 10%, rgba(41,220,139,.2), transparent 34%)!important;
-  box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.08)!important;
-  border-radius:22px!important;
+    linear-gradient(135deg, rgba(17,34,72,.94), rgba(8,19,39,.94)),
+    radial-gradient(circle at 88% 18%, rgba(35,217,130,.18), transparent 32%)!important;
+  box-shadow:var(--v39-shadow), inset 0 1px 0 rgba(255,255,255,.08)!important;
 }
 
-.header::before{
+.header::after{
   content:"";
   position:absolute;
-  inset:-1px;
+  inset:0;
   pointer-events:none;
-  background:linear-gradient(120deg, rgba(255,255,255,.12), transparent 28%, rgba(255,225,130,.08) 70%, transparent);
-  opacity:.8;
+  background:linear-gradient(120deg, rgba(255,255,255,.12), transparent 22%, rgba(244,211,109,.08) 72%, transparent);
+  opacity:.65;
 }
 
 .header h1{
-  font-size:30px!important;
+  position:relative!important;
+  z-index:1!important;
+  font-size:31px!important;
   font-weight:1000!important;
-  color:#f7fbff!important;
-  text-shadow:0 2px 16px rgba(117,160,255,.28)!important;
+  color:#fff!important;
+  text-shadow:0 0 22px rgba(100,145,255,.26)!important;
+  margin-bottom:3px!important;
+}
+
+.brand-mark-v39{
+  display:inline-grid!important;
+  place-items:center!important;
+  width:38px!important;
+  height:38px!important;
+  margin-right:6px!important;
+  border-radius:13px!important;
+  background:linear-gradient(180deg, rgba(244,211,109,.28), rgba(106,74,27,.28))!important;
+  border:1px solid rgba(244,211,109,.38)!important;
+  box-shadow:0 0 18px rgba(244,211,109,.18)!important;
 }
 
 .header .sub{
   color:#aebde0!important;
   font-weight:800!important;
+  font-size:13px!important;
 }
 
-/* 접속중 캡슐 */
+/* 상단 접속중 */
 .header-online-v365{
-  border:1px solid rgba(246,211,107,.28)!important;
-  background:linear-gradient(135deg, rgba(8,18,38,.76), rgba(17,35,63,.72))!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 10px 26px rgba(0,0,0,.18)!important;
+  border:1px solid rgba(244,211,109,.28)!important;
+  background:linear-gradient(135deg, rgba(7,16,34,.8), rgba(16,31,60,.74))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 10px 26px rgba(0,0,0,.2)!important;
 }
 
 .online-dot-v365{
-  background:var(--green2)!important;
-  box-shadow:0 0 14px rgba(66,242,160,.95)!important;
+  background:#4dff9e!important;
+  box-shadow:0 0 14px rgba(77,255,158,.9)!important;
 }
 
-/* 패널 공통 */
+.mini-online-v365{
+  background:rgba(255,255,255,.06)!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+}
+
+/* 공통 패널 */
 .panel,
 .card,
-.notice,
+.post-card-v36,
 .clan-notice-card,
 .online-panel,
 .schedule-panel,
 .chat-panel{
-  border:1px solid var(--line)!important;
+  border:1px solid var(--v39-line)!important;
   background:
-    linear-gradient(180deg, rgba(18,31,58,.88), rgba(8,18,39,.88))!important;
-  box-shadow:0 16px 36px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.055)!important;
-  border-radius:20px!important;
+    linear-gradient(180deg, rgba(17,32,62,.88), rgba(7,17,36,.9))!important;
+  box-shadow:0 18px 42px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.055)!important;
+  border-radius:22px!important;
 }
 
 .panel h1,
 .panel h2,
 .card h2,
-.chat-panel h2,
-.schedule-panel h2{
-  color:#f4f8ff!important;
+.post-card-v36 h2{
+  color:#fff!important;
   font-weight:1000!important;
-  text-shadow:0 2px 14px rgba(85,127,210,.18)!important;
 }
 
-/* 공지사항 */
+/* 상단 공지 */
 .clan-notice-card,
 .v36-notice-card{
-  border-color:rgba(246,211,107,.28)!important;
+  border-color:rgba(244,211,109,.28)!important;
   background:
-    linear-gradient(180deg, rgba(29,34,52,.92), rgba(10,19,38,.9))!important;
+    linear-gradient(180deg, rgba(31,34,50,.92), rgba(9,19,39,.92))!important;
 }
 
 .clan-notice-head h2{
-  color:#fff0a8!important;
+  color:#ffe790!important;
 }
 
 .clan-notice-preview,
 .v36-notice-full{
-  background:rgba(4,12,29,.44)!important;
-  border:1px solid rgba(110,145,215,.18)!important;
-  border-radius:16px!important;
+  background:rgba(3,10,25,.46)!important;
+  border:1px solid rgba(150,180,245,.16)!important;
+  border-radius:17px!important;
   padding:14px!important;
 }
 
-/* 모집글 헤더 */
-.recruit-title-row h2,
-.recruit-v36 h2:first-child{
-  font-size:28px!important;
-  font-weight:1000!important;
+/* 섹션 제목 */
+.section-title-v39,
+.recruit-title-row h2{
+  font-size:29px!important;
   color:#fff!important;
-  text-shadow:0 0 18px rgba(255,95,145,.14)!important;
+  font-weight:1000!important;
+  text-shadow:0 0 20px rgba(135,166,255,.22)!important;
 }
 
 .quickbar.recruit-head{
-  background:linear-gradient(180deg, rgba(8,18,39,.55), rgba(6,14,30,.55))!important;
-  border:1px solid rgba(100,135,205,.22)!important;
-  border-radius:18px!important;
-  padding:10px!important;
+  border:1px solid rgba(140,170,235,.22)!important;
+  background:linear-gradient(180deg, rgba(9,20,43,.6), rgba(5,13,29,.6))!important;
+  border-radius:20px!important;
+  padding:12px!important;
+  margin-bottom:16px!important;
+}
+
+/* 카테고리 탭 */
+.category-bar .btn,
+.tab-chip{
+  border-radius:999px!important;
+  padding:9px 14px!important;
 }
 
 /* 모집글 카드 */
 .post-card-v36,
 .card{
-  transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease, background .22s ease!important;
+  transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease, filter .22s ease!important;
 }
 
 .post-card-v36:hover,
 .card:hover{
-  transform:translateY(-2px)!important;
-  border-color:rgba(126,170,255,.42)!important;
-  box-shadow:0 20px 48px rgba(0,0,0,.42), 0 0 0 1px rgba(126,170,255,.08), inset 0 1px 0 rgba(255,255,255,.07)!important;
+  transform:translateY(-3px)!important;
+  border-color:rgba(145,180,255,.44)!important;
+  box-shadow:0 24px 58px rgba(0,0,0,.44), 0 0 0 1px rgba(145,180,255,.08), inset 0 1px 0 rgba(255,255,255,.07)!important;
 }
 
-.post-card-v36 h2,
-.card h2{
-  font-size:23px!important;
+.post-title-v39{
+  display:flex!important;
+  align-items:center!important;
+  gap:9px!important;
+  font-size:24px!important;
   line-height:1.15!important;
-  color:#ffffff!important;
+  margin:11px 0 9px!important;
 }
 
-.post-top-v36{
-  margin-bottom:8px!important;
+.place-icon-v39{
+  display:inline-grid!important;
+  place-items:center!important;
+  width:35px!important;
+  height:35px!important;
+  border-radius:13px!important;
+  background:rgba(134,173,255,.12)!important;
+  border:1px solid rgba(134,173,255,.22)!important;
 }
 
-.count,
-.cap-badge,
-.people-count,
-.member-count{
-  background:linear-gradient(180deg, rgba(54,80,152,.75), rgba(28,46,95,.75))!important;
-  border:1px solid rgba(128,164,255,.45)!important;
-  color:#eaf1ff!important;
+.post-time-v39{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:7px!important;
+  margin-bottom:5px!important;
+}
+
+.post-time-v39 span,
+.owner-v39,
+.post-time-v39 .remain{
+  display:inline-flex!important;
+  align-items:center!important;
+  min-height:25px!important;
+  padding:4px 8px!important;
   border-radius:999px!important;
-  padding:8px 12px!important;
+  background:rgba(5,14,32,.46)!important;
+  border:1px solid rgba(145,180,255,.14)!important;
+}
+
+.owner-v39{
+  width:max-content!important;
+  max-width:100%!important;
+}
+
+/* 상태/카테고리/인원 배지 */
+.tag,
+.count{
+  border-radius:999px!important;
   font-weight:1000!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.08)!important;
-}
-
-/* 태그 */
-.tag{
-  border:1px solid rgba(128,164,255,.22)!important;
-  background:rgba(38,57,104,.55)!important;
-  color:#dce8ff!important;
-  font-weight:900!important;
-  border-radius:999px!important;
+  border:1px solid rgba(145,180,255,.25)!important;
+  background:rgba(43,62,110,.55)!important;
+  color:#dfe9ff!important;
+  padding:6px 10px!important;
 }
 
 .tag.ok,
-.ok.tag,
-.post-card-v36 .tag.ok{
-  background:linear-gradient(180deg, rgba(31,211,124,.95), rgba(16,149,88,.95))!important;
-  color:white!important;
-  border-color:rgba(76,255,164,.35)!important;
-  box-shadow:0 0 18px rgba(31,211,124,.2)!important;
+.ok.tag{
+  background:linear-gradient(180deg, #30df8a, #11a965)!important;
+  color:#fff!important;
+  border-color:rgba(78,255,169,.42)!important;
+  box-shadow:0 0 18px rgba(35,217,130,.2)!important;
 }
 
-.closed-tag,
-.card.closed .tag:first-child{
-  background:linear-gradient(180deg, rgba(102,73,84,.75), rgba(68,44,55,.75))!important;
-  color:#ffb5bd!important;
-  border-color:rgba(255,100,120,.25)!important;
+.closed-tag{
+  background:rgba(255,99,112,.14)!important;
+  color:#ffb9c0!important;
+  border-color:rgba(255,99,112,.32)!important;
 }
 
-.auto-delete-tag{
-  background:rgba(246,211,107,.14)!important;
-  color:#ffe38a!important;
-  border-color:rgba(246,211,107,.3)!important;
-}
-
-/* 메타 정보 */
-.meta{
-  color:var(--muted)!important;
-  font-weight:700!important;
-}
-
-.remain,
-.schedule-left-v363{
-  color:#ffe486!important;
-  font-weight:1000!important;
+.count{
+  background:linear-gradient(180deg, rgba(50,78,145,.84), rgba(26,45,92,.84))!important;
+  color:#f2f6ff!important;
 }
 
 /* 슬롯 */
-.slot,
-.post-card-v36 .slot{
-  background:linear-gradient(180deg, rgba(5,14,34,.76), rgba(4,10,25,.78))!important;
-  border:1px solid rgba(110,145,215,.24)!important;
-  border-radius:16px!important;
+.slots-v36{
+  gap:9px!important;
 }
 
-.slot b{
-  color:#f8fbff!important;
+.slot,
+.post-card-v36 .slot{
+  border:1px solid rgba(145,180,255,.22)!important;
+  background:linear-gradient(180deg, rgba(5,15,35,.76), rgba(3,10,25,.78))!important;
+  border-radius:17px!important;
+}
+
+.job-name-v39{
+  display:flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  color:#fff!important;
+}
+
+.job-icon-v39{
+  width:26px!important;
+  height:26px!important;
+  display:inline-grid!important;
+  place-items:center!important;
+  border-radius:9px!important;
+  background:rgba(244,211,109,.13)!important;
+  border:1px solid rgba(244,211,109,.2)!important;
+}
+
+/* 참여자 */
+.mini-title-v39{
+  font-size:17px!important;
+  color:#f3f7ff!important;
+}
+
+.pill{
+  border-radius:999px!important;
+  border:1px solid rgba(145,180,255,.2)!important;
+  background:rgba(255,255,255,.06)!important;
+}
+
+.group-badge{
+  color:#ffe17b!important;
   font-weight:1000!important;
 }
 
@@ -2798,16 +2843,15 @@ html,body{
 .btn,
 button,
 input[type=submit]{
-  border:1px solid rgba(255,255,255,.13)!important;
-  border-radius:12px!important;
+  border-radius:13px!important;
   font-weight:1000!important;
-  transition:transform .16s ease, filter .16s ease, box-shadow .16s ease, border-color .16s ease!important;
-  box-shadow:0 8px 18px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.11)!important;
+  border:1px solid rgba(255,255,255,.13)!important;
+  box-shadow:0 9px 20px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.11)!important;
+  transition:transform .16s ease, filter .16s ease, box-shadow .16s ease!important;
 }
 
 .btn:hover,
-button:hover,
-input[type=submit]:hover{
+button:hover{
   transform:translateY(-1px)!important;
   filter:brightness(1.08)!important;
 }
@@ -2820,140 +2864,163 @@ button:active{
 .btn.ok,
 button.ok,
 .ok{
-  background:linear-gradient(180deg, #35e38e, #0fb96b)!important;
-  color:#fff!important;
-  border-color:rgba(89,255,177,.45)!important;
-  box-shadow:0 10px 24px rgba(20,202,117,.23), inset 0 1px 0 rgba(255,255,255,.18)!important;
+  background:linear-gradient(180deg, #37e990, #10b66b)!important;
+  color:white!important;
+  border-color:rgba(94,255,180,.45)!important;
+  box-shadow:0 12px 25px rgba(18,190,111,.24), inset 0 1px 0 rgba(255,255,255,.18)!important;
 }
 
 .btn.primary,
 .recruit-write-btn{
   background:linear-gradient(180deg, #39e893, #12b86e)!important;
-  color:white!important;
-  border-color:rgba(87,255,176,.46)!important;
-  box-shadow:0 16px 34px rgba(17,190,111,.28), 0 0 18px rgba(17,190,111,.16)!important;
+  color:#fff!important;
+  border-color:rgba(90,255,180,.46)!important;
+  box-shadow:0 16px 34px rgba(18,190,111,.3), 0 0 18px rgba(18,190,111,.12)!important;
 }
 
 .btn.gray,
-button.gray,
 .gray{
-  background:linear-gradient(180deg, rgba(98,117,158,.92), rgba(63,78,113,.92))!important;
-  color:#f1f5ff!important;
-  border-color:rgba(188,205,244,.24)!important;
+  background:linear-gradient(180deg, rgba(98,117,158,.92), rgba(57,73,111,.92))!important;
+  color:#f2f6ff!important;
 }
 
 .btn.danger,
 .danger{
-  background:linear-gradient(180deg, #ff6670, #d83446)!important;
+  background:linear-gradient(180deg, #ff6873, #d9384a)!important;
   color:#fff!important;
   border-color:rgba(255,130,145,.45)!important;
-  box-shadow:0 10px 24px rgba(230,50,70,.24), inset 0 1px 0 rgba(255,255,255,.18)!important;
 }
 
-/* 입력창 */
+/* 입력 */
 input,
 select,
 textarea{
-  background:rgba(5,13,31,.78)!important;
-  color:#f0f6ff!important;
-  border:1px solid rgba(120,155,225,.3)!important;
+  background:rgba(4,12,29,.78)!important;
+  color:#f3f7ff!important;
+  border:1px solid rgba(145,180,255,.28)!important;
   border-radius:13px!important;
   outline:none!important;
-  transition:border-color .18s ease, box-shadow .18s ease, background .18s ease!important;
 }
 
 input:focus,
 select:focus,
 textarea:focus{
-  border-color:rgba(93,220,154,.65)!important;
-  box-shadow:0 0 0 3px rgba(93,220,154,.12)!important;
-  background:rgba(8,18,42,.9)!important;
+  border-color:rgba(57,232,147,.65)!important;
+  box-shadow:0 0 0 3px rgba(57,232,147,.12)!important;
 }
 
-/* 통합채팅 */
+/* 채팅 */
+.chat-title-v39{
+  color:#fff!important;
+}
+
 .chatbox{
   background:rgba(4,12,29,.5)!important;
-  border:1px dashed rgba(120,155,225,.28)!important;
-  border-radius:17px!important;
+  border:1px dashed rgba(145,180,255,.24)!important;
+  border-radius:18px!important;
+  padding:10px!important;
 }
 
 .chatmsg{
-  background:linear-gradient(180deg, rgba(16,30,58,.88), rgba(8,18,39,.88))!important;
-  border:1px solid rgba(110,145,215,.22)!important;
-  border-radius:14px!important;
-  padding:10px!important;
+  position:relative!important;
+  background:linear-gradient(180deg, rgba(18,34,65,.88), rgba(8,18,39,.9))!important;
+  border:1px solid rgba(145,180,255,.2)!important;
+  border-radius:16px!important;
+  padding:10px 12px!important;
   margin-bottom:8px!important;
 }
 
-/* 오늘 일정 */
+.chatmsg b{
+  color:#ffe486!important;
+}
+
+/* 오늘 일정/보스 알림 */
+.schedule-title-v39{
+  color:#fff!important;
+}
+
 .schedule-item,
 .schedule-item-v363{
-  background:linear-gradient(180deg, rgba(7,17,37,.72), rgba(5,12,29,.72))!important;
-  border:1px solid rgba(110,145,215,.24)!important;
-  border-radius:16px!important;
+  border:1px solid rgba(145,180,255,.22)!important;
+  background:linear-gradient(180deg, rgba(6,17,39,.74), rgba(4,12,29,.76))!important;
+  border-radius:17px!important;
+}
+
+.schedule-left-v363,
+.remain{
+  color:#ffe486!important;
+  font-weight:1000!important;
 }
 
 /* 파밍 정산 */
 .farm-box,
 .farm-v36{
-  background:linear-gradient(180deg, rgba(5,15,35,.6), rgba(3,10,25,.6))!important;
-  border:1px solid rgba(110,145,215,.24)!important;
-  border-radius:16px!important;
+  border:1px solid rgba(145,180,255,.2)!important;
+  background:linear-gradient(180deg, rgba(5,15,35,.62), rgba(3,10,25,.66))!important;
+  border-radius:17px!important;
 }
 
-.farm-head h3,
 .farm-box h3{
-  color:#f5f8ff!important;
-  font-weight:1000!important;
+  color:#fff!important;
 }
 
 /* 캐릭터 페이지 */
 .char-row-v369,
 .char-row-v368{
-  background:linear-gradient(180deg, rgba(13,27,56,.9), rgba(7,17,38,.9))!important;
-  border:1px solid rgba(120,155,225,.28)!important;
-  border-radius:16px!important;
-  box-shadow:0 12px 28px rgba(0,0,0,.25)!important;
-}
-
-.char-actions-v369 .btn,
-.char-actions-v368 .btn{
-  text-decoration:none!important;
+  background:linear-gradient(180deg, rgba(16,31,61,.92), rgba(7,17,38,.92))!important;
+  border:1px solid rgba(145,180,255,.26)!important;
+  border-radius:17px!important;
+  box-shadow:0 14px 32px rgba(0,0,0,.28)!important;
 }
 
 /* 빈 상태 */
 .empty{
-  background:rgba(5,14,34,.38)!important;
-  border:1px dashed rgba(120,155,225,.28)!important;
+  background:rgba(5,14,34,.42)!important;
+  border:1px dashed rgba(145,180,255,.28)!important;
   color:#aebde0!important;
-  border-radius:16px!important;
+  border-radius:17px!important;
+}
+
+/* 스크롤바 */
+*{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(145,180,255,.55) rgba(5,14,30,.5);
+}
+
+::-webkit-scrollbar{
+  width:10px;
+  height:10px;
+}
+::-webkit-scrollbar-track{
+  background:rgba(5,14,30,.5);
+  border-radius:999px;
+}
+::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg, rgba(145,180,255,.68), rgba(66,92,145,.68));
+  border-radius:999px;
+  border:2px solid rgba(5,14,30,.75);
 }
 
 /* 토스트 */
 .toast,
 #toastContainer .toast{
-  background:linear-gradient(180deg, rgba(27,45,85,.98), rgba(13,27,56,.98))!important;
-  border:1px solid rgba(140,175,255,.36)!important;
-  box-shadow:0 18px 40px rgba(0,0,0,.42)!important;
-  border-radius:16px!important;
+  background:linear-gradient(180deg, rgba(28,48,88,.98), rgba(13,27,56,.98))!important;
+  border:1px solid rgba(145,180,255,.36)!important;
+  border-radius:17px!important;
+  box-shadow:0 18px 42px rgba(0,0,0,.42)!important;
 }
 
-/* 링크 */
-a{
-  color:#9fc0ff;
-}
-a:hover{
-  color:#ffe486;
-}
-
-/* 모바일/좁은 화면 */
+/* 반응형 */
 @media(max-width:900px){
-  .header{
-    border-radius:18px!important;
+  .header h1{
+    font-size:25px!important;
   }
-  .post-card-v36,
-  .card{
-    border-radius:17px!important;
+  .brand-mark-v39{
+    width:32px!important;
+    height:32px!important;
+  }
+  .post-title-v39{
+    font-size:21px!important;
   }
 }
 
@@ -4261,8 +4328,8 @@ T_INDEX = """
 <header class='header'>
   <div class='title-online-v365'>
     <div>
-      <h1>⚔ 월하 · 연가 · 연희</h1>
-      <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
+      <h1><span class='brand-mark-v39'>⚔</span> 월하 · 연가 · 연희</h1>
+      <div class='sub'>Guild Party Manager · {{ app_version }} · {{ char_label(c) }}</div>
     </div>
     <div class='header-online-v365'>
       <span class='online-dot-v365'></span>
@@ -4304,7 +4371,7 @@ T_INDEX = """
 
   <aside class='live-box-v36'>
 <section class='panel schedule-panel'>
-      <h2>🗓️ 오늘 일정</h2>
+      <h2 class='schedule-title-v39'>🗓️ 보스 알림</h2>
       {% for s in sched %}
         <div class='schedule-item schedule-item-v363'>
           <div class='schedule-title-v363'>{{s.place}}</div>
@@ -4317,7 +4384,7 @@ T_INDEX = """
     </section>
 
     <section class='panel chat-panel'>
-      <h2>💬 통합채팅</h2>
+      <h2 class='chat-title-v39'>💬 실시간 채팅</h2>
       <div class='chatbox' id='globalChatBox'>
         {% for m in d.global_chat[-30:] %}
           <div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}<br><span class='meta'>{{m.time}}</span></div>
@@ -4336,8 +4403,8 @@ T_INDEX = """
 <main class='recruit-v36'>
   <div class='quickbar recruit-head'>
     <div class='recruit-title-row'>
-      <h2>📌 모집글</h2>
-      <a class='btn recruit-write-btn primary' href='/new'>＋ 모집</a>
+      <h2 class='section-title-v39'>📌 파티 모집</h2>
+      <a class='btn recruit-write-btn primary' href='/new'>＋ 모집 작성</a>
     </div>
     <div class='category-bar'>
       {% for x in categories %}
@@ -4360,9 +4427,9 @@ T_INDEX = """
         {% endif %}
       </div>
 
-      <h2>{{p.place}}</h2>
-      <div class='meta'>📍 {{p.channel}}채널 · ⏰ {{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}{% if p.category=="파밍" %} · <b class='remain'>{{ remaining_text(p) }}</b>{% endif %}</div>
-      <div class='meta'>👑 {{p.owner_label}} · {{p.created}}</div>
+      <h2 class='post-title-v39'><span class='place-icon-v39'>🏔</span>{{p.place}}</h2>
+      <div class='meta post-time-v39'><span>📍 {{p.channel}}채널</span><span>📅 {{p.date}}</span><span>🕒 {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}</span>{% if p.category=="파밍" %}<b class='remain'>⏳ {{ remaining_text(p) }}</b>{% endif %}</div>
+      <div class='meta owner-v39'>👑 작성자 {{p.owner_label}} · {{p.created}}</div>
       {% if p.memo %}<div class='notice memo-v36'>{{p.memo|autolink|safe}}</div>{% endif %}
 
       {% if p.category == "사냥" %}
@@ -4370,7 +4437,7 @@ T_INDEX = """
         {% for s in p.slots %}
           <div class='slot'>
             <div>
-              <b>{{s.job}}</b>
+              <b class='job-name-v39'><span class='job-icon-v39'>⚔</span>{{s.job}}</b>
               <div class='meta'>{{s.label or s.external or "참여 대기"}}</div>
             </div>
             <div class='toolbar'>
@@ -4384,9 +4451,9 @@ T_INDEX = """
                     <a class='btn mini danger' href='/remove_external_slot/{{p.id}}/{{loop.index0}}'>외부제거</a>
                   {% endif %}
                 {% elif not p.closed %}
-                  <a class='btn mini ok' href='/join_slot/{{p.id}}/{{loop.index0}}'>참여</a>
+                  <a class='btn mini ok' href='/join_slot/{{p.id}}/{{loop.index0}}'>🟢 참여</a>
                   {% if is_admin(u) or p.owner_uid==u.id %}
-                    <a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}?next=/'>+ 외부</a>
+                    <a class='btn mini gray' href='/external_slot/{{p.id}}/{{loop.index0}}?next=/'>➕ 외부</a>
                   {% endif %}
                 {% endif %}
               {% endif %}
@@ -4396,7 +4463,7 @@ T_INDEX = """
         </div>
       {% else %}
         <div class='participants-v36'>
-          <h3>참여자</h3>
+          <h3 class='mini-title-v39'>👥 참여자</h3>
           <div class='participant-list-v36'>
           {% for a in p.participants %}
             <span class='pill'>{{a.label}}{% if a.uid==u.id %}<small class='group-badge'>내 참여</small>{% endif %}{% set g = participant_group_label(p,a) %}{% if g %}<small class='group-badge'>{{g}}</small>{% endif %}</span>
@@ -4407,9 +4474,9 @@ T_INDEX = """
 
           {% set my_part = participant_for_user(p,u) %}
           {% if my_part and not p.closed %}
-            <a class='btn gray full' href='/leave_participant/{{p.id}}'>참여취소</a>
+            <a class='btn gray full' href='/leave_participant/{{p.id}}'>↩ 참여취소</a>
           {% elif can_join_post(p) %}
-            <a class='btn ok full' href='/choose_participant/{{p.id}}'>참여하기</a>
+            <a class='btn ok full' href='/choose_participant/{{p.id}}'>🟢 참여하기</a>
           {% elif join_block_reason(p) %}
             <div class='notice'>{{ join_block_reason(p) }}</div>
             <button class='btn gray full' disabled>참여불가</button>
@@ -4419,7 +4486,7 @@ T_INDEX = """
         {% if p.category == "파밍" %}
           <div class='farm-box farm-v36'>
             <div class='farm-head'>
-              <h3>파밍 정산</h3>
+              <h3>💰 파밍 정산</h3>
               <span class='tag'>{{ p.farm_result or "미등록" }}</span>
             </div>
             {% set fm = farm_money_summary(p) %}
@@ -4452,12 +4519,12 @@ T_INDEX = """
       {% endif %}
 
       <div class='actions'>
-        <button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-pid='{{p.id}}'>글복사</button>
-        <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
+        <button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-pid='{{p.id}}'>📋 복사</button>
+        <a class='btn gray' href='/chat/{{p.id}}'>💬 채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
-          {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}
-          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>수정</a>{% endif %}
-          <a class='btn danger' href='/delete/{{p.id}}'>삭제</a>
+          {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>✅ 완료</a>{% endif %}
+          {% if not p.closed or is_admin(u) %}<a class='btn gray' href='/edit/{{p.id}}'>✏ 수정</a>{% endif %}
+          <a class='btn danger' href='/delete/{{p.id}}'>🗑 삭제</a>
         {% endif %}
       </div>
     </article>

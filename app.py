@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v25.3"
+APP_VERSION = "v25.4"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -636,6 +636,22 @@ REGISTER_HTML = """
   <div class='toolbar auth-bottom'><a class='btn gray' href='/login'>이미 계정이 있나요? 로그인</a></div>
 </section>
 """
+
+
+PENDING_HTML = """
+<section class='panel pending-panel'>
+  <div class='pending-icon'>⏳</div>
+  <h1>승인 요청중</h1>
+  <p class='meta'>관리자 승인 후 이용할 수 있습니다.</p>
+  <div class='notice'>문파 관리자에게 가입 승인을 요청해 주세요.</div>
+  <div class='toolbar pending-actions'>
+    <a class='btn gray' href='/logout'>로그아웃</a>
+    <a class='btn gray' href='/login'>로그인</a>
+  </div>
+</section>
+"""
+
+
 
 
 
@@ -1482,7 +1498,7 @@ def register():
     return render(REGISTER_HTML, error="", form={})
 @app.route("/pending")
 def pending():
-    return render(T_PENDING)
+    return render(PENDING_HTML)
 
 @app.route("/logout")
 def logout():

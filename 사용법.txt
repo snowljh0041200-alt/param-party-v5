@@ -1,12 +1,12 @@
-v25.3 LOGIN DIRECT FIX
+v25.4 PENDING DIRECT FIX
 
 수정:
-- /login 500 에러 수정
-- T_LOGIN 변수 의존 제거
-- /register도 REGISTER_HTML 직접 렌더링으로 안전화
-- /gate 직접 렌더링 유지
+- /pending 승인 요청중 페이지 500 에러 수정
+- T_PENDING 변수 의존 제거
+- PENDING_HTML 직접 렌더링으로 변경
+- /gate, /login, /register 직접 렌더링 유지
 
 배포:
 git add .
-git commit -m "v25.3 login direct fix"
+git commit -m "v25.4 pending direct fix"
 git push

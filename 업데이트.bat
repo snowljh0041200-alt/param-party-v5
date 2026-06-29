@@ -2,6 +2,6 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 git add .
-git commit -m "v40.0 mmorpg ui remaster"
+git commit -m "v40.1 card polish icon center"
 git push
 pause

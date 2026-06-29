@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "40.0"
+APP_VERSION = "40.1"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -4102,6 +4102,179 @@ textarea:focus{
   .v40-place-art span{width:64px!important;height:64px!important;font-size:38px!important}
 }
 
+
+/* =========================================================
+   v40.1 CARD POLISH + ICON CENTER
+   기능 변경 없음 / 카드 가독성 및 아이콘 보정
+   ========================================================= */
+
+/* 카드 안쪽 여백과 장식 강화 */
+.post-card-v36,
+.card{
+  border-color:rgba(205,151,59,.50)!important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(205,151,59,.10), transparent 30%),
+    radial-gradient(circle at 15% 8%, rgba(45,108,175,.10), transparent 32%),
+    linear-gradient(180deg, rgba(5,17,26,.98), rgba(0,6,12,.98))!important;
+}
+
+.post-card-v36::before,
+.card::before{
+  inset:10px!important;
+  border-color:rgba(205,151,59,.15)!important;
+  box-shadow:inset 0 0 18px rgba(205,151,59,.045)!important;
+}
+
+/* 장소 아이콘을 더 그림처럼 */
+.v40-place-art{
+  height:92px!important;
+  margin-top:12px!important;
+}
+
+.v40-place-art span{
+  width:82px!important;
+  height:82px!important;
+  font-size:46px!important;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255,240,185,.28), transparent 32%),
+    radial-gradient(circle at center, rgba(207,156,65,.24), rgba(2,8,14,.95) 68%)!important;
+  border:1px solid rgba(207,156,65,.48)!important;
+  box-shadow:
+    0 0 28px rgba(207,156,65,.18),
+    inset 0 0 20px rgba(207,156,65,.16)!important;
+}
+
+/* 카드 제목 더 크게 */
+.post-title-v40{
+  font-size:30px!important;
+  margin-top:6px!important;
+  margin-bottom:12px!important;
+  color:#ffe09b!important;
+  text-shadow:
+    0 0 16px rgba(205,151,59,.35),
+    0 2px 0 rgba(0,0,0,.65)!important;
+}
+
+/* 메타 정보 중앙 정렬, 가독성 증가 */
+.post-time-v39{
+  justify-content:center!important;
+  gap:8px!important;
+  margin-bottom:10px!important;
+}
+
+.post-time-v39 span,
+.owner-v39{
+  font-size:13px!important;
+  color:#d7c49c!important;
+}
+
+.owner-v39{
+  margin:0 auto 10px!important;
+}
+
+/* 인원수 배지 */
+.count{
+  font-size:17px!important;
+  color:#ffe8a8!important;
+  border-color:rgba(106,145,245,.55)!important;
+  background:linear-gradient(180deg, rgba(28,56,112,.92), rgba(9,24,57,.96))!important;
+}
+
+/* 직업 슬롯: 이름을 가운데 쪽으로 크게 보이게 */
+.slot,
+.post-card-v36 .slot{
+  display:grid!important;
+  grid-template-columns:48px minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:8px!important;
+  min-height:58px!important;
+  padding:8px 10px!important;
+}
+
+.job-name-v40{
+  grid-column:1 / 3!important;
+  justify-self:start!important;
+  display:grid!important;
+  grid-template-columns:34px auto!important;
+  align-items:center!important;
+  gap:10px!important;
+  font-size:18px!important;
+  line-height:1.1!important;
+  color:#fff1c6!important;
+  text-shadow:0 0 12px rgba(205,151,59,.14)!important;
+}
+
+/* 상태 문구는 이름 밑에 붙어서 더 정돈되게 */
+.slot .meta,
+.post-card-v36 .slot .meta{
+  grid-column:2 / 3!important;
+  margin-top:22px!important;
+  margin-left:0!important;
+  font-size:13px!important;
+  color:#bcae8a!important;
+}
+
+/* 슬롯 안의 버튼 묶음은 오른쪽 */
+.slot .btn,
+.post-card-v36 .slot .btn{
+  white-space:nowrap!important;
+}
+
+.job-icon-v40{
+  width:34px!important;
+  height:34px!important;
+  font-size:18px!important;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255,241,190,.22), transparent 34%),
+    radial-gradient(circle at center, rgba(205,151,59,.24), rgba(2,8,14,.95) 70%)!important;
+  border-color:rgba(205,151,59,.42)!important;
+}
+
+/* 주술사 불 아이콘은 더 잘 보이게 */
+.job-icon-v40:has(+ *){
+  text-shadow:0 0 10px rgba(255,185,75,.2)!important;
+}
+
+/* 버튼 밝기 낮추고 고급스럽게 */
+.btn.ok,
+button.ok,
+.ok{
+  background:linear-gradient(180deg, #123f75, #071c39)!important;
+  border-color:rgba(74,138,230,.50)!important;
+  color:#e9f4ff!important;
+}
+
+a[href*='external'],
+.slot a:last-child{
+  background:linear-gradient(180deg, #33245f, #171030)!important;
+  border-color:rgba(126,91,220,.45)!important;
+  color:#e5d8ff!important;
+}
+
+/* 완료/수정/삭제 하단 액션바 더 정돈 */
+.post-actions,
+.actions,
+.card-actions{
+  gap:8px!important;
+}
+
+.post-card-v36 > div:last-child .btn,
+.card > div:last-child .btn{
+  min-width:64px!important;
+}
+
+/* 모바일에서는 슬롯 버튼이 밀리지 않게 */
+@media(max-width:700px){
+  .slot,
+  .post-card-v36 .slot{
+    grid-template-columns:42px 1fr!important;
+  }
+  .slot .btn,
+  .post-card-v36 .slot .btn{
+    margin-top:6px!important;
+  }
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -5407,7 +5580,7 @@ def role_label_filter(role):
 def place_icon_filter(name):
     s = str(name or "")
     if "도삭" in s or "산" in s:
-        return "⛰"
+        return "🏔️"
     if "해골" in s or "왕" in s:
         return "💀"
     if "어금니" in s or "치" in s:
@@ -5421,16 +5594,16 @@ def place_icon_filter(name):
 @app.template_filter("job_icon")
 def job_icon_filter(job):
     s = str(job or "")
-    if "전사" in s or "검" in s:
-        return "🛡"
-    if "도적" in s or "자객" in s:
-        return "🗡"
-    if "주술" in s or "술사" in s:
-        return "🔥"
-    if "도사" in s or "진선" in s or "진인" in s or "현자" in s:
-        return "🙏"
     if "승급" in s:
         return "👑"
+    if "주술" in s or "술사" in s or "현자" in s or "현인" in s or "마신" in s or "마성" in s:
+        return "🔥"
+    if "도사" in s or "진선" in s or "진인" in s or "명인" in s:
+        return "🙏"
+    if "도적" in s or "자객" in s or "태성" in s:
+        return "🗡"
+    if "전사" in s or "검" in s or "검황" in s or "검성" in s:
+        return "🛡"
     return "⚔"
 
 T_INDEX = """

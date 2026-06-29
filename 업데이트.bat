@@ -2,6 +2,6 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 git add .
-git commit -m "v26.9 notice popup"
+git commit -m "v26.8 schedule countdown"
 git push
 pause

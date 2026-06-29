@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.9"
+APP_VERSION = "v26.8"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -621,99 +621,6 @@ input::placeholder,textarea::placeholder{color:#667694}
   display:none;
 }
 
-
-.summary-grid{display:none!important}
-.mini-stats{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  margin-top:10px;
-}
-.mini-stats span{
-  background:rgba(8,17,38,.58);
-  border:1px solid rgba(255,255,255,.07);
-  border-radius:999px;
-  padding:7px 11px;
-  color:#9fb0d1;
-  font-size:13px;
-  font-weight:800;
-}
-.mini-stats b{color:#fff;margin-left:4px}
-.notice-fab{
-  position:fixed;
-  right:22px;
-  bottom:22px;
-  z-index:1800;
-  border-radius:999px!important;
-  box-shadow:0 18px 44px rgba(0,0,0,.35)!important;
-}
-.notice-modal-backdrop{
-  display:none;
-  position:fixed;
-  inset:0;
-  z-index:2200;
-  background:rgba(0,0,0,.55);
-  backdrop-filter:blur(5px);
-  align-items:center;
-  justify-content:center;
-  padding:18px;
-}
-.notice-modal-backdrop.show{display:flex}
-.notice-modal{
-  width:min(560px,100%);
-  background:linear-gradient(180deg,#111d38,#081126);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:22px;
-  box-shadow:0 28px 90px rgba(0,0,0,.55);
-  padding:18px;
-  animation:fadeUp .18s ease both;
-}
-.notice-modal-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  border-bottom:1px solid rgba(255,255,255,.07);
-  padding-bottom:12px;
-  margin-bottom:14px;
-}
-.notice-modal-head h2{margin:0}
-.notice-modal-body{
-  white-space:pre-wrap;
-  line-height:1.6;
-  font-size:15px;
-  color:#eef4ff;
-  background:rgba(8,17,38,.62);
-  border:1px solid rgba(255,255,255,.06);
-  border-radius:16px;
-  padding:14px;
-  max-height:50vh;
-  overflow:auto;
-}
-.notice-modal-foot{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  margin-top:14px;
-}
-.notice-modal-foot label{
-  color:#c7d3ee;
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-size:14px;
-}
-@media(max-width:720px){
-  .notice-fab{right:14px;bottom:14px}
-  .mini-stats{margin-top:8px}
-  .mini-stats span{font-size:12px;padding:6px 9px}
-}
-
-
-.admin-form.vertical{display:grid!important;grid-template-columns:1fr!important;gap:10px}
-.admin-form.vertical textarea{width:100%;resize:vertical}
-
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -916,7 +823,7 @@ def show_time(value):
     return f"{p} {t}" if t else "시간 미정"
 
 def empty_data():
-    return {"users": [], "posts": [], "global_chat": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"text":"", "updated_at":""}}}
+    return {"users": [], "posts": [], "global_chat": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234")}}
 
 def normalize(d):
     d.setdefault("users", [])
@@ -924,7 +831,6 @@ def normalize(d):
     d.setdefault("global_chat", [])
     d.setdefault("settings", {}).setdefault("farm_items", ["해뼈","흑룡","묵룡","진룡"])
     d.setdefault("settings", {}).setdefault("admin_password", os.environ.get("ADMIN_PASSWORD", "1234"))
-    d.setdefault("settings", {}).setdefault("notice", {"text":"", "updated_at":""})
     for u in d["users"]:
         u.setdefault("id", nid())
         u.setdefault("account", "")
@@ -1398,26 +1304,7 @@ def max_count(p):
     return max(len(p["participants"]), 0)
 
 BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ title }}</title><style>{{ css }}</style></head><body><div class='wrap'>"""
-BASE_TAIL = """</div>
-{% set notice = settings.get("notice", {}) %}
-{% if notice.get("text") %}
-<button type='button' class='btn gray notice-fab' onclick='openNoticeModal(true)'>📢 공지</button>
-<div id='noticeModal' class='notice-modal-backdrop' data-notice-key='{{ notice.get("updated_at","") }}'>
-  <div class='notice-modal'>
-    <div class='notice-modal-head'>
-      <h2>📢 문파 공지사항</h2>
-      <button type='button' class='btn gray mini' onclick='closeNoticeModal()'>✕</button>
-    </div>
-    <div class='notice-modal-body'>{{ notice.get("text","") }}</div>
-    <div class='notice-modal-foot'>
-      <label><input type='checkbox' id='noticeTodaySkip'> 오늘 하루 보지 않기</label>
-      <button type='button' class='btn ok' onclick='closeNoticeModal()'>확인</button>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-<script>
+BASE_TAIL = """</div><script>
 let slotN=0;
 function qs(s){return document.querySelector(s)}
 function fmt(v){v=(v||'').replace(/[^0-9]/g,'').slice(0,4);return v.length>=3?v.slice(0,v.length-2)+':'+v.slice(v.length-2):v}
@@ -1470,30 +1357,6 @@ function formatBossRemain(totalSeconds){
   if(h>0) return `${h}:${pad(m)}:${pad(s)}`;
   return `${pad(m)}:${pad(s)}`;
 }
-
-function noticeTodayKey(){
-  const d=new Date();
-  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-}
-function noticeStorageKey(){
-  const m=document.getElementById('noticeModal');
-  const key=m?.dataset?.noticeKey || 'notice';
-  return 'noticeSkip:'+key+':'+noticeTodayKey();
-}
-function openNoticeModal(force=false){
-  const m=document.getElementById('noticeModal');
-  if(!m)return;
-  if(!force && localStorage.getItem(noticeStorageKey())==='1')return;
-  m.classList.add('show');
-}
-function closeNoticeModal(){
-  const m=document.getElementById('noticeModal');
-  const chk=document.getElementById('noticeTodaySkip');
-  if(chk && chk.checked)localStorage.setItem(noticeStorageKey(),'1');
-  if(m)m.classList.remove('show');
-}
-document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>openNoticeModal(false),500));
-
 function updateBossTimers(){
   const nowMs=Date.now();
   document.querySelectorAll('.boss-timer').forEach(row=>{
@@ -1721,7 +1584,7 @@ def index():
     if cat != "전체":
         posts = [p for p in posts if p["category"] == cat]
     sched = [p for p in d["posts"] if p["category"] == "파밍" and not p.get("closed")]
-    return render(T_INDEX, d=d, u=u, settings=d.get("settings", {}), c=selected_char(u), cat=cat, posts=posts, sched=sched, online=online_users(d))
+    return render(T_INDEX, d=d, u=u, c=selected_char(u), cat=cat, posts=posts, sched=sched, online=online_users(d))
 
 T_INDEX = """
 <header class='header'>
@@ -1736,13 +1599,6 @@ T_INDEX = """
     {% if is_admin(u) %}<a class='btn nav-btn gray' href='/admin'>관리자</a>{% endif %}
     <a class='btn nav-btn gray' href='/logout'>로그아웃</a>
   </div>
-
-    <div class='mini-stats'>
-      <span>오늘 파밍 <b>{{today_farms}}</b></span>
-      <span>진행중 <b>{{open_posts}}</b></span>
-      <span>캐릭터 <b>{{char_count}}</b></span>
-    </div>
-
 </header>
 
 <div class='summary-grid'>
@@ -2442,7 +2298,7 @@ def admin():
     </div>
   </div>
 </section>
-""", users=d["users"], pending=pending, pending_chars=pending_chars, posts=d["posts"], chat_count=len(d.get("global_chat", [])), me=u, settings=d.get("settings", {}))
+""", users=d["users"], pending=pending, pending_chars=pending_chars, posts=d["posts"], chat_count=len(d.get("global_chat", [])), me=u)
 
 
 @app.route("/admin/approve_char/<uid>/<cid>")
@@ -2509,21 +2365,6 @@ def admin_clear_posts():
     d=load(); u=cur_user(d)
     if is_admin(u):
         d["posts"]=[]
-        save(d)
-    return redirect("/admin")
-
-
-
-@app.route("/admin/notice", methods=["POST"])
-def admin_notice():
-    d = load()
-    u = cur_user(d)
-    if is_admin(u):
-        text = request.form.get("notice_text", "").strip()
-        d.setdefault("settings", {})["notice"] = {
-            "text": text,
-            "updated_at": now().isoformat(timespec="seconds")
-        }
         save(d)
     return redirect("/admin")
 

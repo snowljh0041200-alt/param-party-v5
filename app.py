@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v23.0"
+APP_VERSION = "v23.1"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -486,6 +486,49 @@ input[type='range']{padding:0;height:6px;accent-color:#19c46f}
   .admin-post-tabs{width:100%}
 }
 
+
+/* v23.1 unified slim controls */
+.btn,button,.mini,.nav-btn,.tab-chip{
+  min-height:38px!important;
+  padding:0 14px!important;
+  border-radius:12px!important;
+  font-size:14px!important;
+  line-height:1!important;
+}
+.mini{
+  min-height:34px!important;
+  padding:0 11px!important;
+  font-size:13px!important;
+}
+.full{
+  min-height:42px!important;
+}
+input,select,textarea{
+  border-radius:12px!important;
+}
+.pending-panel{
+  max-width:520px;
+  margin:70px auto;
+  text-align:center;
+}
+.pending-icon{
+  font-size:42px;
+  margin-bottom:8px;
+}
+.pending-actions{
+  justify-content:center;
+  margin-top:16px;
+}
+.slot .toolbar .btn{
+  min-width:58px;
+}
+.farm-form .btn,.farm-form button{
+  min-height:40px!important;
+}
+.admin-console .btn{
+  min-height:36px!important;
+}
+
 @media(max-width:980px){.farm-form{grid-template-columns:1fr 1fr!important}}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr!important}}
 .btn{letter-spacing:-.2px}
@@ -877,6 +920,19 @@ def can_manage_post(u, p):
     return p.get("owner_uid") == u.get("id") or is_admin(u)
 
 
+
+def char_name_exists(d, name, exclude_uid=""):
+    target = str(name or "").strip()
+    if not target:
+        return False
+    for u in d.get("users", []):
+        if exclude_uid and u.get("id") == exclude_uid:
+            continue
+        for c in u.get("chars", []):
+            if str(c.get("name","")).strip() == target:
+                return True
+    return False
+
 def admin_password_ok(d, value):
     pw = str(d.get("settings", {}).get("admin_password", "1234"))
     return bool(value and str(value).strip() == pw)
@@ -1013,7 +1069,7 @@ def index():
     d = load()
     u = cur_user(d)
     if not approved(u):
-        return redirect("/register")
+        return redirect("/pending")
     cat = request.args.get("cat", "전체")
     posts = d["posts"]
     if cat != "전체":
@@ -1222,6 +1278,8 @@ def register():
         admin_pw = request.form.get("admin_password","").strip()
         if not acc or not name:
             return render(T_REGISTER, error="계정명과 캐릭터명을 입력하세요.", form=request.form)
+        if char_name_exists(d, name):
+            return render(T_REGISTER, error="이미 등록된 캐릭터명입니다. 사칭 방지를 위해 다른 이름은 사용할 수 없습니다.", form=request.form)
         uid, cid = nid(), nid()
         first = len(d["users"]) == 0
         pw_ok = admin_password_ok(d, admin_pw)
@@ -1230,12 +1288,34 @@ def register():
         d["users"].append({"id":uid,"account":acc,"status":status,"role":role,"selected_char_id":cid,"chars":[{"id":cid,"name":name,"job":job,"status":status}]})
         save(d)
         session["uid"] = uid
-        return redirect("/")
+        return redirect("/") if status == "approved" else redirect("/pending")
     return render(T_REGISTER, error="", form={})
 
 T_REGISTER = """
 <section class='panel'><h1>👤 문파원 등록</h1><form method='post'><label>계정명</label><input name='account' value='{{form.get("account","")}}'><label>대표 캐릭터명</label><input name='char_name' value='{{form.get("char_name","")}}'><label>직업</label>{{ job_select('job')|safe }}<label>관리자 비밀번호 <span class='meta'>(관리자만 입력)</span></label><input name='admin_password' type='password' placeholder='일반 문파원은 비워두세요'><button class='ok full'>승인 요청</button></form>{% if error %}<div class='notice'>{{error}}</div>{% endif %}</section>
 """
+
+
+T_PENDING = """
+<section class='panel pending-panel'>
+  <div class='pending-icon'>⏳</div>
+  <h1>승인 요청중</h1>
+  <p class='meta'>관리자 승인 후 이용할 수 있습니다.</p>
+  <div class='notice'>문파 관리자에게 가입 승인을 요청해 주세요.</div>
+  <div class='toolbar pending-actions'>
+    <a class='btn gray' href='/logout'>로그아웃</a>
+    <a class='btn gray' href='/register'>다시 등록</a>
+  </div>
+</section>
+"""
+
+
+
+
+
+@app.route("/pending")
+def pending():
+    return render(T_PENDING)
 
 @app.route("/logout")
 def logout():
@@ -1245,7 +1325,7 @@ def logout():
 @app.route("/new")
 def new_post():
     d=load(); u=cur_user(d)
-    if not approved(u): return redirect("/register")
+    if not approved(u): return redirect("/pending")
     cats = ["사냥"] + (["파밍"] if is_admin(u) else []) + ["600퀘"]
     return render(T_NEW, cats=cats)
 
@@ -1256,7 +1336,7 @@ T_NEW = """
 @app.route("/create", methods=["POST"])
 def create():
     d=load(); u=cur_user(d)
-    if not approved(u): return redirect("/register")
+    if not approved(u): return redirect("/pending")
     c=selected_char(u)
     cat=request.form.get("category","사냥")
     if cat=="파밍" and not is_admin(u): return redirect("/")
@@ -1471,10 +1551,10 @@ def chat(pid):
 @app.route("/chars", methods=["GET","POST"])
 def chars():
     d=load(); u=cur_user(d)
-    if not approved(u): return redirect("/register")
+    if not approved(u): return redirect("/pending")
     if request.method=="POST":
         name=request.form.get("name","").strip(); job=request.form.get("job","검성")
-        if name: u["chars"].append({"id":nid(),"name":name,"job":job,"status":"pending"}); save(d)
+        if name and not char_name_exists(d, name, exclude_uid=u.get("id","")): u["chars"].append({"id":nid(),"name":name,"job":job,"status":"pending"}); save(d)
         return redirect("/chars")
     return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>캐릭터</h1>{% for c in u.chars %}<div class='slot'><div><b>{{c.name}}({{c.job}})</b><br>{{c.status}}</div>{% if c.status=='approved' %}<a class='btn mini ok' href='/select_char/{{c.id}}'>선택</a>{% endif %}</div>{% endfor %}<form method='post'><h2>추가</h2><input name='name'>{{ job_select('job')|safe }}<button class='ok'>추가</button></form></section>", u=u)
 

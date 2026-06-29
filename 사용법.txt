@@ -1,14 +1,16 @@
-v26.27 HTML IMPORT FIX
+v26.28 STABLE IMPORT FIX
 
 수정:
-- 회원가입 페이지 /register 500 에러 수정
-- 원인: html.escape() 사용 중 import html 누락
-- import html 추가
-- v26.26 기능 유지
+- 회원가입 /register POST 500 에러 수정
+- 원인: hashlib import 누락
+- html/hashlib/기타 표준 import 정리
+- urllib.parse 직접 import 제거
+- toast_redirect 안전 처리
+- 기능 추가 없음
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v26.27 html import fix"
+git commit -m "v26.28 stable import fix"
 git push

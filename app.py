@@ -3,9 +3,9 @@ from flask import Flask, request, redirect, session, render_template_string
 from pathlib import Path
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import os, json, uuid, re, html
+import os, json, uuid, re, html, hashlib, secrets, time, datetime, random, string
 
-APP_VERSION = "v26.27-service"
+APP_VERSION = "v26.28-stable"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1402,7 +1402,7 @@ def remaining_text(p):
 def safe_quote_toast(msg):
     try:
         import urllib.parse
-        return urllib.parse.quote(str(msg), safe="")
+        return urllib.parse.safe_quote_toast(msg)
     except Exception:
         return str(msg).replace(" ", "%20")
 

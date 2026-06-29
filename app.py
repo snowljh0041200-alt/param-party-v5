@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v25.6"
+APP_VERSION = "v26.0"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -549,6 +549,75 @@ button:disabled,.btn[disabled]{
 
 .btn[disabled],button[disabled]{opacity:.55;cursor:not-allowed}
 .slot .tag.ok{margin-right:4px}
+
+
+/* v26 final polish */
+:root{
+  --shadow-soft:0 14px 34px rgba(0,0,0,.22);
+  --shadow-hover:0 18px 44px rgba(0,0,0,.30);
+}
+body{letter-spacing:-.2px}
+.header{
+  border-radius:22px!important;
+  padding:18px 18px!important;
+  background:linear-gradient(135deg,rgba(88,116,255,.13),rgba(25,196,111,.055)),rgba(8,17,38,.38)!important;
+  border:1px solid rgba(255,255,255,.07)!important;
+  box-shadow:var(--shadow-soft)!important;
+}
+.header h1{font-size:27px!important;font-weight:950!important}
+.panel,.card{border:1px solid rgba(255,255,255,.075)!important;box-shadow:var(--shadow-soft)!important}
+.card{transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease}
+.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-hover)!important;border-color:rgba(88,116,255,.28)!important}
+.card:before{width:3px!important;opacity:.88}
+.card.closed:before{background:linear-gradient(180deg,#7d879e,#4d566c)!important}
+.card h2{margin:12px 0 8px!important;line-height:1.18!important}
+.meta{line-height:1.45}
+.summary-grid{gap:12px!important}
+.summary-card{background:linear-gradient(180deg,rgba(16,26,49,.94),rgba(8,17,38,.94))!important;border:1px solid rgba(255,255,255,.075)!important}
+.summary-card span{display:flex;align-items:center;gap:6px}
+.summary-card strong{letter-spacing:-.8px}
+.btn,button{user-select:none;white-space:nowrap}
+.btn:active,button:active{transform:translateY(1px) scale(.99)!important}
+.slot{transition:border-color .14s ease,background .14s ease}
+.slot:hover{border-color:rgba(88,116,255,.22);background:rgba(10,22,48,.92)}
+.slot b{letter-spacing:-.3px}
+.tag{font-weight:900!important}
+.count{font-size:13px!important}
+.notice{line-height:1.45}
+.chatbox{scroll-behavior:smooth}
+.chatmsg{border:1px solid rgba(255,255,255,.04)}
+.pill{font-size:13px}
+.empty{background:rgba(8,17,38,.28)}
+input,select,textarea{transition:border-color .14s ease,box-shadow .14s ease,background .14s ease}
+input::placeholder,textarea::placeholder{color:#667694}
+.auth-panel,.pending-panel{animation:fadeUp .22s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+  background:linear-gradient(180deg,#152341,#0b1429);border:1px solid rgba(88,116,255,.32);
+  color:#f4f7ff;border-radius:999px;padding:12px 18px;box-shadow:0 18px 50px rgba(0,0,0,.38);
+  z-index:2000;opacity:0;transition:.2s ease;pointer-events:none;font-weight:900;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.choice-card{transition:.14s ease}
+.choice-card:hover{border-color:rgba(25,196,111,.35)}
+.admin-console{max-width:1120px;margin-left:auto;margin-right:auto}
+.admin-card,.admin-post-row{transition:.14s ease}
+.admin-post-row:hover,.admin-card:hover{border-color:rgba(88,116,255,.25)}
+.schedule-row strong,.remain{color:#ffe28a!important}
+.group-badge{white-space:nowrap}
+@media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
+@media(max-width:720px){
+  .header{padding:16px 14px!important}
+  .header h1{font-size:22px!important}
+  .summary-grid{gap:8px!important}
+  .summary-card{padding:12px!important}
+  .card,.panel{padding:14px!important;border-radius:17px!important}
+  .card h2{font-size:21px!important}
+  .actions .btn{flex:1}
+  .chatbox{height:260px!important}
+  .auth-panel,.pending-panel{margin:36px auto!important}
+}
 
 @media(max-width:980px){.farm-form{grid-template-columns:1fr 1fr!important}}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr!important}}
@@ -1114,6 +1183,32 @@ document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.oncha
 
 
 
+
+function showToast(message){
+  try{
+    let t=document.getElementById('appToast');
+    if(!t){t=document.createElement('div');t.id='appToast';t.className='toast';document.body.appendChild(t);}
+    t.textContent=message;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),1800);
+  }catch(e){}
+}
+function bindActionToasts(){
+  document.querySelectorAll("a[href*='join_slot'],a[href*='choose_participant'],a[href*='leave_'],a[href*='close/']").forEach(a=>{
+    if(a.dataset.toastBound)return;
+    a.dataset.toastBound='1';
+    a.addEventListener('click',()=>{
+      const txt=(a.textContent||'').trim();
+      if(txt.includes('참여')) sessionStorage.setItem('toast','참여가 반영되었습니다');
+      else if(txt.includes('취소')) sessionStorage.setItem('toast','참여가 취소되었습니다');
+      else if(txt.includes('완료')) sessionStorage.setItem('toast','모집이 마감되었습니다');
+    });
+  });
+  const msg=sessionStorage.getItem('toast');
+  if(msg){sessionStorage.removeItem('toast');setTimeout(()=>showToast(msg),180);}
+}
+document.addEventListener('DOMContentLoaded', bindActionToasts);
+
 function isUserEditing(){
   const a=document.activeElement;
   if(!a)return false;
@@ -1131,7 +1226,7 @@ function bindLivePageRefresh(){
     if(document.hidden) return;
     // 메인 화면은 참여/글작성 변화가 바로 보이도록 8초마다 조용히 새로고침
     location.reload();
-  }, 8000);
+  }, 6000);
 }
 document.addEventListener('DOMContentLoaded', bindLivePageRefresh);
 
@@ -1325,7 +1420,7 @@ T_INDEX = """
     <section class='card {{ "closed" if p.closed else "" }}'>
       <span class='tag {{ "closed-tag" if p.closed else "ok" }}'>{{ "마감" if p.closed else "모집중" }}</span>
       <span class='tag'>{{p.category}}</span>
-      <span class='count'>{{joined_count(p)}}/{{max_count(p)}}</span>
+      <span class='count'>{{joined_count(p)}} / {{max_count(p)}}명</span>
       <h2>{{p.place}}</h2>
       <div class='meta'>📍 {{p.channel}}채널 · ⏰ {{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}}{% if p.category=="파밍" %} · <b class='remain'>{{ remaining_text(p) }}</b>{% endif %}</div>
       <div class='meta'>👑 {{p.owner_label}} · {{p.created}}</div>
@@ -1336,7 +1431,7 @@ T_INDEX = """
         <div class='slot'>
           <div>
             <b>{{s.job}}</b>
-            <div class='meta'>{{s.label or s.external or "모집중"}}</div>
+            <div class='meta'>{{s.label or s.external or "참여 대기"}}</div>
           </div>
           <div class='toolbar'>
             {% if not p.closed %}

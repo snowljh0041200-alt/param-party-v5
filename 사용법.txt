@@ -1,9 +1,17 @@
-v34.0 REAL STRUCTURE LAYOUT
+v35.0 REAL T_INDEX LAYOUT FIX
 
-수정:
+이번 수정은 실제 메인 화면 템플릿 T_INDEX 안쪽을 직접 수정했습니다.
+
+변경:
 - 공지사항 오른쪽 빈 공간에 접속중/오늘일정/통합채팅 배치
-- 기존 오른쪽 사이드바 숨김
-- 모집글은 아래에서 카드만 정확히 2열
-- 오른쪽/왼쪽/오른쪽아래/왼쪽아래 형태로 계속 이어짐
+- 기존 app-shell/side-stack 구조 제거
+- 모집글은 아래에서 정확히 2열
+- 모집글이 왼쪽/오른쪽/왼쪽아래/오른쪽아래 순서로 이어짐
 - 기존 알림/링크/승급지원 기능 유지
 - 컴파일 통과
+
+배포:
+cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
+git add .
+git commit -m "v35.0 real tindex layout fix"
+git push

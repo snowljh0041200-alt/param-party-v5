@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v29.0-final"
+APP_VERSION = "v30.0-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1172,6 +1172,96 @@ input::placeholder,textarea::placeholder{color:#667694}
 .post-card[data-category="승급지원"] .people-count,
 .post-card[data-category="승급지원"] .member-count{
   display:none!important;
+}
+
+
+/* v30.0 final layout */
+.main,
+.layout,
+.page-grid,
+.content-grid{
+  align-items:flex-start!important;
+}
+
+.side,
+.sidebar,
+.right-side,
+.aside,
+.side-panel{
+  position:sticky!important;
+  top:14px!important;
+  align-self:flex-start!important;
+  max-height:calc(100vh - 24px)!important;
+  overflow:auto!important;
+}
+
+.post-card{
+  margin-bottom:14px!important;
+}
+
+.post-card[data-category="승급지원"]{
+  padding:18px!important;
+}
+
+.post-card[data-category="승급지원"] .post-meta,
+.post-card[data-category="승급지원"] .participants,
+.post-card[data-category="승급지원"] .actions,
+.post-card[data-category="승급지원"] .toolbar{
+  margin-top:10px!important;
+}
+
+.post-card[data-category="승급지원"] .settle-box,
+.post-card[data-category="승급지원"] .settlement-box,
+.post-card[data-category="승급지원"] .farming-settle,
+.post-card[data-category="승급지원"] .farm-settle,
+.post-card[data-category="승급지원"] .settle-panel,
+.post-card[data-category="승급지원"] [data-section="settle"],
+.post-card[data-category="승급지원"] .settle,
+.post-card[data-category="승급지원"] .calc-box{
+  display:none!important;
+}
+
+.post-card[data-category="승급지원"] .capacity-badge,
+.post-card[data-category="승급지원"] .count-badge,
+.post-card[data-category="승급지원"] .people-count,
+.post-card[data-category="승급지원"] .member-count,
+.post-card[data-category="승급지원"] .cap-badge{
+  display:none!important;
+}
+
+/* 통합채팅 기본 접힘 */
+body:not(.chat-open) .global-chat-body,
+body:not(.chat-open) .global-chat-list,
+body:not(.chat-open) .chat-list,
+body:not(.chat-open) .chat-messages,
+body:not(.chat-open) .global-chat form,
+body:not(.chat-open) .chat-panel form{
+  display:none!important;
+}
+
+body:not(.chat-open) .global-chat,
+body:not(.chat-open) .chat-panel{
+  min-height:auto!important;
+}
+
+.chat-toggle-btn{
+  float:right;
+  font-size:13px!important;
+  padding:7px 11px!important;
+  border-radius:12px!important;
+}
+
+
+/* v30.0 two column fallback */
+@media(min-width:981px){
+  .main-grid,
+  .dashboard-grid,
+  .home-grid{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 360px!important;
+    gap:16px!important;
+    align-items:start!important;
+  }
 }
 
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
@@ -3036,6 +3126,24 @@ async function testToastFromSettings(){
   });
 })();
 
+
+/* v30.0 chat collapse */
+(function(){
+  window.toggleGlobalChatPanel = function(){
+    document.body.classList.toggle('chat-open');
+    try{ localStorage.setItem('chatOpen', document.body.classList.contains('chat-open') ? '1' : '0'); }catch(e){}
+    var btn = document.getElementById('chatToggleBtn');
+    if(btn) btn.textContent = document.body.classList.contains('chat-open') ? '▲ 접기' : '▼ 펼치기';
+  };
+  document.addEventListener('DOMContentLoaded', function(){
+    var open = false;
+    try{ open = localStorage.getItem('chatOpen') === '1'; }catch(e){}
+    if(open) document.body.classList.add('chat-open');
+    var btn = document.getElementById('chatToggleBtn');
+    if(btn) btn.textContent = open ? '▲ 접기' : '▼ 펼치기';
+  });
+})();
+
 </script></body></html>"""
 
 def render(page, **kw):
@@ -3266,7 +3374,7 @@ T_INDEX = """
     </section>
 
     <section class='panel' id='global-chat'>
-      <h2>💬 통합채팅</h2>
+      <h2>💬 통합채팅 <button id='chatToggleBtn' type='button' class='btn gray chat-toggle-btn' onclick='toggleGlobalChatPanel()'>▼ 펼치기</button></h2>
       <div class='chatbox' id='globalChatBox'>
         {% for m in d.global_chat[-30:] %}
           <div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}<br><span class='meta'>{{m.time}}</span></div>

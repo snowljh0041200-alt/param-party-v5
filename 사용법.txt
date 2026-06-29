@@ -1,14 +1,16 @@
-v29.0 PROMOTION UI FINAL
+v30.0 FINAL LAYOUT
 
 수정:
-- 승급지원 글에서 파밍 정산 영역 숨김
-- 승급지원 글에서 1/1명 같은 정원 표시 숨김
-- 승급지원은 파밍처럼 정원 제한 없이 계속 모집중 유지
-- 기존 참여/취소/토스트/크롬 알림/메모 링크 기능 유지
+- 오른쪽 사이드 영역 sticky 고정
+- 왼쪽 모집글이 늘어나도 접속중/오늘일정/통합채팅이 아래로 밀리지 않게 조정
+- 통합채팅 기본 접힘 + 펼치기/접기 버튼 추가
+- 승급지원 카드 높이 축소
+- 승급지원 파밍정산/정원표시 숨김 유지
+- 기존 알림/링크/참여 기능 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v29.0 promotion ui final"
+git commit -m "v30.0 final layout"
 git push

@@ -1,14 +1,13 @@
-v26.24 RELIABLE TOAST FIX
+v26.25 DIRECT TOAST FIX
 
 수정:
-- 토스트 알림이 안 뜨던 문제 수정
-- 알림 ID 비교 방식을 제거하고, 최근 20초 이내 새 알림을 본 적 없으면 표시
-- 통합채팅에는 시스템 알림을 남기지 않음
-- 참여/취소/외부추가/외부제거/자리추가/자리제거는 화면 토스트로 표시
-- 관리자 테스트용 /api/test_toast 추가
+- URL 직접 토스트 + 다른 사용자용 알림 폴링 동시 적용
+- 참여/취소/외부추가/외부제거/자리추가/자리제거 팝업 알림 강화
+- 통합채팅에는 시스템 알림 안 남김
+- 외부제거 후 모집중 복귀 유지
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v26.24 reliable toast fix"
+git commit -m "v26.25 direct toast fix"
 git push

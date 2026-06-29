@@ -3,9 +3,10 @@ from flask import Flask, request, redirect, session, render_template_string
 from pathlib import Path
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import os, json, uuid, re, html, hashlib
+import os, json, uuid, re
+from urllib.parse import quote, html, hashlib
 
-APP_VERSION = "v26.24-service"
+APP_VERSION = "v26.25-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -908,6 +909,40 @@ input::placeholder,textarea::placeholder{color:#667694}
   #toastWrap{left:12px!important;right:12px!important;top:12px!important;max-width:none!important}
 }
 
+
+/* v26.25 direct toast */
+#toastWrap{
+  position:fixed!important;
+  top:18px!important;
+  right:18px!important;
+  z-index:99999!important;
+  display:grid!important;
+  gap:8px!important;
+  max-width:380px!important;
+  pointer-events:none!important;
+}
+.toast{
+  opacity:0;
+  transform:translateY(-10px);
+  transition:.22s ease;
+  background:linear-gradient(180deg,#263861,#111d38)!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  border-radius:15px!important;
+  color:#fff!important;
+  padding:13px 15px!important;
+  box-shadow:0 20px 60px rgba(0,0,0,.45)!important;
+  font-weight:950!important;
+  line-height:1.45!important;
+  white-space:pre-wrap!important;
+}
+.toast.show{
+  opacity:1!important;
+  transform:translateY(0)!important;
+}
+@media(max-width:720px){
+  #toastWrap{left:12px!important;right:12px!important;top:12px!important;max-width:none!important}
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1110,7 +1145,7 @@ def show_time(value):
     return f"{p} {t}" if t else "시간 미정"
 
 def empty_data():
-    return {"users": [], "posts": [], "global_chat": [], "alerts": [], "alerts": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"title":"공성 관련 협의 사항 안내","text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.","updated_at":""}}}
+    return {"users": [], "posts": [], "global_chat": [], "alerts": [], "alerts": [], "alerts": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"title":"공성 관련 협의 사항 안내","text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.","updated_at":""}}}
 
 def normalize(d):
     d.setdefault("users", [])
@@ -1362,6 +1397,16 @@ def remaining_text(p):
 
 
 
+
+
+def toast_redirect(url, msg):
+    if not msg:
+        return redirect(url)
+    sep = "&" if "?" in url else "?"
+    return redirect(url + sep + "toast=" + quote(str(msg)))
+
+def action_msg(p, text):
+    return f"🔔 [{post_title(p)}] {text}"
 
 def system_notify(d, msg):
     try:
@@ -1745,29 +1790,38 @@ function formatBossRemain(totalSeconds){
 
 
 
-function ensureToastWrap(){
+
+
+
+function showToast(msg){
   let wrap=document.getElementById('toastWrap');
   if(!wrap){
     wrap=document.createElement('div');
     wrap.id='toastWrap';
     document.body.appendChild(wrap);
   }
-  return wrap;
-}
-function showToast(msg){
-  const wrap=ensureToastWrap();
   const el=document.createElement('div');
   el.className='toast';
   el.textContent=msg;
   wrap.appendChild(el);
-  setTimeout(()=>el.classList.add('show'),10);
-  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),260);},4600);
+  setTimeout(()=>el.classList.add('show'),20);
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},4500);
 }
 function getSeenAlertIds(){
   try{return new Set(JSON.parse(localStorage.getItem('seenAlertIds')||'[]'));}catch(e){return new Set();}
 }
 function saveSeenAlertIds(set){
   try{localStorage.setItem('seenAlertIds', JSON.stringify(Array.from(set).slice(-120)));}catch(e){}
+}
+function showUrlToast(){
+  const params=new URLSearchParams(location.search);
+  const msg=params.get('toast');
+  if(msg){
+    setTimeout(()=>showToast(msg),200);
+    params.delete('toast');
+    const qs=params.toString();
+    history.replaceState(null,'',location.pathname+(qs?'?'+qs:''));
+  }
 }
 async function pollSystemAlerts(){
   try{
@@ -1779,17 +1833,18 @@ async function pollSystemAlerts(){
     alerts.forEach(a=>{
       const id=String(a.id||'');
       if(!id || seen.has(id)) return;
-      const t=Date.parse(a.time||'');
-      const recent=!Number.isNaN(t) ? (now - t < 20000) : true;
       seen.add(id);
+      const t=Date.parse(a.time||'');
+      const recent=Number.isNaN(t) ? true : (now-t<18000);
       if(recent && a.text) showToast(a.text);
     });
     saveSeenAlertIds(seen);
   }catch(e){}
 }
 document.addEventListener('DOMContentLoaded',()=>{
+  showUrlToast();
   pollSystemAlerts();
-  setInterval(pollSystemAlerts, 2500);
+  setInterval(pollSystemAlerts,3000);
 });
 
 function toggleClanNotice(){
@@ -2483,6 +2538,7 @@ def farm_group(pid, group):
 def join_slot(pid,i):
     d=load(); u=cur_user(d); c=selected_char(u)
     p=find_post(d,pid)
+    msg = ""
     if p and c and p["category"]=="사냥" and not p.get("closed") and 0<=i<len(p["slots"]):
         if not compatible_job(p["slots"][i].get("job",""), c.get("job","")):
             return redirect(f"/choose_slot/{pid}/{i}")
@@ -2492,22 +2548,28 @@ def join_slot(pid,i):
         if not p["slots"][i].get("uid") and not p["slots"][i].get("external"):
             p["slots"][i].update({"uid":u["id"],"label":char_label(c),"char_id":c.get("id",""),"external":""})
             job = p["slots"][i].get("job","")
-            system_notify(d, f"🔔 {actor_label(u)}님이 [{post_title(p)}] {job} 자리에 참여했습니다.")
+            msg = action_msg(p, f"{actor_label(u)}님이 {job} 자리에 참여했습니다.")
+            system_notify(d, msg)
         auto_close_full_posts(d)
         save(d)
-    return redirect("/")
+    return toast_redirect("/", msg) if msg else redirect("/")
+
 
 
 @app.route("/leave_slot/<pid>/<int:i>")
 def leave_slot(pid,i):
     d=load(); u=cur_user(d); p=find_post(d,pid)
+    msg = ""
     if p and 0<=i<len(p["slots"]) and (p["slots"][i].get("uid")==u["id"] or can_manage_post(u,p)):
         job = p["slots"][i].get("job","")
+        old = p["slots"][i].get("label") or actor_label(u)
         p["slots"][i].update({"uid":"","label":"","char_id":"","external":""})
-        system_notify(d, f"🔔 {actor_label(u)}님이 [{post_title(p)}] {job} 자리 참여를 취소했습니다.")
         refresh_post_status_after_member_change(d, p)
+        msg = action_msg(p, f"{job} 자리의 {old}님이 빠졌습니다.")
+        system_notify(d, msg)
         save(d)
-    return redirect("/")
+    return toast_redirect("/", msg) if msg else redirect("/")
+
 
 
 
@@ -2517,8 +2579,19 @@ def remove_external_slot(pid, i):
     d = load()
     u = cur_user(d)
     p = find_post(d, pid)
+    msg = ""
     if not p or not can_manage_post(u, p):
         return redirect("/")
+    if 0 <= i < len(p.get("slots", [])):
+        old = p["slots"][i].get("external") or p["slots"][i].get("label") or "외부인"
+        job = p["slots"][i].get("job", "")
+        p["slots"][i].update({"uid": "", "label": "", "char_id": "", "external": ""})
+        refresh_post_status_after_member_change(d, p)
+        msg = action_msg(p, f"{job} 자리의 {old}님이 제거되었습니다.")
+        system_notify(d, msg)
+        save(d)
+    return toast_redirect("/", msg) if msg else redirect("/")
+
     if 0 <= i < len(p.get("slots", [])):
         old = p["slots"][i].get("external") or p["slots"][i].get("label") or "외부인"
         job = p["slots"][i].get("job", "")
@@ -2617,9 +2690,11 @@ def external_slot(pid, i):
         if name:
             p["slots"][i].update({"uid": "", "label": name, "char_id": "", "external": name})
             job = p["slots"][i].get("job", "")
-            system_notify(d, f"🔔 [{post_title(p)}] {job} 자리에 외부인 {name}님이 추가되었습니다.")
             refresh_post_status_after_member_change(d, p)
+            msg = action_msg(p, f"{job} 자리에 외부인 {name}님이 추가되었습니다.")
+            system_notify(d, msg)
             save(d)
+            return toast_redirect(next_url or "/", msg)
         return redirect(next_url or "/")
     return render("""
 <section class='panel'>
@@ -2633,8 +2708,6 @@ def external_slot(pid, i):
   </form>
 </section>
 """, next_url=next_url)
-
-
 @app.route("/participate/<pid>")
 def participate(pid):
     d=load(); p=find_post(d,pid)
@@ -2737,14 +2810,16 @@ def edit_add_job_slot(pid):
     if not p or not can_manage_post(u, p) or p.get("category") != "사냥":
         return redirect("/")
     job = request.form.get("job", "").strip()
+    msg = ""
     if job:
         p.setdefault("slots", []).append({"job": job, "uid": "", "label": "", "char_id": "", "external": ""})
         reopen_on_edit_change(p)
-        system_notify(d, f"⚔ {actor_label(u)}님이 [{post_title(p)}] 모집글에 {job} 자리를 추가했습니다.")
-        system_notify(d, f"🔔 [{post_title(p)}] {job} 자리가 추가되었습니다.")
         refresh_post_status_after_member_change(d, p)
+        msg = action_msg(p, f"{job} 자리가 추가되었습니다.")
+        system_notify(d, msg)
         save(d)
-    return redirect(f"/edit/{pid}")
+    return toast_redirect(f"/edit/{pid}", msg) if msg else redirect(f"/edit/{pid}")
+
 
 @app.route("/edit_remove_job_slot/<pid>/<int:i>")
 def edit_remove_job_slot(pid, i):
@@ -2753,16 +2828,17 @@ def edit_remove_job_slot(pid, i):
     p = find_post(d, pid)
     if not p or not can_manage_post(u, p) or p.get("category") != "사냥":
         return redirect("/")
+    msg = ""
     if 0 <= i < len(p.get("slots", [])):
         removed_job = p["slots"][i].get("job","")
-        removed_job = p["slots"][i].get("job","")
         p["slots"].pop(i)
-        system_notify(d, f"🔔 [{post_title(p)}] {removed_job} 자리가 제거되었습니다.")
-        system_notify(d, f"➖ {actor_label(u)}님이 [{post_title(p)}] 모집글에서 {removed_job} 자리를 제거했습니다.")
         reopen_on_edit_change(p)
         refresh_post_status_after_member_change(d, p)
+        msg = action_msg(p, f"{removed_job} 자리가 제거되었습니다.")
+        system_notify(d, msg)
         save(d)
-    return redirect(f"/edit/{pid}")
+    return toast_redirect(f"/edit/{pid}", msg) if msg else redirect(f"/edit/{pid}")
+
 
 @app.route("/close/<pid>")
 def close(pid):

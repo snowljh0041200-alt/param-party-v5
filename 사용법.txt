@@ -1,21 +1,15 @@
-v28.1 CHROME NOTIFY + CANCEL FIX
+v28.2 SETTINGS NOTIFY FIX
 
 수정:
-- 참여 취소 버튼 404 Not Found 방지
-- /cancel_slot, /cancel, /remove_slot alias 추가
-- 크롬 브라우저 알림 권한 요청 기능 추가
-- 설정에 크롬 알림 켜기 / 크롬 알림 테스트 버튼 추가
-- 사이트 토스트 + 크롬 알림 둘 다 표시 가능
+- 상단에 잘못 표시되던 크롬 알림 설정 박스 제거
+- 토스트테스트/크롬알림 버튼을 설정창 안으로 이동
+- 참여 시 토스트 + 크롬 알림이 오도록 join_slot 재수정
+- 취소 알림 유지
+- 취소 404 alias 유지
 - 컴파일 통과
-
-크롬 알림 테스트:
-1) 설정 클릭
-2) 크롬 알림 켜기 클릭
-3) 브라우저 권한 허용
-4) 크롬 알림 테스트 클릭
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v28.1 chrome notify cancel fix"
+git commit -m "v28.2 settings notify fix"
 git push

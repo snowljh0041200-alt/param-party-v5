@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v28.1-final"
+APP_VERSION = "v28.2-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2401,6 +2401,65 @@ async function testToastFromSettings(){
   });
 })();
 
+
+function showUrlToastV282(){
+  try{
+    const params = new URLSearchParams(location.search);
+    const msg = params.get('toast');
+    if(msg){
+      setTimeout(function(){
+        if(window.BaramToast) window.BaramToast(msg);
+        if(window.sendChromeNotify) window.sendChromeNotify(msg);
+      }, 250);
+      params.delete('toast');
+      const qs = params.toString();
+      history.replaceState(null,'',location.pathname + (qs ? '?' + qs : ''));
+    }
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', showUrlToastV282);
+
+
+/* v28.2 settings-only chrome notify */
+(function(){
+  window.requestChromeNotifyPermission = async function(){
+    if(!("Notification" in window)){
+      if(window.BaramToast) window.BaramToast("이 브라우저는 크롬 알림을 지원하지 않습니다.");
+      return;
+    }
+    const result = await Notification.requestPermission();
+    if(result === "granted"){
+      localStorage.setItem("chromeNotifyEnabled","1");
+      new Notification("월하 · 연가 · 연희", { body:"크롬 알림이 켜졌습니다." });
+      if(window.BaramToast) window.BaramToast("🔔 크롬 알림이 켜졌습니다.");
+    }else{
+      localStorage.setItem("chromeNotifyEnabled","0");
+      if(window.BaramToast) window.BaramToast("크롬 알림 권한이 허용되지 않았습니다.");
+    }
+  };
+  window.sendChromeNotify = function(msg){
+    try{
+      if(!("Notification" in window)) return;
+      if(localStorage.getItem("chromeNotifyEnabled") !== "1") return;
+      if(Notification.permission !== "granted") return;
+      new Notification("월하 · 연가 · 연희", { body: msg || "새 알림이 있습니다." });
+    }catch(e){}
+  };
+  window.testChromeNotifyFromSettings = function(){
+    if(!("Notification" in window)){
+      if(window.BaramToast) window.BaramToast("이 브라우저는 크롬 알림을 지원하지 않습니다.");
+      return;
+    }
+    if(Notification.permission !== "granted"){
+      window.requestChromeNotifyPermission();
+      return;
+    }
+    localStorage.setItem("chromeNotifyEnabled","1");
+    new Notification("월하 · 연가 · 연희", { body:"크롬 알림 테스트입니다." });
+    if(window.BaramToast) window.BaramToast("🔔 크롬 알림 테스트를 보냈습니다.");
+  };
+})();
+
 </script></body></html>"""
 
 def render(page, **kw):
@@ -2455,20 +2514,9 @@ T_INDEX = """
     <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
   </div>
 
-    <div class='setting-card vertical toast-test-box'>
-      <b>🔔 크롬 알림 설정</b>
-      <div class='meta'>브라우저 오른쪽 알림센터로 참석 알림을 받으려면 권한 허용이 필요합니다.</div>
-      <div class='toolbar' style='margin-top:10px'>
-        <button type='button' class='btn ok' onclick='requestChromeNotifyPermission()'>크롬 알림 켜기</button>
-        <button type='button' class='btn gray' onclick='testChromeNotifyFromSettings()'>크롬 알림 테스트</button>
-      </div>
-    </div>
-
   <div class='toolbar'>
     <a class='btn nav-btn gray' href='/chars'>캐릭터</a>
     <button type='button' class='btn nav-btn gray' onclick='openSettingsModal()'>⚙ 설정</button>
-    <button type='button' class='btn nav-btn gray' onclick="window.BaramToast ? window.BaramToast('🔔 토스트 알림 테스트입니다.') : alert('토스트 함수가 아직 로드되지 않았습니다.')">토스트테스트</button>
-    <button type='button' class='btn nav-btn gray' onclick='requestChromeNotifyPermission()'>크롬알림</button>
     {% if is_admin(u) %}<a class='btn nav-btn gray' href='/admin'>관리자</a>{% endif %}
     <a class='btn nav-btn gray' href='/logout'>로그아웃</a>
   </div>
@@ -2477,7 +2525,21 @@ T_INDEX = """
 <div class='summary-grid'>
   <div class='summary-card'><span>오늘 파밍</span><strong>{{ sched|length }}</strong></div>
   <div class='summary-card'><span>진행중 모집</span><strong>{{ posts|selectattr('closed','equalto',False)|list|length }}</strong></div>
-  <div class='summary-card'><span>캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong></div>
+  <div class='summary-card'><span>캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong>
+    <div class='setting-card vertical toast-test-box'>
+      <b>🔔 토스트 알림 테스트</b>
+      <div class='meta'>사이트 안에서 우측 상단 팝업이 뜨는지 확인합니다.</div>
+      <button type='button' class='btn ok full' onclick="testToastFromSettings()">토스트 테스트</button>
+    </div>
+    <div class='setting-card vertical toast-test-box'>
+      <b>🔔 크롬 알림 설정</b>
+      <div class='meta'>크롬 알림센터로 참석 알림을 받으려면 권한 허용이 필요합니다.</div>
+      <div class='toolbar' style='margin-top:10px'>
+        <button type='button' class='btn ok' onclick='requestChromeNotifyPermission()'>크롬 알림 켜기</button>
+        <button type='button' class='btn gray' onclick='testChromeNotifyFromSettings()'>크롬 알림 테스트</button>
+      </div>
+    </div>
+</div>
 </div>
 
 
@@ -2925,6 +2987,7 @@ def join_slot(pid,i):
         auto_close_full_posts(d)
         save(d)
     return toast_redirect("/", msg) if msg else redirect("/")
+
 
     if 0 <= i < len(p.get("slots", [])):
         old = p["slots"][i].get("external") or p["slots"][i].get("label") or "외부인"

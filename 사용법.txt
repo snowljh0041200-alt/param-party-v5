@@ -1,17 +1,13 @@
-v28.3 SETTINGS + CHOOSE NOTIFY FIX
+v28.4 TOAST DEDUPE FIX
 
 수정:
-- 설정창 안에만 토스트/크롬 알림 테스트 배치
-- 상단 테스트 버튼/알림 박스 제거
-- 실제 참여 흐름인 /choose_slot POST에 알림 추가
-- 600퀘/파밍/승급지원 참여 흐름인 /choose_participant POST에 알림 추가
-- /leave_slot 취소 라우트 추가로 Not Found 방지
-- /remove_external_slot 외부제거 라우트 추가
-- 사이트 토스트 + 크롬 알림 둘 다 유지
+- 토스트 알림이 2~3개씩 중복 표시되는 문제 수정
+- 같은 문구는 7초 안에 1번만 표시
+- 기존 참여/취소/크롬 알림 기능 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v28.3 settings choose notify fix"
+git commit -m "v28.4 toast dedupe fix"
 git push

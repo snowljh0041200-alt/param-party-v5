@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v28.3-final"
+APP_VERSION = "v28.4-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1081,6 +1081,29 @@ input::placeholder,textarea::placeholder{color:#667694}
 }
 @media(max-width:720px){
   #toastWrap{left:12px!important;right:12px!important;top:12px!important;max-width:none!important}
+}
+
+
+/* v28.4 toast duplicate guard css */
+#toastWrap{
+  position:fixed!important;
+  top:18px!important;
+  right:18px!important;
+  left:auto!important;
+  bottom:auto!important;
+  z-index:9999999!important;
+  display:grid!important;
+  gap:8px!important;
+  max-width:390px!important;
+  pointer-events:none!important;
+}
+#toastWrap .toast,
+.toast.v28-toast{
+  position:relative!important;
+  left:auto!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:auto!important;
 }
 
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
@@ -2362,6 +2385,97 @@ async function testToastFromSettings(){
     pollAlerts();
     setInterval(pollAlerts, 3000);
   });
+})();
+
+
+/* v28.4 toast duplicate guard - final override */
+(function(){
+  var lastToastMap = {};
+  var activeTexts = {};
+
+  function normalizeMsg(msg){
+    return String(msg || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function makeSingleToast(msg){
+    msg = msg || '🔔 알림입니다.';
+    var key = normalizeMsg(msg);
+    var now = Date.now();
+
+    if(lastToastMap[key] && now - lastToastMap[key] < 7000){
+      return;
+    }
+    if(activeTexts[key]){
+      return;
+    }
+
+    lastToastMap[key] = now;
+    activeTexts[key] = 1;
+
+    var wrap = document.getElementById('toastWrap');
+    if(!wrap){
+      wrap = document.createElement('div');
+      wrap.id = 'toastWrap';
+      document.body.appendChild(wrap);
+    }
+
+    var el = document.createElement('div');
+    el.className = 'toast v28-toast';
+    el.textContent = msg;
+    wrap.appendChild(el);
+
+    setTimeout(function(){ el.classList.add('show'); }, 20);
+    setTimeout(function(){
+      el.classList.remove('show');
+      setTimeout(function(){
+        if(el && el.parentNode) el.parentNode.removeChild(el);
+        delete activeTexts[key];
+      }, 320);
+    }, 4500);
+  }
+
+  window.BaramToast = makeSingleToast;
+  window.showToast = makeSingleToast;
+
+  window.testToastFromSettings = function(){
+    makeSingleToast('🔔 토스트 알림 테스트입니다. 이 문구가 보이면 정상입니다.');
+  };
+
+  var oldSendChrome = window.sendChromeNotify;
+  window.sendChromeNotify = function(msg){
+    try{
+      var key = 'chrome:' + normalizeMsg(msg);
+      var now = Date.now();
+      if(lastToastMap[key] && now - lastToastMap[key] < 7000) return;
+      lastToastMap[key] = now;
+      if(typeof oldSendChrome === 'function'){
+        oldSendChrome(msg);
+        return;
+      }
+      if(!('Notification' in window)) return;
+      if(localStorage.getItem('chromeNotifyEnabled') !== '1') return;
+      if(Notification.permission !== 'granted') return;
+      new Notification('월하 · 연가 · 연희', {body: msg || '새 알림이 있습니다.'});
+    }catch(e){}
+  };
+
+  function handleUrlToastOnce(){
+    try{
+      var params = new URLSearchParams(location.search);
+      var msg = params.get('toast');
+      if(msg){
+        setTimeout(function(){
+          makeSingleToast(msg);
+          if(window.sendChromeNotify) window.sendChromeNotify(msg);
+        }, 250);
+        params.delete('toast');
+        var qs = params.toString();
+        history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+      }
+    }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', handleUrlToastOnce);
 })();
 
 </script></body></html>"""

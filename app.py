@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v37.1-final"
+APP_VERSION = "v37.2-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -3674,6 +3674,47 @@ def find_user_char(u, cid):
             return ch
     return None
 
+
+T_EDIT_CHAR_SAFE_V372 = """
+<!doctype html>
+<html lang='ko'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>캐릭터 수정</title>
+<style>{{ css|safe }}</style>
+<style>
+.char-manage-v372{max-width:1180px;margin:0 auto}
+.char-form-v372{display:grid;gap:10px}
+.char-form-v372 input,.char-form-v372 select{width:100%;box-sizing:border-box}
+.char-form-v372 label{font-weight:900;margin-top:6px}
+</style>
+</head>
+<body>
+<div class='wrap'>
+<section class='panel char-manage-v372'>
+  <a class='btn gray' href='/chars'>← 캐릭터</a>
+  <h1>캐릭터 수정</h1>
+
+  <form method='post' class='char-form-v372'>
+    <label>캐릭터명</label>
+    <input name='name' value='{{ name }}' required>
+
+    <label>직업/차수</label>
+    <select name='job'>
+      {% for j in jobs %}
+        <option value='{{j}}' {% if job==j %}selected{% endif %}>{{j}}</option>
+      {% endfor %}
+    </select>
+
+    <button class='ok'>저장</button>
+  </form>
+</section>
+</div>
+</body>
+</html>
+"""
+
 @app.route("/delete_char/<cid>")
 def delete_char(cid):
     d = load()
@@ -4691,10 +4732,11 @@ def chat(pid):
 @app.route("/edit_char/<cid>", methods=["GET","POST"])
 def edit_char(cid):
     d = load()
-    u = cur_user()
+    u = cur_user(d)
     ch = find_user_char(u, cid)
     if not ch:
         return redirect("/chars")
+
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         job = (request.form.get("job") or "").strip()
@@ -4705,7 +4747,15 @@ def edit_char(cid):
         ch["status"] = ch.get("status") or "approved"
         save(d)
         return redirect("/chars")
-    return render(T_EDIT_CHAR_V369, d=d, u=u, c=selected_char(u), ch=ch, jobs=JOBS)
+
+    return render_template_string(
+        T_EDIT_CHAR_SAFE_V372,
+        css=CSS,
+        name=ch.get("name",""),
+        job=ch.get("job",""),
+        jobs=JOBS,
+        app_version=APP_VERSION
+    )
 
 @app.route("/chars")
 def chars():

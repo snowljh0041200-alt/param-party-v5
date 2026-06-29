@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v36.0-final"
+APP_VERSION = "v36.1-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1597,6 +1597,10 @@ def get_notice(d):
         "updated_at": n.get("updated_at") or "",
     }
 
+
+def nl2br(s):
+    return h(s).replace("\n", "<br>")
+
 def notice_preview_text(text, limit=7):
     rows = [x for x in str(text or "").splitlines() if x.strip()]
     return "\n".join(rows[:limit])
@@ -2186,6 +2190,94 @@ BASE_HEAD = """<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta 
   .post-grid-v36{
     grid-template-columns:1fr!important;
   }
+}
+
+
+/* v36.1 layout polish fix */
+
+/* 공지 박스가 너무 길게 늘어지는 문제 해결 */
+.v36-notice-card{
+  min-height:0!important;
+  max-height:300px!important;
+  height:auto!important;
+}
+.v36-notice-scroll{
+  max-height:170px!important;
+  overflow:auto!important;
+}
+.notice-live-v36,
+.top-grid-v36{
+  align-items:start!important;
+}
+.notice-full{
+  white-space:pre-wrap!important;
+  line-height:1.65!important;
+  max-height:none!important;
+}
+
+/* 오른쪽 실시간 패널 균형 */
+.live-box-v36 .chat-panel{
+  min-height:300px!important;
+}
+.live-box-v36 .chatbox{
+  height:190px!important;
+  min-height:190px!important;
+}
+
+/* 모집글과 상단 간격 줄이기 */
+.recruit-v36{
+  margin-top:8px!important;
+}
+
+/* 파밍 정산 삐져나옴 수정 */
+.post-card-v36 .farm-box,
+.post-card-v36 .farm-v36{
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+
+.post-card-v36 .farm-form{
+  display:grid!important;
+  grid-template-columns:92px minmax(0,1fr) minmax(0,1fr) 70px 70px 70px!important;
+  gap:8px!important;
+  align-items:center!important;
+  width:100%!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+
+.post-card-v36 .farm-form input,
+.post-card-v36 .farm-form select,
+.post-card-v36 .farm-form button{
+  min-width:0!important;
+  width:100%!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+
+.post-card-v36 .farm-form button{
+  padding-left:8px!important;
+  padding-right:8px!important;
+}
+
+/* 카드가 좁은 2열일 때 파밍정산은 2줄로 자연스럽게 */
+@media(max-width:1100px){
+  .post-card-v36 .farm-form{
+    grid-template-columns:90px 1fr 1fr!important;
+  }
+  .post-card-v36 .farm-form button{
+    grid-column:auto!important;
+  }
+}
+
+/* 공지 밑 빈공간이 커보이지 않게 카드 내부 여백 축소 */
+.v36-notice-card .clan-notice-head{
+  margin-bottom:8px!important;
+}
+.v36-notice-card .btn.mini{
+  margin-top:10px!important;
 }
 
 </style></head><body><div class='wrap'>"""
@@ -3253,6 +3345,21 @@ def toast_test_page():
   </div>
 </section>
 """)
+
+
+@app.route("/notice")
+def notice_page():
+    d = load()
+    n = get_notice(d)
+    body = f"""
+    <section class='panel'>
+      <a class='btn gray' href='/'>← 메인</a>
+      <h1>📢 {h(n.get('title') or '문파 공지사항')}</h1>
+      <div class='notice notice-full'>{nl2br(n.get('text') or '등록된 공지사항이 없습니다.')}</div>
+    </section>
+    """
+    return render(body, d=d, u=current_user(), c=selected_char(current_user()), cat="전체", posts=[], sched=[], online=[], notice=n, notice_preview_text="", notice_new=False)
+
 
 @app.route("/")
 def index():

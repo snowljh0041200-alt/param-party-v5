@@ -1,18 +1,16 @@
-v36.0 CLEAN MAIN LAYOUT
+v36.1 LAYOUT POLISH FIX
 
-이번 버전은 메인 화면 T_INDEX를 새로 구성했습니다.
-
-변경:
-- 공지사항 크기 축소 + 내부 스크롤
-- 공지 오른쪽에 접속중/오늘일정/통합채팅 배치
-- 모집글 카드만 아래에서 2열
-- 카드 높이/폭 정리
-- 승급지원 정산칸 제거
-- 기존 알림/링크/참여 기능 유지
+수정:
+- 공지사항 더보기 /notice 에러 방지
+- 공지사항 카드 높이 축소
+- 공지사항 아래 빈공간 축소
+- 파밍 정산 입력칸이 카드 밖으로 삐져나오는 문제 수정
+- 오른쪽 채팅 패널 높이 보정
+- 기존 기능 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v36.0 clean main layout"
+git commit -m "v36.1 layout polish fix"
 git push

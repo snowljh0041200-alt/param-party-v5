@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v23.1"
+APP_VERSION = "v24.0"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -529,6 +529,15 @@ input,select,textarea{
   min-height:36px!important;
 }
 
+
+.auth-panel{max-width:520px;margin:70px auto;text-align:center}
+.auth-logo{width:62px;height:62px;margin:0 auto 12px;border-radius:20px;background:linear-gradient(180deg,#24d985,#0fa65a);display:flex;align-items:center;justify-content:center;font-size:34px;box-shadow:0 18px 38px rgba(16,189,104,.22)}
+.auth-actions{display:grid;gap:10px;margin-top:18px}
+.auth-bottom{justify-content:center;margin-top:14px}
+#global-chat{scroll-margin-top:16px}
+#globalChatInput{min-width:0}
+#globalChatForm{margin-top:10px}
+
 @media(max-width:980px){.farm-form{grid-template-columns:1fr 1fr!important}}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr!important}}
 .btn{letter-spacing:-.2px}
@@ -921,6 +930,11 @@ def can_manage_post(u, p):
 
 
 
+
+def account_exists(d, account):
+    target = str(account or "").strip()
+    return any(str(u.get("account","")).strip() == target for u in d.get("users", []))
+
 def char_name_exists(d, name, exclude_uid=""):
     target = str(name or "").strip()
     if not target:
@@ -970,6 +984,49 @@ function addSlot(){let j=(qs('#slotJob')||document.querySelector("select[name='s
 function mode(){let c=qs('#cat')?.value;document.querySelectorAll('.place').forEach(x=>x.style.display=x.dataset.cat==c?'':'none');let s=qs('#slotsBox');if(s)s.style.display=c=='사냥'?'':'none'}
 document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.onchange=mode;mode()}document.querySelectorAll('input[name=start_time],input[name=end_time]').forEach(i=>i.oninput=()=>i.value=fmt(i.value))});
 
+
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function isChatNearBottom(box){
+  return !box || (box.scrollHeight - box.scrollTop - box.clientHeight < 80);
+}
+async function loadGlobalChat(keepScroll=true){
+  const box=document.getElementById('globalChatBox');
+  if(!box)return;
+  const nearBottom=isChatNearBottom(box);
+  const oldTop=box.scrollTop;
+  try{
+    const r=await fetch('/api/global_chat');
+    const j=await r.json();
+    if(!j.ok)return;
+    box.innerHTML=(j.messages||[]).map(m=>`<div class="chatmsg"><b>${escapeHtml(m.name)}</b><br>${escapeHtml(m.text)}<br><span class="meta">${escapeHtml(m.time)}</span></div>`).join('') || '<div class="empty">메시지 없음</div>';
+    if(nearBottom) box.scrollTop=box.scrollHeight;
+    else if(keepScroll) box.scrollTop=oldTop;
+  }catch(e){}
+}
+function bindGlobalChat(){
+  const form=document.getElementById('globalChatForm');
+  const input=document.getElementById('globalChatInput');
+  const box=document.getElementById('globalChatBox');
+  if(box) box.scrollTop=box.scrollHeight;
+  if(form && input){
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const text=input.value.trim();
+      if(!text)return;
+      const fd=new FormData();
+      fd.append('text', text);
+      input.value='';
+      await fetch('/api/global_chat', {method:'POST', body:fd});
+      await loadGlobalChat(false);
+      if(box) box.scrollTop=box.scrollHeight;
+    });
+  }
+  setInterval(()=>loadGlobalChat(true), 5000);
+}
+document.addEventListener('DOMContentLoaded', bindGlobalChat);
 
 let __farmVoiceSent = {};
 
@@ -1068,6 +1125,8 @@ def render(page, **kw):
 def index():
     d = load()
     u = cur_user(d)
+    if not u:
+        return redirect("/gate")
     if not approved(u):
         return redirect("/pending")
     cat = request.args.get("cat", "전체")
@@ -1224,17 +1283,17 @@ T_INDEX = """
       {% endfor %}
     </section>
 
-    <section class='panel'>
+    <section class='panel' id='global-chat'>
       <h2>💬 통합채팅</h2>
-      <div class='chatbox'>
+      <div class='chatbox' id='globalChatBox'>
         {% for m in d.global_chat[-30:] %}
           <div class='chatmsg'><b>{{m.name}}</b><br>{{m.text}}<br><span class='meta'>{{m.time}}</span></div>
         {% else %}
           <div class='empty'>메시지 없음</div>
         {% endfor %}
       </div>
-      <form class='toolbar' method='post' action='/global_chat'>
-        <input name='text' placeholder='메시지'>
+      <form class='toolbar' method='post' action='/global_chat' id='globalChatForm'>
+        <input name='text' id='globalChatInput' placeholder='메시지'>
         <button>전송</button>
       </form>
     </section>
@@ -1268,6 +1327,31 @@ T_INDEX = """
 
 """
 
+
+
+@app.route("/gate")
+def gate():
+    return render(T_GATE)
+
+@app.route("/login", methods=["GET","POST"])
+def login():
+    d = load()
+    if request.method == "POST":
+        account = request.form.get("account","").strip()
+        char_name = request.form.get("char_name","").strip()
+        for u in d.get("users", []):
+            if u.get("account") == account:
+                for c in u.get("chars", []):
+                    if c.get("name") == char_name:
+                        session["uid"] = u.get("id")
+                        if u.get("status") != "approved" or c.get("status") != "approved":
+                            return redirect("/pending")
+                        u["selected_char_id"] = c.get("id")
+                        save(d)
+                        return redirect("/")
+        return render(T_LOGIN, error="계정명 또는 캐릭터명이 맞지 않습니다.", form=request.form)
+    return render(T_LOGIN, error="", form={})
+
 @app.route("/register", methods=["GET","POST"])
 def register():
     d = load()
@@ -1278,6 +1362,8 @@ def register():
         admin_pw = request.form.get("admin_password","").strip()
         if not acc or not name:
             return render(T_REGISTER, error="계정명과 캐릭터명을 입력하세요.", form=request.form)
+        if account_exists(d, acc):
+            return render(T_REGISTER, error="이미 등록된 계정명입니다.", form=request.form)
         if char_name_exists(d, name):
             return render(T_REGISTER, error="이미 등록된 캐릭터명입니다. 사칭 방지를 위해 다른 이름은 사용할 수 없습니다.", form=request.form)
         uid, cid = nid(), nid()
@@ -1292,7 +1378,7 @@ def register():
     return render(T_REGISTER, error="", form={})
 
 T_REGISTER = """
-<section class='panel'><h1>👤 문파원 등록</h1><form method='post'><label>계정명</label><input name='account' value='{{form.get("account","")}}'><label>대표 캐릭터명</label><input name='char_name' value='{{form.get("char_name","")}}'><label>직업</label>{{ job_select('job')|safe }}<label>관리자 비밀번호 <span class='meta'>(관리자만 입력)</span></label><input name='admin_password' type='password' placeholder='일반 문파원은 비워두세요'><button class='ok full'>승인 요청</button></form>{% if error %}<div class='notice'>{{error}}</div>{% endif %}</section>
+<section class='panel'><h1>👤 문파원 등록</h1><form method='post'><label>계정명</label><input name='account' value='{{form.get("account","")}}'><label>대표 캐릭터명</label><input name='char_name' value='{{form.get("char_name","")}}'><label>직업</label>{{ job_select('job')|safe }}<label>관리자 비밀번호 <span class='meta'>(관리자만 입력)</span></label><input name='admin_password' type='password' placeholder='일반 문파원은 비워두세요'><button class='ok full'>승인 요청</button></form>{% if error %}<div class='notice'>{{error}}</div>{% endif %}<div class='toolbar auth-bottom'><a class='btn gray' href='/login'>이미 계정이 있나요? 로그인</a></div></section>
 """
 
 
@@ -1304,10 +1390,43 @@ T_PENDING = """
   <div class='notice'>문파 관리자에게 가입 승인을 요청해 주세요.</div>
   <div class='toolbar pending-actions'>
     <a class='btn gray' href='/logout'>로그아웃</a>
-    <a class='btn gray' href='/register'>다시 등록</a>
+    <a class='btn gray' href='/login'>로그인</a>
   </div>
 </section>
 """
+
+
+T_GATE = """
+<section class='panel auth-panel'>
+  <div class='auth-logo'>⚔</div>
+  <h1>월하 · 연가 · 연희</h1>
+  <p class='meta'>문파 파티모집 보드</p>
+  <div class='auth-actions'>
+    <a class='btn ok full' href='/login'>로그인</a>
+    <a class='btn gray full' href='/register'>문파원 등록</a>
+  </div>
+</section>
+"""
+
+T_LOGIN = """
+<section class='panel auth-panel'>
+  <div class='auth-logo'>⚔</div>
+  <h1>로그인</h1>
+  <form method='post'>
+    <label>계정명</label>
+    <input name='account' value='{{form.get("account","")}}' placeholder='등록한 계정명'>
+    <label>캐릭터명</label>
+    <input name='char_name' value='{{form.get("char_name","")}}' placeholder='등록한 캐릭터명'>
+    <button class='ok full'>로그인</button>
+  </form>
+  {% if error %}<div class='notice'>{{error}}</div>{% endif %}
+  <div class='toolbar auth-bottom'>
+    <a class='btn gray' href='/register'>문파원 등록</a>
+  </div>
+</section>
+"""
+
+
 
 
 
@@ -1320,7 +1439,7 @@ def pending():
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect("/register")
+    return redirect("/gate")
 
 @app.route("/new")
 def new_post():
@@ -1531,12 +1650,30 @@ def farm_result(pid):
     save(d)
     return redirect("/")
 
+
+
+@app.route("/api/global_chat", methods=["GET","POST"])
+def api_global_chat():
+    d = load()
+    u = cur_user(d)
+    c = selected_char(u) if u else None
+    if request.method == "POST":
+        if not approved(u) or not c:
+            return {"ok": False, "error": "login_required"}, 403
+        text = request.form.get("text","").strip()
+        if text:
+            d.setdefault("global_chat", []).append({"name":char_label(c),"text":text,"time":now_text()})
+            d["global_chat"] = d["global_chat"][-100:]
+            save(d)
+        return {"ok": True}
+    return {"ok": True, "messages": d.get("global_chat", [])[-50:]}
+
 @app.route("/global_chat", methods=["POST"])
 def global_chat():
     d=load(); u=cur_user(d); c=selected_char(u); txt=request.form.get("text","").strip()
     if txt and c:
         d["global_chat"].append({"name":char_label(c),"text":txt,"time":now_text()}); d["global_chat"]=d["global_chat"][-100:]; save(d)
-    return redirect("/")
+    return redirect("/#global-chat")
 
 @app.route("/chat/<pid>", methods=["GET","POST"])
 def chat(pid):

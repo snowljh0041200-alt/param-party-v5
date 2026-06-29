@@ -1,16 +1,20 @@
-v26.28 STABLE IMPORT FIX
+v27.0 STABLE REBUILD
+
+올려준 app.py 기준 안정화 버전입니다.
 
 수정:
-- 회원가입 /register POST 500 에러 수정
-- 원인: hashlib import 누락
-- html/hashlib/기타 표준 import 정리
-- urllib.parse 직접 import 제거
-- toast_redirect 안전 처리
-- 기능 추가 없음
+- datetime import 충돌 수정
+- html/hashlib 누락 import 안정화
+- urllib.parse/quote 오류 수정
+- safe_quote_toast 수정
+- 토스트 알림 안정화
+- 통합채팅 시스템 알림 제거 유지
+- 외부추가/외부제거/참여/취소 상태 갱신 안정화
+- /register, /login, /, /api/alerts import 에러 방지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v26.28 stable import fix"
+git commit -m "v27.0 stable rebuild"
 git push

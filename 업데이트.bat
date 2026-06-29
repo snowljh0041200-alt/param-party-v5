@@ -2,6 +2,6 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 git add .
-git commit -m "v26.28 stable import fix"
+git commit -m "v27.0 stable rebuild"
 git push
 pause

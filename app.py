@@ -3,9 +3,18 @@ from flask import Flask, request, redirect, session, render_template_string
 from pathlib import Path
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import os, json, uuid, re, html, hashlib, secrets, time, datetime, random, string
+import os
+import json
+import uuid
+import re
+import html
+import hashlib
+import secrets
+import time
+import random
+import string
 
-APP_VERSION = "v26.28-stable"
+APP_VERSION = "v27.0-stable"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -942,6 +951,40 @@ input::placeholder,textarea::placeholder{color:#667694}
   #toastWrap{left:12px!important;right:12px!important;top:12px!important;max-width:none!important}
 }
 
+
+/* v27 stable toast */
+#toastWrap{
+  position:fixed!important;
+  top:18px!important;
+  right:18px!important;
+  z-index:99999!important;
+  display:grid!important;
+  gap:8px!important;
+  max-width:380px!important;
+  pointer-events:none!important;
+}
+.toast{
+  opacity:0;
+  transform:translateY(-10px);
+  transition:.22s ease;
+  background:linear-gradient(180deg,#263861,#111d38)!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  border-radius:15px!important;
+  color:#fff!important;
+  padding:13px 15px!important;
+  box-shadow:0 20px 60px rgba(0,0,0,.45)!important;
+  font-weight:950!important;
+  line-height:1.45!important;
+  white-space:pre-wrap!important;
+}
+.toast.show{
+  opacity:1!important;
+  transform:translateY(0)!important;
+}
+@media(max-width:720px){
+  #toastWrap{left:12px!important;right:12px!important;top:12px!important;max-width:none!important}
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1144,7 +1187,7 @@ def show_time(value):
     return f"{p} {t}" if t else "시간 미정"
 
 def empty_data():
-    return {"users": [], "posts": [], "global_chat": [], "alerts": [], "alerts": [], "alerts": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"title":"공성 관련 협의 사항 안내","text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.","updated_at":""}}}
+    return {"users": [], "posts": [], "global_chat": [], "alerts": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"title":"공성 관련 협의 사항 안내","text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.","updated_at":""}}}
 
 def normalize(d):
     d.setdefault("users", [])
@@ -1402,9 +1445,10 @@ def remaining_text(p):
 def safe_quote_toast(msg):
     try:
         import urllib.parse
-        return urllib.parse.safe_quote_toast(msg)
+        return urllib.parse.quote(str(msg), safe="")
     except Exception:
         return str(msg).replace(" ", "%20")
+
 
 def toast_redirect(url, msg):
     if not msg:
@@ -1430,6 +1474,7 @@ def system_notify(d, msg):
         return True
     except Exception:
         return False
+
 
 def actor_label(u):
     if not u:
@@ -1801,6 +1846,10 @@ function formatBossRemain(totalSeconds){
 
 
 
+
+
+
+
 function showToast(msg){
   let wrap=document.getElementById('toastWrap');
   if(!wrap){
@@ -1837,13 +1886,13 @@ async function pollSystemAlerts(){
     const data=await r.json();
     const alerts=data.alerts||[];
     const seen=getSeenAlertIds();
-    const now=Date.now();
+    const nowMs=Date.now();
     alerts.forEach(a=>{
       const id=String(a.id||'');
       if(!id || seen.has(id)) return;
       seen.add(id);
       const t=Date.parse(a.time||'');
-      const recent=Number.isNaN(t) ? true : (now-t<18000);
+      const recent=Number.isNaN(t) ? true : (nowMs-t<18000);
       if(recent && a.text) showToast(a.text);
     });
     saveSeenAlertIds(seen);
@@ -2562,34 +2611,6 @@ def join_slot(pid,i):
         save(d)
     return toast_redirect("/", msg) if msg else redirect("/")
 
-
-
-@app.route("/leave_slot/<pid>/<int:i>")
-def leave_slot(pid,i):
-    d=load(); u=cur_user(d); p=find_post(d,pid)
-    msg = ""
-    if p and 0<=i<len(p["slots"]) and (p["slots"][i].get("uid")==u["id"] or can_manage_post(u,p)):
-        job = p["slots"][i].get("job","")
-        old = p["slots"][i].get("label") or actor_label(u)
-        p["slots"][i].update({"uid":"","label":"","char_id":"","external":""})
-        refresh_post_status_after_member_change(d, p)
-        msg = action_msg(p, f"{job} 자리의 {old}님이 빠졌습니다.")
-        system_notify(d, msg)
-        save(d)
-    return toast_redirect("/", msg) if msg else redirect("/")
-
-
-
-
-
-@app.route("/remove_external_slot/<pid>/<int:i>")
-def remove_external_slot(pid, i):
-    d = load()
-    u = cur_user(d)
-    p = find_post(d, pid)
-    msg = ""
-    if not p or not can_manage_post(u, p):
-        return redirect("/")
     if 0 <= i < len(p.get("slots", [])):
         old = p["slots"][i].get("external") or p["slots"][i].get("label") or "외부인"
         job = p["slots"][i].get("job", "")
@@ -2921,6 +2942,7 @@ def api_test_toast():
 def api_alerts():
     d = load()
     return {"alerts": d.get("alerts", [])[-30:]}
+
 
 @app.route("/api/global_chat", methods=["GET","POST"])
 def api_global_chat():
@@ -3284,5 +3306,4 @@ def leave_participant(pid):
     refresh_post_status_after_member_change(d, p)
     save(d)
     return redirect("/")
-
 

@@ -5,7 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v21.4"
+APP_VERSION = "v21.5"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -173,6 +173,13 @@ select optgroup{background:#142141;color:#9fbbff;font-weight:900}
 select option{background:#081126;color:#f5f8ff}
 #slotJob,select[name='job']{border-color:#5d78ff;box-shadow:0 0 0 2px rgba(93,120,255,.13)}
 @keyframes fadeIn{from{opacity:.25;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+.online-panel{padding:16px 18px}
+.online-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.online-head h2{margin:0;font-size:20px}
+.online-list{display:flex;gap:8px;flex-wrap:wrap}
+.online-pill{background:rgba(25,196,111,.16);border:1px solid rgba(25,196,111,.34)}
+.online-pill small{margin-left:6px;color:#ffe7a1;font-size:11px}
 @media(max-width:800px){
   .wrap{padding:10px}
   .dash{grid-template-columns:1fr}
@@ -271,6 +278,7 @@ def normalize(d):
         u.setdefault("account", "")
         u.setdefault("status", "pending")
         u.setdefault("role", "일반")
+        u.setdefault("last_seen", "")
         u.setdefault("chars", [])
         for c in u["chars"]:
             c.setdefault("id", nid())
@@ -351,6 +359,49 @@ def selected_char(u):
 def char_label(c):
     return f"{c.get('name','')}({c.get('job','')})" if c else ""
 
+
+def touch_online():
+    d = load()
+    u = cur_user(d)
+    if not u:
+        return
+    u["last_seen"] = now().isoformat(timespec="seconds")
+    save(d)
+
+def online_users(d):
+    result = []
+    cutoff = now().timestamp() - 300
+    for u in d.get("users", []):
+        if u.get("status") != "approved":
+            continue
+        last = u.get("last_seen", "")
+        try:
+            ts = datetime.fromisoformat(last).timestamp()
+        except Exception:
+            ts = 0
+        if ts >= cutoff:
+            c = selected_char(u)
+            result.append({
+                "account": u.get("account",""),
+                "label": char_label(c) if c else u.get("account",""),
+                "role": u.get("role","일반")
+            })
+    return result
+
+@app.before_request
+def update_last_seen():
+    if request.endpoint in ["health"]:
+        return
+    try:
+        d = load()
+        u = cur_user(d)
+        if u and u.get("status") == "approved":
+            u["last_seen"] = now().isoformat(timespec="seconds")
+            save(d)
+    except Exception:
+        pass
+
+
 def find_post(d, pid):
     for p in d["posts"]:
         if p["id"] == pid:
@@ -396,11 +447,28 @@ def index():
     if cat != "전체":
         posts = [p for p in posts if p["category"] == cat]
     sched = [p for p in d["posts"] if p["category"] == "파밍" and not p.get("closed")]
-    return render(T_INDEX, d=d, u=u, c=selected_char(u), cat=cat, posts=posts, sched=sched)
+    return render(T_INDEX, d=d, u=u, c=selected_char(u), cat=cat, posts=posts, sched=sched, online=online_users(d))
 
 T_INDEX = """
 <header class='header'><h1>⚔ 월하 · 연가 · 연희 파티모집</h1><div class='sub'>{{ app_version }} · {{ char_label(c) }}</div></header>
 <div class='toolbar'><a class='btn ok' href='/new'>+ 모집글</a><a class='btn gray' href='/chars'>내 캐릭터</a>{% if is_admin(u) %}<a class='btn gray' href='/admin'>관리자</a>{% endif %}<a class='btn gray' href='/logout'>로그아웃</a></div>
+
+<section class='panel online-panel'>
+  <div class='online-head'>
+    <h2>🟢 접속중 {{ online|length }}명</h2>
+    <span class='meta'>최근 5분 기준</span>
+  </div>
+  {% if online %}
+    <div class='online-list'>
+      {% for o in online %}
+        <span class='pill online-pill'>{{ o.label }}{% if o.role != '일반' %}<small>{{ o.role }}</small>{% endif %}</span>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class='meta'>현재 접속중인 문파원이 없습니다.</div>
+  {% endif %}
+</section>
+
 <section class='panel'><div class='toolbar'>{% for x in categories %}<a class='btn {{ "ok" if x==cat else "gray" }} mini' href='/?cat={{x}}'>{{x}}</a>{% endfor %}</div></section>
 <div class='dash'>
 <section class='panel'><h2>📅 오늘 일정</h2><div class='notice'>파밍 30분 · 15분 · 5분 전 알림 기준</div>{% for p in sched %}<div class='slot'><div><b>{{p.place}}</b><br><span class='meta'>{{p.date}} · {{show_time(p.start_time)}}</span></div></div>{% else %}<div class='empty'>등록된 파밍 일정 없음</div>{% endfor %}</section>

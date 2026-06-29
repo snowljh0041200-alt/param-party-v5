@@ -1,12 +1,13 @@
-v21.4 UI CLEANUP
+v21.5 LIVE READY
 
 수정:
-- 기능 로직은 건드리지 않고 UI/CSS만 정리
-- 전체 배경/카드/버튼/입력창 디자인 개선
-- 모바일 보기 개선
-- 사냥 직업 선택 로직은 v21.3 유지
+- 현재 접속중 인원 표시 추가
+- 최근 5분 이내 활동한 승인 문파원을 접속중으로 표시
+- 메인 상단에 접속중 목록 표시
+- v21.4 UI 유지
+- 기존 모집/참여/관리자 기능 유지
 
 배포:
 git add .
-git commit -m "v21.4 ui cleanup"
+git commit -m "v21.5 live ready online users"
 git push

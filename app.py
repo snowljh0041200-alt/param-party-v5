@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v27.0-stable"
+APP_VERSION = "v27.1-stable"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -985,6 +985,49 @@ input::placeholder,textarea::placeholder{color:#667694}
   #toastWrap{left:12px!important;right:12px!important;top:12px!important;max-width:none!important}
 }
 
+
+/* v27.1 toast test button */
+#toastWrap{
+  position:fixed!important;
+  top:18px!important;
+  right:18px!important;
+  z-index:999999!important;
+  display:grid!important;
+  gap:8px!important;
+  max-width:390px!important;
+  pointer-events:none!important;
+}
+.toast{
+  opacity:0!important;
+  transform:translateY(-10px)!important;
+  transition:.22s ease!important;
+  background:linear-gradient(180deg,#263861,#111d38)!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  border-radius:15px!important;
+  color:#fff!important;
+  padding:13px 15px!important;
+  box-shadow:0 20px 60px rgba(0,0,0,.48)!important;
+  font-weight:950!important;
+  line-height:1.45!important;
+  white-space:pre-wrap!important;
+}
+.toast.show{
+  opacity:1!important;
+  transform:translateY(0)!important;
+}
+.toast-test-box{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid rgba(88,116,255,.22);
+  border-radius:16px;
+  background:rgba(8,17,38,.55);
+}
+.toast-test-box p{
+  margin:6px 0 10px;
+  color:#9fb0d1;
+  font-size:13px;
+}
+
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
 @media(max-width:720px){
   .header{padding:16px 14px!important}
@@ -1097,7 +1140,7 @@ PENDING_HTML = """
   <p class='meta'>관리자 승인 후 이용할 수 있습니다.</p>
   <div class='notice'>문파 관리자에게 가입 승인을 요청해 주세요.</div>
   <div class='toolbar pending-actions'>
-    <a class='btn gray' href='/logout'>로그아웃</a>
+    <a class='btn gray' href='/logout'>로그아웃</a><a class='btn gray nav-btn' href='/toast_test'>토스트테스트</a>
     <a class='btn gray' href='/login'>로그인</a>
   </div>
 </section>
@@ -2118,6 +2161,46 @@ document.addEventListener('DOMContentLoaded', ()=>{loadAlarmSettings();checkFarm
 window.addEventListener('beforeunload',()=>{try{sessionStorage.setItem('liveScrollY',String(window.scrollY||0));}catch(e){}});
 document.addEventListener('DOMContentLoaded',()=>{try{const y=sessionStorage.getItem('liveScrollY'); if(y){window.scrollTo(0,Number(y)); sessionStorage.removeItem('liveScrollY');}}catch(e){}});
 
+
+/* v27.1 toast test + reliable popup */
+window.BaramToast = function(msg){
+  let wrap = document.getElementById('toastWrap');
+  if(!wrap){
+    wrap = document.createElement('div');
+    wrap.id = 'toastWrap';
+    document.body.appendChild(wrap);
+  }
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg || '🔔 토스트 알림 테스트입니다.';
+  wrap.appendChild(el);
+  setTimeout(()=>el.classList.add('show'), 20);
+  setTimeout(()=>{
+    el.classList.remove('show');
+    setTimeout(()=>el.remove(), 320);
+  }, 4500);
+};
+window.showToast = window.BaramToast;
+
+function showUrlToastV271(){
+  try{
+    const params = new URLSearchParams(location.search);
+    const msg = params.get('toast');
+    if(msg){
+      setTimeout(()=>window.BaramToast(msg), 250);
+      params.delete('toast');
+      const qs = params.toString();
+      history.replaceState(null,'',location.pathname + (qs ? '?' + qs : ''));
+    }
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', showUrlToastV271);
+
+async function testToastFromSettings(){
+  window.BaramToast('🔔 토스트 알림 테스트입니다. 이 문구가 보이면 정상입니다.');
+  try{ await fetch('/api/test_toast?_=' + Date.now(), {cache:'no-store'}); }catch(e){}
+}
+
 </script></body></html>"""
 
 def render(page, **kw):
@@ -2125,6 +2208,26 @@ def render(page, **kw):
     kw.setdefault("css", CSS)
     kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, delete_after_text=delete_after_text, share_text=share_text, participant_for_user=participant_for_user, join_block_reason=join_block_reason, can_join_post=can_join_post, participant_group_label=participant_group_label, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, countdown_target=countdown_target, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
     return render_template_string(BASE_HEAD + page + BASE_TAIL, **kw)
+
+
+
+@app.route("/toast_test")
+def toast_test_page():
+    u = cur_user()
+    if not approved(u):
+        return redirect("/gate")
+    return render("""
+<section class='panel'>
+  <a class='btn gray' href='/'>← 메인으로</a>
+  <h1>🔔 토스트 알림 테스트</h1>
+  <div class='notice'>버튼을 누르면 화면 우측 상단에 테스트 팝업이 떠야 합니다.</div>
+  <div class="toast-test-box">
+    <h3>토스트 테스트</h3>
+    <p>이 버튼은 서버 저장 없이 브라우저에서 바로 토스트를 띄웁니다.</p>
+    <button type="button" class="btn ok" onclick="testToastFromSettings()">토스트 테스트</button>
+  </div>
+</section>
+""")
 
 @app.route("/")
 def index():

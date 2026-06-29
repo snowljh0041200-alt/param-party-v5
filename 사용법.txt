@@ -1,20 +1,21 @@
-v27.0 STABLE REBUILD
-
-올려준 app.py 기준 안정화 버전입니다.
+v27.1 TOAST TEST SETTINGS
 
 수정:
-- datetime import 충돌 수정
-- html/hashlib 누락 import 안정화
-- urllib.parse/quote 오류 수정
-- safe_quote_toast 수정
-- 토스트 알림 안정화
-- 통합채팅 시스템 알림 제거 유지
-- 외부추가/외부제거/참여/취소 상태 갱신 안정화
-- /register, /login, /, /api/alerts import 에러 방지
+- 상단 메뉴에 토스트테스트 버튼 추가
+- /toast_test 테스트 페이지 추가
+- 설정/테스트 페이지에서 토스트 테스트 가능
+- 버튼 클릭 시 브라우저에서 즉시 우측 상단 토스트 표시
+- /api/test_toast 테스트 API 추가
+- 기존 v27.0 안정화 기능 유지
 - 컴파일 통과
+
+테스트:
+1) 상단 '토스트테스트' 클릭
+2) '토스트 테스트' 버튼 클릭
+3) 우측 상단에 팝업이 뜨면 정상
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v27.0 stable rebuild"
+git commit -m "v27.1 toast test settings"
 git push

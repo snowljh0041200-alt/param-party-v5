@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.5"
+APP_VERSION = "v26.6"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1096,7 +1096,7 @@ def share_text(p):
     memo = p.get("memo", "").strip()
     if memo:
         lines.append(f"메모 {memo}")
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 def participant_for_user(p, u):
@@ -1294,7 +1294,14 @@ document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.oncha
 
 
 async function copyPostText(btn){
-  const text = btn?.dataset?.share || '';
+  const pid = btn?.dataset?.pid || '';
+  let text = btn?.dataset?.share || '';
+  try{
+    if(pid){
+      const r = await fetch('/api/copy_text/' + encodeURIComponent(pid), {cache:'no-store'});
+      text = await r.text();
+    }
+  }catch(e){}
   if(!text)return;
   try{
     await navigator.clipboard.writeText(text);
@@ -1305,6 +1312,7 @@ async function copyPostText(btn){
     box.style.position='fixed';
     box.style.left='-9999px';
     document.body.appendChild(box);
+    box.focus();
     box.select();
     try{
       document.execCommand('copy');
@@ -1638,7 +1646,7 @@ T_INDEX = """
       {% endif %}
 
       <div class='actions'>
-        <button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-share='{{ share_text(p)|e }}'>글복사</button>
+        <button type='button' class='btn gray copy-btn' onclick='copyPostText(this)' data-pid='{{p.id}}'>글복사</button>
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
         {% if can_manage_post(u,p) and (not p.closed or is_admin(u)) %}
           {% if not p.closed %}<a class='btn ok' href='/close/{{p.id}}'>모집완료</a>{% endif %}
@@ -2024,6 +2032,16 @@ def farm_result(pid):
     return redirect("/")
 
 
+
+
+
+@app.route("/api/copy_text/<pid>")
+def api_copy_text(pid):
+    d = load()
+    p = find_post(d, pid)
+    if not p:
+        return "", 404, {"Content-Type": "text/plain; charset=utf-8"}
+    return share_text(p), 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 @app.route("/api/global_chat", methods=["GET","POST"])
 def api_global_chat():

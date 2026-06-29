@@ -1,16 +1,16 @@
-v30.0 FINAL LAYOUT
+v31.0 FOUR GRID REALTIME PANEL
 
 수정:
-- 오른쪽 사이드 영역 sticky 고정
-- 왼쪽 모집글이 늘어나도 접속중/오늘일정/통합채팅이 아래로 밀리지 않게 조정
-- 통합채팅 기본 접힘 + 펼치기/접기 버튼 추가
-- 승급지원 카드 높이 축소
-- 승급지원 파밍정산/정원표시 숨김 유지
+- 왼쪽 모집글 영역을 2열 x 2행 느낌의 4분할 그리드로 표시
+- 모집글이 많아지면 왼쪽 모집글 영역만 스크롤
+- 오른쪽 실시간 패널은 접속중/오늘일정/통합채팅을 계속 표시
+- 오른쪽 실시간 패널 sticky 고정
+- 통합채팅은 오른쪽에서 계속 보이게 표시
 - 기존 알림/링크/참여 기능 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v30.0 final layout"
+git commit -m "v31.0 four grid realtime panel"
 git push

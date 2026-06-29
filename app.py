@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v30.0-final"
+APP_VERSION = "v31.0-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1261,6 +1261,148 @@ body:not(.chat-open) .chat-panel{
     grid-template-columns:minmax(0,1fr) 360px!important;
     gap:16px!important;
     align-items:start!important;
+  }
+}
+
+
+/* v31.0 four-grid + realtime panel */
+body.v31-layout-on .v31-main-shell{
+  display:grid!important;
+  grid-template-columns:minmax(0, 1fr) 360px!important;
+  gap:16px!important;
+  align-items:start!important;
+}
+
+body.v31-layout-on .v31-recruit-area{
+  min-width:0!important;
+}
+
+body.v31-layout-on .v31-post-grid{
+  display:grid!important;
+  grid-template-columns:repeat(2, minmax(0, 1fr))!important;
+  gap:14px!important;
+  align-items:start!important;
+  max-height:calc(100vh - 250px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding-right:6px!important;
+  scroll-behavior:smooth!important;
+}
+
+body.v31-layout-on .v31-post-grid > .post-card{
+  width:auto!important;
+  min-width:0!important;
+  margin:0!important;
+  align-self:start!important;
+}
+
+body.v31-layout-on .v31-realtime-panel,
+body.v31-layout-on .v31-realtime-wrap{
+  position:sticky!important;
+  top:12px!important;
+  align-self:start!important;
+  max-height:calc(100vh - 24px)!important;
+  overflow-y:auto!important;
+  z-index:20!important;
+}
+
+/* 오른쪽 실시간 패널 내부 카드 간격 */
+body.v31-layout-on .v31-realtime-panel > *,
+body.v31-layout-on .v31-realtime-wrap > *{
+  margin-bottom:12px!important;
+}
+
+/* 통합채팅은 오른쪽 패널 안에서 길게 유지 */
+body.v31-layout-on .v31-realtime-panel .global-chat,
+body.v31-layout-on .v31-realtime-panel .chat-panel,
+body.v31-layout-on .v31-realtime-wrap .global-chat,
+body.v31-layout-on .v31-realtime-wrap .chat-panel{
+  min-height:360px!important;
+}
+
+/* 이전 v30 접힘이 불편하면 오른쪽 패널에서는 채팅 표시 */
+body.v31-layout-on .v31-realtime-panel .global-chat-body,
+body.v31-layout-on .v31-realtime-panel .global-chat-list,
+body.v31-layout-on .v31-realtime-panel .chat-list,
+body.v31-layout-on .v31-realtime-panel .chat-messages,
+body.v31-layout-on .v31-realtime-panel .global-chat form,
+body.v31-layout-on .v31-realtime-panel .chat-panel form,
+body.v31-layout-on .v31-realtime-wrap .global-chat-body,
+body.v31-layout-on .v31-realtime-wrap .global-chat-list,
+body.v31-layout-on .v31-realtime-wrap .chat-list,
+body.v31-layout-on .v31-realtime-wrap .chat-messages,
+body.v31-layout-on .v31-realtime-wrap .global-chat form,
+body.v31-layout-on .v31-realtime-wrap .chat-panel form{
+  display:block!important;
+}
+
+/* 모집글 카드 compact */
+body.v31-layout-on .post-card{
+  padding:16px!important;
+  border-radius:18px!important;
+}
+
+body.v31-layout-on .post-card h2,
+body.v31-layout-on .post-card h3{
+  font-size:22px!important;
+  margin:8px 0!important;
+}
+
+body.v31-layout-on .post-card .slot,
+body.v31-layout-on .post-card .job-slot,
+body.v31-layout-on .post-card .participant-row{
+  padding:12px!important;
+  min-height:auto!important;
+}
+
+body.v31-layout-on .post-card .toolbar,
+body.v31-layout-on .post-card .actions{
+  gap:8px!important;
+  flex-wrap:wrap!important;
+}
+
+/* 승급지원은 더 작게 */
+body.v31-layout-on .post-card[data-category="승급지원"]{
+  min-height:auto!important;
+}
+body.v31-layout-on .post-card[data-category="승급지원"] .settle-box,
+body.v31-layout-on .post-card[data-category="승급지원"] .settlement-box,
+body.v31-layout-on .post-card[data-category="승급지원"] .farming-settle,
+body.v31-layout-on .post-card[data-category="승급지원"] .farm-settle,
+body.v31-layout-on .post-card[data-category="승급지원"] .settle-panel,
+body.v31-layout-on .post-card[data-category="승급지원"] [data-section="settle"],
+body.v31-layout-on .post-card[data-category="승급지원"] .settle,
+body.v31-layout-on .post-card[data-category="승급지원"] .calc-box{
+  display:none!important;
+}
+
+/* 스크롤바 */
+body.v31-layout-on .v31-post-grid::-webkit-scrollbar,
+body.v31-layout-on .v31-realtime-panel::-webkit-scrollbar,
+body.v31-layout-on .v31-realtime-wrap::-webkit-scrollbar{
+  width:8px;
+}
+body.v31-layout-on .v31-post-grid::-webkit-scrollbar-thumb,
+body.v31-layout-on .v31-realtime-panel::-webkit-scrollbar-thumb,
+body.v31-layout-on .v31-realtime-wrap::-webkit-scrollbar-thumb{
+  background:rgba(120,150,210,.45);
+  border-radius:99px;
+}
+
+/* 모바일/좁은 창 */
+@media(max-width:1180px){
+  body.v31-layout-on .v31-main-shell{
+    grid-template-columns:1fr!important;
+  }
+  body.v31-layout-on .v31-post-grid{
+    grid-template-columns:1fr!important;
+    max-height:none!important;
+    overflow:visible!important;
+  }
+  body.v31-layout-on .v31-realtime-panel,
+  body.v31-layout-on .v31-realtime-wrap{
+    position:static!important;
+    max-height:none!important;
   }
 }
 
@@ -3141,6 +3283,100 @@ async function testToastFromSettings(){
     if(open) document.body.classList.add('chat-open');
     var btn = document.getElementById('chatToggleBtn');
     if(btn) btn.textContent = open ? '▲ 접기' : '▼ 펼치기';
+  });
+})();
+
+
+/* v31.0 four-grid + realtime side panel */
+(function(){
+  function hasText(el, txt){
+    return el && (el.textContent || '').indexOf(txt) !== -1;
+  }
+
+  function findPostArea(){
+    var cards = Array.from(document.querySelectorAll('.post-card'));
+    if(!cards.length) return null;
+    var first = cards[0];
+    var p = first.parentElement;
+    while(p && p !== document.body){
+      var count = p.querySelectorAll ? p.querySelectorAll('.post-card').length : 0;
+      if(count >= cards.length){
+        return p;
+      }
+      p = p.parentElement;
+    }
+    return first.parentElement;
+  }
+
+  function findRecruitSection(postArea){
+    var p = postArea;
+    while(p && p !== document.body){
+      if(hasText(p, '모집글')) return p;
+      p = p.parentElement;
+    }
+    return postArea;
+  }
+
+  function findRealtimePanel(){
+    var candidates = Array.from(document.querySelectorAll('aside, .side, .sidebar, .right-side, .side-panel, .panel, section, div'));
+    var best = null;
+    var bestScore = 0;
+    candidates.forEach(function(el){
+      var t = el.textContent || '';
+      var score = 0;
+      if(t.indexOf('접속중') !== -1) score += 2;
+      if(t.indexOf('오늘 일정') !== -1) score += 2;
+      if(t.indexOf('통합채팅') !== -1) score += 3;
+      if(score > bestScore){
+        best = el;
+        bestScore = score;
+      }
+    });
+    return bestScore >= 4 ? best : null;
+  }
+
+  function applyV31Layout(){
+    var postArea = findPostArea();
+    var recruitSection = postArea ? findRecruitSection(postArea) : null;
+    var realtime = findRealtimePanel();
+
+    document.body.classList.add('v31-layout-on');
+
+    if(postArea){
+      postArea.classList.add('v31-post-grid');
+    }
+    if(recruitSection){
+      recruitSection.classList.add('v31-recruit-area');
+    }
+    if(realtime){
+      realtime.classList.add('v31-realtime-panel');
+      var parent = realtime.parentElement;
+      if(parent) parent.classList.add('v31-realtime-wrap');
+    }
+
+    if(recruitSection && realtime){
+      var common = recruitSection.parentElement;
+      var guard = 0;
+      while(common && common !== document.body && !common.contains(realtime) && guard < 6){
+        common = common.parentElement;
+        guard++;
+      }
+      if(common && common !== document.body){
+        common.classList.add('v31-main-shell');
+      }else{
+        var shell = document.createElement('div');
+        shell.className = 'v31-main-shell v31-created-shell';
+        recruitSection.parentNode.insertBefore(shell, recruitSection);
+        shell.appendChild(recruitSection);
+        shell.appendChild(realtime);
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    applyV31Layout();
+    setTimeout(applyV31Layout, 500);
+    setTimeout(applyV31Layout, 1500);
   });
 })();
 

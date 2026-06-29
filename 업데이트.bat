@@ -2,6 +2,6 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 git add .
-git commit -m "v31.6 fixed width final"
+git commit -m "v31.7 inline layout hard fix"
 git push
 pause

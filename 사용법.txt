@@ -1,18 +1,18 @@
-v31.6 FIXED WIDTH FINAL
+v31.7 INLINE LAYOUT HARD FIX
 
 수정:
 - v29 안정버전 기준 복구
-- 전체 본문 고정폭 1220px
-- 왼쪽 모집글 820px / 오른쪽 실시간 패널 360px 고정
-- 모집글 카드 403px x 2열 고정
-- 기존 980px 모바일 전환 무력화
-- 화면이 좁으면 아래로 내려가는 대신 가로스크롤 허용
+- CSS 추측이 아니라 HTML inline style로 레이아웃 강제
+- wrap 1220px 고정
+- app-shell: 왼쪽 820px / 오른쪽 360px 고정
+- 모집글 카드: 403px x 2열 고정
 - 오른쪽 접속중/오늘일정/통합채팅 절대 아래로 안 내려가게 수정
+- 화면이 좁으면 가로스크롤
 - 기존 알림/링크/승급지원 정산 숨김 유지
 - 컴파일 통과
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v31.6 fixed width final"
+git commit -m "v31.7 inline layout hard fix"
 git push

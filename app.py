@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.8"
+APP_VERSION = "v26.9-stable"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -823,7 +823,7 @@ def show_time(value):
     return f"{p} {t}" if t else "시간 미정"
 
 def empty_data():
-    return {"users": [], "posts": [], "global_chat": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234")}}
+    return {"users": [], "posts": [], "global_chat": [], "settings": {"farm_items": ["해뼈","흑룡","묵룡","진룡"], "admin_password": os.environ.get("ADMIN_PASSWORD", "1234"), "notice": {"title":"공성 관련 협의 사항 안내", "text":"📢 [공성 관련 협의 사항 안내]\n\n🔹 적용 대상 : 주작·현무·백호\n※ 청룡 공성은 제외됩니다.\n\n🔹 진행 방식\n모든 쪽문을 막은 상태로 진행\n\n──────────────────\n⚔️ 공성 인원 기준\n──────────────────\n※ 아래는 주작 기준 예시이며, 현무·백호도 동일하게 적용됩니다.\n\n✔ 문파당 20명 기준\n예시)\n상대 10개 문파 / 아군 8개 문파\n➡️ 아군 : 8 × 20명 = 160명\n➡️ 상대 : 문파 수와 관계없이 160명 참여\n\n📌 즉, 문파 수와 관계없이 양측 공성 인원을 동일하게 맞추는 것을 원칙으로 합니다.\n\n──────────────────\n📣 앞으로 공성이 다시 활발하게 진행될 예정입니다.\n문원 여러분의 적극적인 관심과 공성 참여를 부탁드립니다.\n\n월하연가연희 운영진 일동 드림.", "updated_at":""}}}
 
 def normalize(d):
     d.setdefault("users", [])
@@ -831,6 +831,7 @@ def normalize(d):
     d.setdefault("global_chat", [])
     d.setdefault("settings", {}).setdefault("farm_items", ["해뼈","흑룡","묵룡","진룡"])
     d.setdefault("settings", {}).setdefault("admin_password", os.environ.get("ADMIN_PASSWORD", "1234"))
+    d.setdefault("settings", {}).setdefault("notice", {"title":"공성 관련 협의 사항 안내", "text":"", "updated_at":""})
     for u in d["users"]:
         u.setdefault("id", nid())
         u.setdefault("account", "")
@@ -1009,6 +1010,33 @@ def post_datetime(p):
     except Exception:
         return now()
 
+
+
+def notice_data(d):
+    n = d.get("settings", {}).get("notice", {})
+    if isinstance(n, str):
+        return {"title": "문파 공지사항", "text": n, "updated_at": ""}
+    return {
+        "title": n.get("title") or "문파 공지사항",
+        "text": n.get("text") or "",
+        "updated_at": n.get("updated_at") or "",
+    }
+
+def notice_preview(text, lines=6):
+    raw = str(text or "").splitlines()
+    clean = [x for x in raw if x.strip()]
+    if len(clean) <= lines:
+        return "\n".join(clean)
+    return "\n".join(clean[:lines])
+
+def is_notice_new(d):
+    n = notice_data(d)
+    updated = n.get("updated_at", "")
+    try:
+        ts = datetime.fromisoformat(updated).timestamp()
+        return now().timestamp() - ts < 86400
+    except Exception:
+        return False
 
 def countdown_target(p):
     try:
@@ -1357,6 +1385,15 @@ function formatBossRemain(totalSeconds){
   if(h>0) return `${h}:${pad(m)}:${pad(s)}`;
   return `${pad(m)}:${pad(s)}`;
 }
+
+function toggleNoticeCard(){
+  const card=document.querySelector('.notice-card');
+  const btn=document.querySelector('.notice-toggle');
+  if(!card)return;
+  card.classList.toggle('expanded');
+  if(btn) btn.textContent = card.classList.contains('expanded') ? '접기' : '더보기';
+}
+
 function updateBossTimers(){
   const nowMs=Date.now();
   document.querySelectorAll('.boss-timer').forEach(row=>{
@@ -1584,7 +1621,7 @@ def index():
     if cat != "전체":
         posts = [p for p in posts if p["category"] == cat]
     sched = [p for p in d["posts"] if p["category"] == "파밍" and not p.get("closed")]
-    return render(T_INDEX, d=d, u=u, c=selected_char(u), cat=cat, posts=posts, sched=sched, online=online_users(d))
+    return render(T_INDEX, d=d, u=u, notice=notice_data(d), notice_preview=notice_preview, notice_new=is_notice_new(d), c=selected_char(u), cat=cat, posts=posts, sched=sched, online=online_users(d))
 
 T_INDEX = """
 <header class='header'>
@@ -1599,6 +1636,13 @@ T_INDEX = """
     {% if is_admin(u) %}<a class='btn nav-btn gray' href='/admin'>관리자</a>{% endif %}
     <a class='btn nav-btn gray' href='/logout'>로그아웃</a>
   </div>
+
+    <div class='mini-stats'>
+      <span>💰 파밍 <b>{{ sched|length }}</b></span>
+      <span>⚔ 진행 <b>{{ posts|selectattr('closed','equalto',False)|list|length }}</b></span>
+      <span>👤 캐릭터 <b>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</b></span>
+    </div>
+
 </header>
 
 <div class='summary-grid'>
@@ -1606,6 +1650,19 @@ T_INDEX = """
   <div class='summary-card'><span>진행중 모집</span><strong>{{ posts|selectattr('closed','equalto',False)|list|length }}</strong></div>
   <div class='summary-card'><span>캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong></div>
 </div>
+
+
+{% if notice.text %}
+<section class='panel notice-card'>
+  <div class='notice-card-head'>
+    <h2>📢 {{ notice.title }}</h2>
+    {% if notice_new %}<span class='tag ok'>NEW</span>{% endif %}
+  </div>
+  <div class='notice-preview' id='noticePreview'>{{ notice_preview(notice.text) }}</div>
+  <div class='notice-full' id='noticeFull'>{{ notice.text }}</div>
+  <button type='button' class='btn gray mini notice-toggle' onclick='toggleNoticeCard()'>더보기</button>
+</section>
+{% endif %}
 
 <div class='app-shell' data-live-root='1'>
   <main class='left-stack'>
@@ -2201,6 +2258,15 @@ def admin():
     </div>
   {% endfor %}
 
+
+  <h2>문파 공지사항</h2>
+  <form class='admin-form vertical' method='post' action='/admin/notice'>
+    <input name='notice_title' value='{{notice.title}}' placeholder='공지 제목'>
+    <textarea name='notice_text' rows='9' placeholder='문파원에게 보여줄 공지사항'>{{notice.text}}</textarea>
+    <button class='ok'>공지 저장</button>
+  </form>
+  <div class='notice'>저장한 공지는 메인 상단 공지사항 카드에 표시됩니다.</div>
+
   <h2>관리자 비밀번호</h2>
   <form class='admin-form' method='post' action='/admin/password'>
     <input name='admin_password' type='password' placeholder='새 관리자 비밀번호'>
@@ -2298,7 +2364,7 @@ def admin():
     </div>
   </div>
 </section>
-""", users=d["users"], pending=pending, pending_chars=pending_chars, posts=d["posts"], chat_count=len(d.get("global_chat", [])), me=u)
+""", users=d["users"], pending=pending, pending_chars=pending_chars, posts=d["posts"], chat_count=len(d.get("global_chat", [])), me=u, notice=notice_data(d))
 
 
 @app.route("/admin/approve_char/<uid>/<cid>")
@@ -2365,6 +2431,23 @@ def admin_clear_posts():
     d=load(); u=cur_user(d)
     if is_admin(u):
         d["posts"]=[]
+        save(d)
+    return redirect("/admin")
+
+
+
+@app.route("/admin/notice", methods=["POST"])
+def admin_notice():
+    d = load()
+    u = cur_user(d)
+    if is_admin(u):
+        title = request.form.get("notice_title", "").strip() or "문파 공지사항"
+        text = request.form.get("notice_text", "").strip()
+        d.setdefault("settings", {})["notice"] = {
+            "title": title,
+            "text": text,
+            "updated_at": now().isoformat(timespec="seconds")
+        }
         save(d)
     return redirect("/admin")
 

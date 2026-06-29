@@ -1,14 +1,16 @@
-v26.8 SCHEDULE COUNTDOWN
+v26.9-stable NOTICE CARD
 
 수정:
-- 오늘 일정 오른쪽 표시를 젠시간에서 실시간 남은 시간으로 변경
-- 1초 단위 카운트다운
-- 아래 줄에는 실제 젠시간 표시
-- 30분/15분/5분 이하 색상 변경
-- 5분 이하 빨간 테두리/펄스 효과
+- v26.8 안정판 기준
+- 팝업 없이 공지사항 카드만 추가
+- 상단 큰 통계 카드 숨김
+- 헤더에 작은 통계 배지 표시
+- 관리자 공지 제목/내용 저장 기능 추가
+- 공지 더보기/접기
+- NEW 배지 표시
 - 기존 기능 유지
 
 배포:
 git add .
-git commit -m "v26.8 schedule countdown"
+git commit -m "v26.9 stable notice card"
 git push

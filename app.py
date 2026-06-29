@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.13-service"
+APP_VERSION = "v26.14-service-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -676,6 +676,38 @@ input::placeholder,textarea::placeholder{color:#667694}
 }
 @media(max-width:720px){
   .clan-notice-head h2{font-size:18px!important}
+}
+
+
+/* v26.14 final recruit button placement */
+.recruit-head{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:12px!important;
+  align-items:stretch!important;
+}
+.recruit-title-row{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+}
+.recruit-title-row h2{
+  margin:0!important;
+}
+.recruit-write-btn{
+  padding:10px 18px!important;
+  border-radius:14px!important;
+  font-weight:950!important;
+  box-shadow:0 10px 26px rgba(25,196,111,.22)!important;
+}
+@media(max-width:720px){
+  .recruit-title-row{
+    align-items:stretch!important;
+  }
+  .recruit-write-btn{
+    padding:9px 14px!important;
+  }
 }
 
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
@@ -1685,7 +1717,6 @@ T_INDEX = """
     <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
   </div>
   <div class='toolbar'>
-    <a class='btn nav-btn primary' href='/new'>＋ 모집</a>
     <a class='btn nav-btn gray' href='/chars'>캐릭터</a>
     <button type='button' class='btn nav-btn gray' onclick='openSettingsModal()'>⚙ 설정</button>
     {% if is_admin(u) %}<a class='btn nav-btn gray' href='/admin'>관리자</a>{% endif %}
@@ -1714,8 +1745,11 @@ T_INDEX = """
 
 <div class='app-shell' data-live-root='1'>
   <main class='left-stack'>
-    <div class='quickbar'>
-      <h2>📌 모집글</h2>
+    <div class='quickbar recruit-head'>
+      <div class='recruit-title-row'>
+        <h2>📌 모집글</h2>
+        <a class='btn recruit-write-btn primary' href='/new'>＋ 모집</a>
+      </div>
       <div class='category-bar'>
         {% for x in categories %}
           <a class='btn tab-chip {{ "ok" if x==cat else "gray" }} mini' href='/?cat={{x}}'>{{x}}</a>

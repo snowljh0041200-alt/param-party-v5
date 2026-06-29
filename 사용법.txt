@@ -1,15 +1,13 @@
-v26.13 SERVICE STABLE NOTICE
+v26.14 SERVICE FINAL
 
 수정:
-- v26.8 안정판 기준으로 최소 수정
-- 상단 통계 박스 숨김
-- 헤더 아래 공지사항 카드 추가
-- 관리자 공지 제목/내용 저장 추가
-- 팝업 없음
-- 기존 모집/채팅/알림/카운트다운 기능 유지
+- 헤더의 + 모집 버튼 제거
+- 모집글 제목 오른쪽에 + 모집 버튼 배치
+- 공지사항/모집글 흐름에 맞게 UI 정리
+- 기존 기능 유지
 - 컴파일 통과
 
 배포:
 git add .
-git commit -m "v26.13 service stable notice"
+git commit -m "v26.14 service final"
 git push

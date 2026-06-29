@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html
 
-APP_VERSION = "v22.2"
+APP_VERSION = "v22.3"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -269,6 +269,13 @@ select option{background:#081126;color:#f5f8ff}
 .farm-dist{background:rgba(244,212,122,.12);border:1px solid rgba(244,212,122,.24);border-radius:12px;padding:10px;color:#ffe5a0;margin:8px 0}
 .farm-form{display:grid;grid-template-columns:120px 1fr 1fr 86px;gap:8px;margin-top:10px}
 .farm-form button{width:100%}
+
+.choice-card{display:flex;align-items:center;gap:12px;background:#081126;border:1px solid #263a64;border-radius:15px;padding:14px;margin:10px 0;cursor:pointer}
+.choice-card input{width:auto;accent-color:#19c46f;transform:scale(1.15)}
+.choice-card span{font-size:17px;color:#fff}
+.choice-card:has(input:checked){border-color:#19c46f;box-shadow:0 0 0 3px rgba(25,196,111,.14)}
+.farm-dist{font-weight:900}
+.closed .closed-tag,.closed-tag{font-size:13px}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr}.farm-summary{grid-template-columns:1fr}}
 @media(max-width:980px){
   .app-shell{grid-template-columns:1fr}
@@ -276,6 +283,13 @@ select option{background:#081126;color:#f5f8ff}
   .summary-grid{grid-template-columns:1fr 1fr 1fr}
   .chatbox{height:300px}
 }
+
+.choice-card{display:flex;align-items:center;gap:12px;background:#081126;border:1px solid #263a64;border-radius:15px;padding:14px;margin:10px 0;cursor:pointer}
+.choice-card input{width:auto;accent-color:#19c46f;transform:scale(1.15)}
+.choice-card span{font-size:17px;color:#fff}
+.choice-card:has(input:checked){border-color:#19c46f;box-shadow:0 0 0 3px rgba(25,196,111,.14)}
+.farm-dist{font-weight:900}
+.closed .closed-tag,.closed-tag{font-size:13px}
 @media(max-width:720px){
   .wrap{padding:10px}
   .header{display:block}
@@ -522,8 +536,10 @@ def approved_chars(u):
     return [c for c in (u or {}).get("chars", []) if c.get("status") == "approved"]
 
 def post_datetime(p):
+    # 파밍은 종료시간을 젠시간으로 봅니다. 예: 08:00~09:00이면 09:00 젠
+    base_time = p.get("end_time") if p.get("category") == "파밍" and p.get("end_time") else p.get("start_time")
     try:
-        return datetime.fromisoformat(f"{p.get('date') or today()}T{p.get('start_time') or '00:00'}").replace(tzinfo=KST)
+        return datetime.fromisoformat(f"{p.get('date') or today()}T{base_time or '00:00'}").replace(tzinfo=KST)
     except Exception:
         return now()
 
@@ -532,9 +548,13 @@ def remaining_text(p):
     diff = dt - now()
     minutes = int(diff.total_seconds() // 60)
     if minutes > 0:
-        return f"{minutes}분 남음"
+        h = minutes // 60
+        m = minutes % 60
+        if h > 0:
+            return f"{h}시간 {m}분 남음"
+        return f"{m}분 남음"
     if minutes > -60:
-        return "진행중"
+        return "젠시간"
     return "종료"
 
 def farm_alert_tick(d):
@@ -574,6 +594,47 @@ def farm_distribution(p):
     }
 
 
+def money_text(value):
+    try:
+        n = int(re.sub(r"[^0-9]", "", str(value or "0")))
+    except Exception:
+        n = 0
+    if n <= 0:
+        return "0전"
+    if n >= 100000000:
+        eok = n // 100000000
+        rest = n % 100000000
+        man = rest // 10000
+        return f"{eok}억 {man}만전" if man else f"{eok}억전"
+    if n >= 10000:
+        return f"{n//10000}만전"
+    return f"{n}전"
+
+def farm_money_summary(p):
+    dist = farm_distribution(p)
+    early_n = len(p.get("early_ids", []))
+    late_n = len(p.get("late_ids", []))
+    return {
+        "sale": money_text(dist.get("amount", 0)),
+        "early_each": money_text(dist.get("early_each", 0)),
+        "late_each": money_text(dist.get("late_each", 0)),
+        "early_count": early_n,
+        "late_count": late_n,
+    }
+
+def can_manage_post(u, p):
+    if not u or not p:
+        return False
+    if p.get("category") == "파밍":
+        return is_admin(u)
+    return p.get("owner_uid") == u.get("id") or is_admin(u)
+
+def has_any_admin(d):
+    return any(x.get("status") == "approved" and x.get("role") in ["관리자","부문파장","문파장","최고관리자"] for x in d.get("users", []))
+
+
+
+
 def find_post(d, pid):
     for p in d["posts"]:
         if p["id"] == pid:
@@ -605,7 +666,7 @@ document.addEventListener('DOMContentLoaded',()=>{let c=qs('#cat');if(c){c.oncha
 def render(page, **kw):
     kw.setdefault("title", APP_TITLE)
     kw.setdefault("css", CSS)
-    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
+    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
     return render_template_string(BASE_HEAD + page + BASE_TAIL, **kw)
 
 @app.route("/")
@@ -696,15 +757,15 @@ T_INDEX = """
               <h3>파밍 정산</h3>
               <span class='tag'>{{ p.farm_result or "미등록" }}</span>
             </div>
+            {% set fm = farm_money_summary(p) %}
             <div class='farm-summary'>
               <span>아이템 <b>{{ p.farm_item or "-" }}</b></span>
-              <span>판매 <b>{{ p.sale_amount or "0" }}</b></span>
+              <span>판매 <b>{{ fm.sale }}</b></span>
             </div>
-            {% set dist = farm_distribution(p) %}
-            {% if dist.amount > 0 %}
-              <div class='farm-dist'>선집합 {{ dist.early_each }}전 · 후집합 {{ dist.late_each }}전</div>
+            {% if fm.sale != "0전" %}
+              <div class='farm-dist'>선집합 {{ fm.early_count }}명 · {{ fm.early_each }} / 후집합 {{ fm.late_count }}명 · {{ fm.late_each }}</div>
             {% endif %}
-            {% if p.owner_uid==u.id or is_admin(u) %}
+            {% if can_manage_post(u,p) %}
               <form class='farm-form' method='post' action='/farm_result/{{p.id}}'>
                 <select name='farm_result'>
                   <option {% if p.farm_result=="노득" %}selected{% endif %}>노득</option>
@@ -725,7 +786,7 @@ T_INDEX = """
 
       <div class='actions'>
         <a class='btn gray' href='/chat/{{p.id}}'>채팅 {{p.chat|length }}</a>
-        {% if p.owner_uid==u.id or is_admin(u) %}
+        {% if can_manage_post(u,p) %}
           <a class='btn ok' href='/close/{{p.id}}'>모집완료</a>
           <a class='btn gray' href='/edit/{{p.id}}'>수정</a>
           <a class='btn danger' href='/delete/{{p.id}}'>삭제</a>
@@ -759,7 +820,7 @@ T_INDEX = """
       {% for p in sched %}
         <div class='schedule-row'>
           <div><b>{{p.place}}</b><br><span class='meta'>{{p.date}} · {{ remaining_text(p) }}</span></div>
-          <strong>{{show_time(p.start_time)}}</strong>
+          <strong>{{show_time(p.end_time or p.start_time)}}</strong>
         </div>
       {% else %}
         <div class='empty'>등록된 파밍 일정 없음</div>
@@ -866,7 +927,7 @@ def choose_slot(pid, i):
 <div class='notice'>{{slot.job}} 자리에는 같은 계열 캐릭터만 참여할 수 있습니다.</div>
 <form method='post'>
 {% for c in options %}
-<label class='slot'><span><b>{{c.name}}({{c.job}})</b></span><input type='radio' name='char_id' value='{{c.id}}' required></label>
+<label class='choice-card'><input type='radio' name='char_id' value='{{c.id}}' required><span>{{c.name}}({{c.job}})</span></label>
 {% else %}
 <div class='empty'>참여 가능한 캐릭터가 없습니다.</div>
 {% endfor %}
@@ -899,7 +960,7 @@ def choose_participant(pid):
 <h1>참여 캐릭터 선택</h1>
 <form method='post'>
 {% for c in options %}
-<label class='slot'><span><b>{{c.name}}({{c.job}})</b></span><input type='radio' name='char_id' value='{{c.id}}' required></label>
+<label class='choice-card'><input type='radio' name='char_id' value='{{c.id}}' required><span>{{c.name}}({{c.job}})</span></label>
 {% else %}
 <div class='empty'>승인된 캐릭터가 없습니다.</div>
 {% endfor %}
@@ -930,7 +991,7 @@ def farm_group(pid, group):
 <h1>{{title}}</h1>
 <form method='post'>
 {% for m in members %}
-<label class='slot'><span><b>{{m.label}}</b></span><input type='checkbox' name='member' value='{{m.char_id or m.uid}}' {% if (m.char_id or m.uid) in checked %}checked{% endif %}></label>
+<label class='choice-card'><input type='checkbox' name='member' value='{{m.char_id or m.uid}}' {% if (m.char_id or m.uid) in checked %}checked{% endif %}><span>{{m.label}}</span></label>
 {% else %}
 <div class='empty'>참여자가 없습니다.</div>
 {% endfor %}
@@ -978,7 +1039,7 @@ def participate(pid):
 @app.route("/edit/<pid>", methods=["GET","POST"])
 def edit(pid):
     d=load(); u=cur_user(d); p=find_post(d,pid)
-    if not p or not (p["owner_uid"]==u["id"] or is_admin(u)): return redirect("/")
+    if not p or not can_manage_post(u, p): return redirect("/")
     if request.method=="POST":
         p["channel"]=digits(request.form.get("channel"),4); p["date"]=request.form.get("date") or today(); p["start_time"]=to24(request.form.get("start_period"),request.form.get("start_time")); p["end_time"]=to24(request.form.get("end_period"),request.form.get("end_time")); p["memo"]=request.form.get("memo",""); save(d); return redirect("/")
     sp,st=split12(p.get("start_time")); ep,et=split12(p.get("end_time"))
@@ -987,13 +1048,13 @@ def edit(pid):
 @app.route("/close/<pid>")
 def close(pid):
     d=load(); u=cur_user(d); p=find_post(d,pid)
-    if p and (p["owner_uid"]==u["id"] or is_admin(u)): p["closed"]=True; save(d)
+    if p and can_manage_post(u, p): p["closed"]=True; save(d)
     return redirect("/")
 
 @app.route("/delete/<pid>")
 def delete(pid):
     d=load(); u=cur_user(d)
-    d["posts"]=[p for p in d["posts"] if not (p["id"]==pid and (p["owner_uid"]==u["id"] or is_admin(u)))]
+    d["posts"]=[p for p in d["posts"] if not (p["id"]==pid and can_manage_post(u, p))]
     save(d); return redirect("/")
 
 
@@ -1005,7 +1066,7 @@ def farm_result(pid):
     p = find_post(d, pid)
     if not p or p.get("category") != "파밍":
         return redirect("/")
-    if not (is_admin(u) or p.get("owner_uid") == (u or {}).get("id")):
+    if not can_manage_post(u, p):
         return redirect("/")
     p["farm_result"] = request.form.get("farm_result", "").strip()
     p["farm_item"] = request.form.get("farm_item", "").strip()
@@ -1053,6 +1114,9 @@ def select_char(cid):
 @app.route("/admin")
 def admin():
     d=load(); u=cur_user(d)
+    if u and u.get("status") == "approved" and not has_any_admin(d):
+        u["role"] = "최고관리자"
+        save(d)
     if not is_admin(u): return redirect("/")
     pending=[x for x in d["users"] if x["status"]=="pending"]
     return render("<section class='panel'><a class='btn gray' href='/'>← 메인</a><h1>관리자</h1><h2>가입 승인</h2>{% for x in pending %}<div class='slot'><b>{{x.account}}</b><a class='btn mini ok' href='/admin/approve/{{x.id}}'>승인</a></div>{% else %}<p class='meta'>대기 없음</p>{% endfor %}<h2>권한</h2>{% for x in users %}<div class='slot'><div><b>{{x.account}}</b><br>{{x.status}} / {{x.role}}</div><div class='toolbar'><a class='btn mini gray' href='/admin/role/{{x.id}}/일반'>일반</a><a class='btn mini gray' href='/admin/role/{{x.id}}/관리자'>관리자</a><a class='btn mini gray' href='/admin/role/{{x.id}}/최고관리자'>최고</a></div></div>{% endfor %}</section>", users=d["users"], pending=pending)
@@ -1072,8 +1136,13 @@ def approve(uid):
 def role(uid,role):
     d=load(); u=cur_user(d)
     if is_admin(u):
+        admin_count = sum(1 for x in d["users"] if x.get("status")=="approved" and x.get("role") in ["관리자","부문파장","문파장","최고관리자"])
         for x in d["users"]:
-            if x["id"]==uid: x["role"]=role
+            if x["id"]==uid:
+                # 마지막 관리자 또는 본인을 일반으로 내리면 관리자 페이지를 잃을 수 있어서 차단
+                if role == "일반" and (admin_count <= 1 or uid == u.get("id")):
+                    break
+                x["role"]=role
         save(d)
     return redirect("/admin")
 

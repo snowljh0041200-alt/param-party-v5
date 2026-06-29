@@ -1,22 +1,21 @@
-v28.0 FINAL TOAST FIX
+v28.1 CHROME NOTIFY + CANCEL FIX
 
 수정:
-- 현재 업로드한 app.py 기준으로 직접 수정
-- 설정창 안에 토스트 테스트 버튼 추가
-- 상단에도 토스트테스트 버튼 추가
-- 기존 토스트 CSS 충돌 해결(position:fixed/bottom-center 충돌 제거)
-- window.BaramToast / showToast 최종 오버라이드
-- URL toast + 서버 alerts 폴링 둘 다 유지
-- /api/test_toast 테스트 API 유지
+- 참여 취소 버튼 404 Not Found 방지
+- /cancel_slot, /cancel, /remove_slot alias 추가
+- 크롬 브라우저 알림 권한 요청 기능 추가
+- 설정에 크롬 알림 켜기 / 크롬 알림 테스트 버튼 추가
+- 사이트 토스트 + 크롬 알림 둘 다 표시 가능
 - 컴파일 통과
 
-테스트:
-1) 배포 후 메인 화면에서 '⚙ 설정' 클릭
-2) '토스트 테스트' 버튼 클릭
-3) 우측 상단에 팝업이 뜨면 정상
+크롬 알림 테스트:
+1) 설정 클릭
+2) 크롬 알림 켜기 클릭
+3) 브라우저 권한 허용
+4) 크롬 알림 테스트 클릭
 
 배포:
 cd C:\Users\ljh04\OneDrive\Desktop\baram-party-v5
 git add .
-git commit -m "v28.0 final toast fix"
+git commit -m "v28.1 chrome notify cancel fix"
 git push

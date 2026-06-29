@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "v28.0-final"
+APP_VERSION = "v28.1-final"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -2328,6 +2328,79 @@ async function testToastFromSettings(){
   });
 })();
 
+
+/* v28.1 chrome notification override */
+(function(){
+  window.requestChromeNotifyPermission = async function(){
+    if(!("Notification" in window)){
+      window.BaramToast ? window.BaramToast("이 브라우저는 크롬 알림을 지원하지 않습니다.") : alert("알림 미지원");
+      return;
+    }
+    const result = await Notification.requestPermission();
+    if(result === "granted"){
+      localStorage.setItem("chromeNotifyEnabled","1");
+      new Notification("월하 · 연가 · 연희", { body:"크롬 알림이 켜졌습니다." });
+      if(window.BaramToast) window.BaramToast("🔔 크롬 알림이 켜졌습니다.");
+    }else{
+      localStorage.setItem("chromeNotifyEnabled","0");
+      if(window.BaramToast) window.BaramToast("크롬 알림 권한이 허용되지 않았습니다.");
+    }
+  };
+
+  window.sendChromeNotify = function(msg){
+    try{
+      if(!("Notification" in window)) return;
+      if(localStorage.getItem("chromeNotifyEnabled") !== "1") return;
+      if(Notification.permission !== "granted") return;
+      new Notification("월하 · 연가 · 연희", { body: msg || "새 알림이 있습니다." });
+    }catch(e){}
+  };
+
+  window.testChromeNotifyFromSettings = function(){
+    if(!("Notification" in window)){
+      if(window.BaramToast) window.BaramToast("이 브라우저는 크롬 알림을 지원하지 않습니다.");
+      return;
+    }
+    if(Notification.permission !== "granted"){
+      window.requestChromeNotifyPermission();
+      return;
+    }
+    localStorage.setItem("chromeNotifyEnabled","1");
+    new Notification("월하 · 연가 · 연희", { body:"크롬 알림 테스트입니다." });
+    if(window.BaramToast) window.BaramToast("🔔 크롬 알림 테스트를 보냈습니다.");
+  };
+
+  async function pollChromeAlertsV281(){
+    try{
+      const r = await fetch('/api/alerts?_=' + Date.now(), {cache:'no-store'});
+      const data = await r.json();
+      const alerts = data.alerts || [];
+      let seen = {};
+      try{ seen = JSON.parse(localStorage.getItem('v281SeenAlerts') || '{}'); }catch(e){ seen = {}; }
+      const nowMs = Date.now();
+      alerts.forEach(function(a){
+        const id = String(a.id || '');
+        if(!id || seen[id]) return;
+        seen[id] = 1;
+        const t = Date.parse(a.time || '');
+        const recent = isNaN(t) ? true : (nowMs - t < 20000);
+        if(recent && a.text){
+          if(window.BaramToast) window.BaramToast(a.text);
+          window.sendChromeNotify(a.text);
+        }
+      });
+      const keys = Object.keys(seen).slice(-150);
+      const slim = {};
+      keys.forEach(k => slim[k] = 1);
+      localStorage.setItem('v281SeenAlerts', JSON.stringify(slim));
+    }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    pollChromeAlertsV281();
+    setInterval(pollChromeAlertsV281, 3000);
+  });
+})();
+
 </script></body></html>"""
 
 def render(page, **kw):
@@ -2381,10 +2454,21 @@ T_INDEX = """
     <h1>⚔ 월하 · 연가 · 연희</h1>
     <div class='sub'>{{ app_version }} · {{ char_label(c) }}</div>
   </div>
+
+    <div class='setting-card vertical toast-test-box'>
+      <b>🔔 크롬 알림 설정</b>
+      <div class='meta'>브라우저 오른쪽 알림센터로 참석 알림을 받으려면 권한 허용이 필요합니다.</div>
+      <div class='toolbar' style='margin-top:10px'>
+        <button type='button' class='btn ok' onclick='requestChromeNotifyPermission()'>크롬 알림 켜기</button>
+        <button type='button' class='btn gray' onclick='testChromeNotifyFromSettings()'>크롬 알림 테스트</button>
+      </div>
+    </div>
+
   <div class='toolbar'>
     <a class='btn nav-btn gray' href='/chars'>캐릭터</a>
     <button type='button' class='btn nav-btn gray' onclick='openSettingsModal()'>⚙ 설정</button>
     <button type='button' class='btn nav-btn gray' onclick="window.BaramToast ? window.BaramToast('🔔 토스트 알림 테스트입니다.') : alert('토스트 함수가 아직 로드되지 않았습니다.')">토스트테스트</button>
+    <button type='button' class='btn nav-btn gray' onclick='requestChromeNotifyPermission()'>크롬알림</button>
     {% if is_admin(u) %}<a class='btn nav-btn gray' href='/admin'>관리자</a>{% endif %}
     <a class='btn nav-btn gray' href='/logout'>로그아웃</a>
   </div>
@@ -2936,6 +3020,35 @@ def manage_choose_slot(pid, i):
   {% endif %}
 </div>
 """, p=p, slot=slot, choices=choices)
+
+
+
+@app.route("/cancel_slot/<pid>/<int:i>")
+def cancel_slot_alias(pid, i):
+    return leave_slot(pid, i)
+
+@app.route("/cancel/<pid>/<int:i>")
+def cancel_alias(pid, i):
+    return leave_slot(pid, i)
+
+@app.route("/remove_slot/<pid>/<int:i>")
+def remove_slot_alias(pid, i):
+    return leave_slot(pid, i)
+
+
+@app.route("/leave_slot/<pid>/<int:i>")
+def leave_slot(pid,i):
+    d=load(); u=cur_user(d); p=find_post(d,pid)
+    msg = ""
+    if p and 0<=i<len(p["slots"]) and (p["slots"][i].get("uid")==u["id"] or can_manage_post(u,p)):
+        job = p["slots"][i].get("job","")
+        old = p["slots"][i].get("label") or actor_label(u)
+        p["slots"][i].update({"uid":"","label":"","char_id":"","external":""})
+        refresh_post_status_after_member_change(d, p)
+        msg = action_msg(p, f"{job} 자리의 {old}님이 참여를 취소했습니다.")
+        system_notify(d, msg)
+        save(d)
+    return toast_redirect("/", msg) if msg else redirect("/")
 
 @app.route("/external_slot/<pid>/<int:i>", methods=["GET","POST"])
 def external_slot(pid, i):

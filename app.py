@@ -3,9 +3,9 @@ from flask import Flask, request, redirect, session, render_template_string
 from pathlib import Path
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import os, json, uuid, re, html
+import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v24.0"
+APP_VERSION = "v25.0"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -21,11 +21,12 @@ JOB_GROUPS = {
     "도사 계열": ["도사","도인","명인","진인","진선"],
     "기타": ["기타"],
 }
-CATEGORIES = ["전체","사냥","파밍","600퀘"]
+CATEGORIES = ["전체","사냥","파밍","600퀘","승급지원"]
 PLACES = {
     "사냥": ["도삭산900", "흉노", "선비", "기타"],
     "파밍": ["어금니", "해골왕", "기타"],
     "600퀘": ["선비족", "도삭산 800층", "도삭산 900층"],
+    "승급지원": ["1차 승급", "2차 승급", "3차 승급", "4차 승급", "기타"],
 }
 
 CSS = """
@@ -538,6 +539,13 @@ input,select,textarea{
 #globalChatInput{min-width:0}
 #globalChatForm{margin-top:10px}
 
+
+button:disabled,.btn[disabled]{
+  opacity:.55;
+  cursor:not-allowed;
+  filter:grayscale(.35);
+}
+
 @media(max-width:980px){.farm-form{grid-template-columns:1fr 1fr!important}}
 @media(max-width:720px){.farm-form{grid-template-columns:1fr!important}}
 .btn{letter-spacing:-.2px}
@@ -661,6 +669,7 @@ def normalize(d):
         u.setdefault("account", "")
         u.setdefault("status", "pending")
         u.setdefault("role", "일반")
+        u.setdefault("pin_hash", "")
         u.setdefault("last_seen", "")
         u.setdefault("chars", [])
         for c in u["chars"]:
@@ -828,6 +837,22 @@ def remaining_text(p):
         return "젠시간" if p.get("category") == "파밍" else "진행중"
     return "종료"
 
+
+def can_join_post(p):
+    if not p or p.get("closed"):
+        return False
+    if p.get("category") == "파밍":
+        left = int((post_datetime(p) - now()).total_seconds() // 60)
+        return left > 15
+    return True
+
+def join_block_reason(p):
+    if p.get("category") == "파밍" and not can_join_post(p):
+        return "젠 15분 전부터는 참여할 수 없습니다."
+    return ""
+
+
+
 def farm_alert_tick(d):
     changed = False
     for p in d.get("posts", []):
@@ -930,6 +955,16 @@ def can_manage_post(u, p):
 
 
 
+
+
+def valid_pin(pin):
+    return bool(re.fullmatch(r"\d{6}", str(pin or "")))
+
+def pin_hash(pin):
+    return hashlib.sha256(str(pin).encode("utf-8")).hexdigest()
+
+def verify_pin(user, pin):
+    return user.get("pin_hash") == pin_hash(pin)
 
 def account_exists(d, account):
     target = str(account or "").strip()
@@ -1118,7 +1153,7 @@ document.addEventListener('DOMContentLoaded', ()=>{loadAlarmSettings();checkFarm
 def render(page, **kw):
     kw.setdefault("title", APP_TITLE)
     kw.setdefault("css", CSS)
-    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, participant_group_label=participant_group_label, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
+    kw.update(dict(app_version=APP_VERSION, jobs=JOBS, job_select=job_select, categories=CATEGORIES, places=PLACES, show_time=show_time, join_block_reason=join_block_reason, can_join_post=can_join_post, participant_group_label=participant_group_label, can_manage_post=can_manage_post, farm_money_summary=farm_money_summary, money_text=money_text, farm_distribution=farm_distribution, remaining_text=remaining_text, approved_chars=approved_chars, compatible_job=compatible_job, joined_count=joined_count, max_count=max_count, is_admin=is_admin, selected_char=selected_char, char_label=char_label, today=today))
     return render_template_string(BASE_HEAD + page + BASE_TAIL, **kw)
 
 @app.route("/")
@@ -1204,7 +1239,7 @@ T_INDEX = """
         {% else %}
           <p class='meta'>아직 참여자 없음</p>
         {% endfor %}
-        {% if not p.closed %}<a class='btn ok full' href='/choose_participant/{{p.id}}'>참여하기</a>{% endif %}
+        {% if can_join_post(p) %}<a class='btn ok full' href='/choose_participant/{{p.id}}'>참여하기</a>{% elif join_block_reason(p) %}<div class='notice'>{{ join_block_reason(p) }}</div><button class='btn gray full' disabled>참여불가</button>{% endif %}
 
         {% if p.category == "파밍" %}
           <div class='farm-box'>
@@ -1338,20 +1373,19 @@ def login():
     d = load()
     if request.method == "POST":
         account = request.form.get("account","").strip()
-        char_name = request.form.get("char_name","").strip()
+        pin = request.form.get("pin","").strip()
         for u in d.get("users", []):
-            if u.get("account") == account:
-                for c in u.get("chars", []):
-                    if c.get("name") == char_name:
-                        session["uid"] = u.get("id")
-                        if u.get("status") != "approved" or c.get("status") != "approved":
-                            return redirect("/pending")
-                        u["selected_char_id"] = c.get("id")
-                        save(d)
-                        return redirect("/")
-        return render(T_LOGIN, error="계정명 또는 캐릭터명이 맞지 않습니다.", form=request.form)
+            if u.get("account") == account and verify_pin(u, pin):
+                session["uid"] = u.get("id")
+                if u.get("status") != "approved":
+                    return redirect("/pending")
+                cs = approved_chars(u) if "approved_chars" in globals() else [c for c in u.get("chars", []) if c.get("status") == "approved"]
+                if cs and not u.get("selected_char_id"):
+                    u["selected_char_id"] = cs[0].get("id")
+                    save(d)
+                return redirect("/")
+        return render(T_LOGIN, error="계정명 또는 비밀번호가 맞지 않습니다.", form=request.form)
     return render(T_LOGIN, error="", form={})
-
 @app.route("/register", methods=["GET","POST"])
 def register():
     d = load()
@@ -1359,9 +1393,15 @@ def register():
         acc = request.form.get("account","").strip()
         name = request.form.get("char_name","").strip()
         job = request.form.get("job","검성")
+        pin = request.form.get("pin","").strip()
+        pin_confirm = request.form.get("pin_confirm","").strip()
         admin_pw = request.form.get("admin_password","").strip()
         if not acc or not name:
             return render(T_REGISTER, error="계정명과 캐릭터명을 입력하세요.", form=request.form)
+        if not valid_pin(pin):
+            return render(T_REGISTER, error="비밀번호는 숫자 6자리로 입력하세요.", form=request.form)
+        if pin != pin_confirm:
+            return render(T_REGISTER, error="비밀번호 확인이 맞지 않습니다.", form=request.form)
         if account_exists(d, acc):
             return render(T_REGISTER, error="이미 등록된 계정명입니다.", form=request.form)
         if char_name_exists(d, name):
@@ -1371,67 +1411,11 @@ def register():
         pw_ok = admin_password_ok(d, admin_pw)
         status = "approved" if (first or pw_ok) else "pending"
         role = "최고관리자" if first else ("관리자" if pw_ok else "일반")
-        d["users"].append({"id":uid,"account":acc,"status":status,"role":role,"selected_char_id":cid,"chars":[{"id":cid,"name":name,"job":job,"status":status}]})
+        d["users"].append({"id":uid,"account":acc,"pin_hash":pin_hash(pin),"status":status,"role":role,"selected_char_id":cid,"chars":[{"id":cid,"name":name,"job":job,"status":status}]})
         save(d)
         session["uid"] = uid
         return redirect("/") if status == "approved" else redirect("/pending")
     return render(T_REGISTER, error="", form={})
-
-T_REGISTER = """
-<section class='panel'><h1>👤 문파원 등록</h1><form method='post'><label>계정명</label><input name='account' value='{{form.get("account","")}}'><label>대표 캐릭터명</label><input name='char_name' value='{{form.get("char_name","")}}'><label>직업</label>{{ job_select('job')|safe }}<label>관리자 비밀번호 <span class='meta'>(관리자만 입력)</span></label><input name='admin_password' type='password' placeholder='일반 문파원은 비워두세요'><button class='ok full'>승인 요청</button></form>{% if error %}<div class='notice'>{{error}}</div>{% endif %}<div class='toolbar auth-bottom'><a class='btn gray' href='/login'>이미 계정이 있나요? 로그인</a></div></section>
-"""
-
-
-T_PENDING = """
-<section class='panel pending-panel'>
-  <div class='pending-icon'>⏳</div>
-  <h1>승인 요청중</h1>
-  <p class='meta'>관리자 승인 후 이용할 수 있습니다.</p>
-  <div class='notice'>문파 관리자에게 가입 승인을 요청해 주세요.</div>
-  <div class='toolbar pending-actions'>
-    <a class='btn gray' href='/logout'>로그아웃</a>
-    <a class='btn gray' href='/login'>로그인</a>
-  </div>
-</section>
-"""
-
-
-T_GATE = """
-<section class='panel auth-panel'>
-  <div class='auth-logo'>⚔</div>
-  <h1>월하 · 연가 · 연희</h1>
-  <p class='meta'>문파 파티모집 보드</p>
-  <div class='auth-actions'>
-    <a class='btn ok full' href='/login'>로그인</a>
-    <a class='btn gray full' href='/register'>문파원 등록</a>
-  </div>
-</section>
-"""
-
-T_LOGIN = """
-<section class='panel auth-panel'>
-  <div class='auth-logo'>⚔</div>
-  <h1>로그인</h1>
-  <form method='post'>
-    <label>계정명</label>
-    <input name='account' value='{{form.get("account","")}}' placeholder='등록한 계정명'>
-    <label>캐릭터명</label>
-    <input name='char_name' value='{{form.get("char_name","")}}' placeholder='등록한 캐릭터명'>
-    <button class='ok full'>로그인</button>
-  </form>
-  {% if error %}<div class='notice'>{{error}}</div>{% endif %}
-  <div class='toolbar auth-bottom'>
-    <a class='btn gray' href='/register'>문파원 등록</a>
-  </div>
-</section>
-"""
-
-
-
-
-
-
-
 @app.route("/pending")
 def pending():
     return render(T_PENDING)
@@ -1445,7 +1429,7 @@ def logout():
 def new_post():
     d=load(); u=cur_user(d)
     if not approved(u): return redirect("/pending")
-    cats = ["사냥"] + (["파밍"] if is_admin(u) else []) + ["600퀘"]
+    cats = ["사냥"] + (["파밍"] if is_admin(u) else []) + ["600퀘","승급지원"]
     return render(T_NEW, cats=cats)
 
 T_NEW = """
@@ -1509,7 +1493,7 @@ def choose_slot(pid, i):
 @app.route("/choose_participant/<pid>", methods=["GET","POST"])
 def choose_participant(pid):
     d=load(); u=cur_user(d); p=find_post(d,pid)
-    if not approved(u) or not p or p.get("category") not in ["600퀘","파밍"] or p.get("closed"):
+    if not approved(u) or not p or p.get("category") not in ["600퀘","파밍","승급지원"] or not can_join_post(p):
         return redirect("/")
     options = approved_chars(u)
     if request.method == "POST":
@@ -1604,6 +1588,8 @@ def external_slot(pid,i):
 
 @app.route("/participate/<pid>")
 def participate(pid):
+    d=load(); p=find_post(d,pid)
+    if p and not can_join_post(p): return redirect("/")
     return redirect(f"/choose_participant/{pid}")
 
 @app.route("/edit/<pid>", methods=["GET","POST"])
@@ -1761,6 +1747,7 @@ def admin():
     <a class='btn tab-chip gray mini' href='#admin-farm'>파밍글</a>
     <a class='btn tab-chip gray mini' href='#admin-hunt'>사냥글</a>
     <a class='btn tab-chip gray mini' href='#admin-quest'>600퀘</a>
+    <a class='btn tab-chip gray mini' href='#admin-support'>승급지원</a>
   </div>
 
   <div id='admin-farm' class='admin-post-section'>
@@ -1811,6 +1798,23 @@ def admin():
     {% else %}<div class='empty'>600퀘 글 없음</div>{% endfor %}
   </div>
 
+
+  <div id='admin-support' class='admin-post-section'>
+    <h3>승급지원</h3>
+    {% for p in posts if p.category == "승급지원" %}
+      <div class='admin-post-row'>
+        <div>
+          <b>{{p.place}}</b>
+          <div class='meta'>{{p.date}} · {{show_time(p.start_time)}} ~ {{show_time(p.end_time)}} · {{p.owner_label}} · {{ "마감" if p.closed else "모집중" }}</div>
+        </div>
+        <div class='toolbar'>
+          <a class='btn mini gray' href='/edit/{{p.id}}'>수정</a>
+          <a class='btn mini danger' href='/admin/delete_post/{{p.id}}' onclick="return confirm('이 승급지원 글을 삭제할까요?')">삭제</a>
+        </div>
+      </div>
+    {% else %}<div class='empty'>승급지원 글 없음</div>{% endfor %}
+  </div>
+
   <h2>데이터 관리</h2>
   <div class='danger-zone'>
     <div class='admin-action-title'>종류별 삭제</div>
@@ -1818,6 +1822,7 @@ def admin():
       <a class='btn danger' href='/admin/clear_posts/파밍' onclick="return confirm('파밍글을 전부 삭제할까요?')">파밍글 삭제</a>
       <a class='btn danger' href='/admin/clear_posts/사냥' onclick="return confirm('사냥글을 전부 삭제할까요?')">사냥글 삭제</a>
       <a class='btn danger' href='/admin/clear_posts/600퀘' onclick="return confirm('600퀘 글을 전부 삭제할까요?')">600퀘 삭제</a>
+      <a class='btn danger' href='/admin/clear_posts/승급지원' onclick="return confirm('승급지원 글을 전부 삭제할까요?')">승급지원 삭제</a>
       <a class='btn danger' href='/admin/clear_chat' onclick="return confirm('통합채팅과 글 채팅을 전부 삭제할까요?')">채팅 삭제</a>
     </div>
     <div class='admin-action-title'>전체 초기화</div>
@@ -1883,7 +1888,7 @@ def admin_delete_post(pid):
 @app.route("/admin/clear_posts/<category>")
 def admin_clear_posts_category(category):
     d=load(); u=cur_user(d)
-    if is_admin(u) and category in ["사냥","파밍","600퀘"]:
+    if is_admin(u) and category in ["사냥","파밍","600퀘","승급지원"]:
         d["posts"]=[p for p in d.get("posts", []) if p.get("category") != category]
         save(d)
     return redirect("/admin")

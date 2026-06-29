@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os, json, uuid, re, html, hashlib
 
-APP_VERSION = "v26.10"
+APP_VERSION = "v26.11-service"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -622,31 +622,76 @@ input::placeholder,textarea::placeholder{color:#667694}
 }
 
 
-.summary-grid,.mini-stats{display:none!important}
-
-.admin-notice-editor form{
+/* service final notice/layout fix */
+.summary-grid,.summary-card,.mini-stats{
+  display:none!important;
+}
+.wrap{
+  max-width:1180px!important;
+  margin:0 auto!important;
+  padding-left:14px!important;
+  padding-right:14px!important;
+}
+.app-shell{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 360px!important;
+  gap:16px!important;
+  align-items:start!important;
+}
+.clan-notice-card{
+  margin:0 0 18px 0!important;
+  border-color:rgba(244,212,122,.26)!important;
+  background:linear-gradient(180deg,rgba(31,36,51,.96),rgba(10,18,36,.96))!important;
+}
+.clan-notice-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+.clan-notice-head h2{
+  margin:0!important;
+  font-size:20px!important;
+}
+.clan-notice-preview,
+.clan-notice-full{
+  white-space:pre-wrap;
+  line-height:1.62;
+  color:#eef4ff;
+  background:rgba(8,17,38,.58);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:15px;
+  padding:13px;
+  font-size:14px;
+}
+.clan-notice-full{display:none}
+.clan-notice-card.expanded .clan-notice-preview{display:none}
+.clan-notice-card.expanded .clan-notice-full{display:block}
+.clan-notice-card button{margin-top:10px}
+.admin-notice-box form.notice-edit-form{
   display:grid!important;
   grid-template-columns:1fr!important;
   gap:10px!important;
 }
-.admin-notice-editor label{
+.admin-notice-box label{
   color:#c8d6f5;
   font-weight:900;
-  margin-top:4px;
 }
-.admin-notice-editor input,
-.admin-notice-editor textarea{
+.admin-notice-box input,
+.admin-notice-box textarea{
   width:100%!important;
   box-sizing:border-box!important;
 }
-.admin-notice-editor textarea{
-  resize:vertical;
+.admin-notice-box textarea{
   min-height:280px;
+  resize:vertical;
   line-height:1.55;
 }
-.notice-card{
-  margin-top:12px!important;
-  margin-bottom:18px!important;
+@media(max-width:980px){
+  .app-shell{
+    grid-template-columns:1fr!important;
+  }
 }
 
 @media(max-width:980px){.app-shell{gap:12px!important}.side-stack{display:flex;flex-direction:column}}
@@ -1040,7 +1085,7 @@ def post_datetime(p):
 
 
 
-def notice_data(d):
+def get_notice(d):
     n = d.get("settings", {}).get("notice", {})
     if isinstance(n, str):
         return {"title": "문파 공지사항", "text": n, "updated_at": ""}
@@ -1050,17 +1095,15 @@ def notice_data(d):
         "updated_at": n.get("updated_at") or "",
     }
 
-def notice_preview(text, lines=6):
-    raw = str(text or "").splitlines()
-    clean = [x for x in raw if x.strip()]
-    if len(clean) <= lines:
-        return "\n".join(clean)
-    return "\n".join(clean[:lines])
+def notice_preview_text(text, limit=7):
+    rows = [x for x in str(text or "").splitlines() if x.strip()]
+    return "\n".join(rows[:limit])
 
-def is_notice_new(d):
-    n = notice_data(d)
-    updated = n.get("updated_at", "")
+def notice_is_new(d):
     try:
+        updated = get_notice(d).get("updated_at", "")
+        if not updated:
+            return False
         ts = datetime.fromisoformat(updated).timestamp()
         return now().timestamp() - ts < 86400
     except Exception:
@@ -1414,12 +1457,12 @@ function formatBossRemain(totalSeconds){
   return `${pad(m)}:${pad(s)}`;
 }
 
-function toggleNoticeCard(){
-  const card=document.querySelector('.notice-card');
-  const btn=document.querySelector('.notice-toggle');
+function toggleClanNotice(){
+  const card=document.querySelector('.clan-notice-card');
+  const btn=document.getElementById('clanNoticeBtn');
   if(!card)return;
   card.classList.toggle('expanded');
-  if(btn) btn.textContent = card.classList.contains('expanded') ? '접기' : '더보기';
+  if(btn)btn.textContent=card.classList.contains('expanded')?'접기':'더보기';
 }
 
 function updateBossTimers(){
@@ -1649,7 +1692,7 @@ def index():
     if cat != "전체":
         posts = [p for p in posts if p["category"] == cat]
     sched = [p for p in d["posts"] if p["category"] == "파밍" and not p.get("closed")]
-    return render(T_INDEX, d=d, u=u, notice=notice_data(d), notice_preview=notice_preview, notice_new=is_notice_new(d), c=selected_char(u), cat=cat, posts=posts, sched=sched, online=online_users(d))
+    return render(T_INDEX, d=d, u=u, notice=get_notice(d), notice_preview_text=notice_preview_text, notice_new=notice_is_new(d), c=selected_char(u), cat=cat, posts=posts, sched=sched, online=online_users(d))
 
 T_INDEX = """
 <header class='header'>
@@ -1666,27 +1709,29 @@ T_INDEX = """
   </div>
 </header>
 
+<div class='summary-grid'>
+  <div class='summary-card'><span>오늘 파밍</span><strong>{{ sched|length }}</strong></div>
   <div class='summary-card'><span>진행중 모집</span><strong>{{ posts|selectattr('closed','equalto',False)|list|length }}</strong></div>
   <div class='summary-card'><span>캐릭터</span><strong>{{ u.chars|selectattr('status','equalto','approved')|list|length }}</strong></div>
 </div>
 
-
-{% if notice.text %}
-<section class='panel notice-card'>
-  <div class='notice-card-head'>
-    <h2>📢 {{ notice.title }}</h2>
-    {% if notice_new %}<span class='tag ok'>NEW</span>{% endif %}
-  </div>
-  <div class='notice-preview' id='noticePreview'>{{ notice_preview(notice.text) }}</div>
-  <div class='notice-full' id='noticeFull'>{{ notice.text }}</div>
-  <button type='button' class='btn gray mini notice-toggle' onclick='toggleNoticeCard()'>더보기</button>
-</section>
-{% endif %}
-
 <div class='app-shell' data-live-root='1'>
   <main class='left-stack'>
     <div class='quickbar'>
-      <h2>📌 모집글</h2>
+      
+{% if notice.text %}
+<section class='panel clan-notice-card'>
+  <div class='clan-notice-head'>
+    <h2>📢 {{ notice.title }}</h2>
+    {% if notice_new %}<span class='tag ok'>NEW</span>{% endif %}
+  </div>
+  <div class='clan-notice-preview' id='clanNoticePreview'>{{ notice_preview_text(notice.text) }}</div>
+  <div class='clan-notice-full' id='clanNoticeFull'>{{ notice.text }}</div>
+  <button type='button' class='btn gray mini' onclick='toggleClanNotice()' id='clanNoticeBtn'>더보기</button>
+</section>
+{% endif %}
+
+<h2>📌 모집글</h2>
       <div class='category-bar'>
         {% for x in categories %}
           <a class='btn tab-chip {{ "ok" if x==cat else "gray" }} mini' href='/?cat={{x}}'>{{x}}</a>
@@ -2276,20 +2321,19 @@ def admin():
       </div>
     </div>
   {% endfor %}
-  <section class='panel admin-notice-editor'>
+
+
+  <section class='panel admin-notice-box'>
     <h2>📢 문파 공지사항</h2>
-    <form method='post' action='/admin/notice'>
+    <form method='post' action='/admin/notice' class='notice-edit-form'>
       <label>공지 제목</label>
       <input name='notice_title' value='{{notice.title}}' placeholder='예: 공성 관련 협의 사항 안내'>
-
       <label>공지 내용</label>
       <textarea name='notice_text' rows='14' placeholder='공지 내용을 입력하세요'>{{notice.text}}</textarea>
-
       <button class='ok full'>공지 저장</button>
     </form>
-    <div class='notice'>저장하면 메인 상단 공지사항 카드에 바로 표시됩니다.</div>
+    <div class='notice'>저장하면 메인 상단 공지사항 카드에 표시됩니다.</div>
   </section>
-
 
   <h2>관리자 비밀번호</h2>
   <form class='admin-form' method='post' action='/admin/password'>
@@ -2388,7 +2432,7 @@ def admin():
     </div>
   </div>
 </section>
-""", users=d["users"], pending=pending, pending_chars=pending_chars, posts=d["posts"], chat_count=len(d.get("global_chat", [])), me=u, notice=notice_data(d))
+""", users=d["users"], pending=pending, pending_chars=pending_chars, posts=d["posts"], chat_count=len(d.get("global_chat", [])), me=u, notice=get_notice(d))
 
 
 @app.route("/admin/approve_char/<uid>/<cid>")
@@ -2461,15 +2505,13 @@ def admin_clear_posts():
 
 
 @app.route("/admin/notice", methods=["POST"])
-def admin_notice():
+def admin_notice_save():
     d = load()
     u = cur_user(d)
     if is_admin(u):
-        title = request.form.get("notice_title", "").strip() or "문파 공지사항"
-        text = request.form.get("notice_text", "").strip()
         d.setdefault("settings", {})["notice"] = {
-            "title": title,
-            "text": text,
+            "title": request.form.get("notice_title", "").strip() or "문파 공지사항",
+            "text": request.form.get("notice_text", "").strip(),
             "updated_at": now().isoformat(timespec="seconds")
         }
         save(d)

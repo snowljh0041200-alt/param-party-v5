@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "40.4"
+APP_VERSION = "40.5"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -47,7 +47,7 @@ JOB_GROUPS = {
 }
 CATEGORIES = ["전체","사냥","파밍","600퀘","승급지원"]
 PLACES = {
-    "사냥": ["도삭산900", "흉노", "선비", "기타"],
+    "사냥": ["도삭산900","도삭산800층","도삭산900층빽","흉노","선비","기타"],
     "파밍": ["어금니", "해골왕", "기타"],
     "600퀘": ["선비족", "도삭산 800층", "도삭산 900층"],
     "승급지원": ["1차 승급", "2차 승급", "3차 승급", "4차 승급", "기타"],
@@ -1245,15 +1245,6 @@ LOGIN_HTML = """
     <label>비밀번호</label>
     <input name='pin' type='password' inputmode='numeric' maxlength='6' placeholder='숫자 6자리'>
     <button class='ok full'>로그인</button>
-  
-<datalist id="hunt_places_v404">
-  <option value="도삭산800층">
-  <option value="도삭산900">
-  <option value="도삭산900층빽">
-  <option value="해골왕">
-  <option value="어금니">
-</datalist>
-
 </form>
   {% if error %}<div class='notice'>{{error}}</div>{% endif %}
   <div class='toolbar auth-bottom'>
@@ -4169,6 +4160,13 @@ textarea:focus{
 input[name="place"],
 select[name="place"]{
   font-weight:900!important;
+}
+
+
+/* v40.5 place select options fix */
+select[name="place"] option[value="도삭산800층"],
+select[name="place"] option[value="도삭산900층빽"]{
+  font-weight:900;
 }
 
 </style></head><body><div class='wrap'>"""

@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "41.4"
+APP_VERSION = "41.5"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -4236,6 +4236,21 @@ select[name="place"] option[value="도삭산900층빽"]{
   font-variant-numeric:tabular-nums!important;
 }
 
+
+/* v41.5 final boss countdown */
+.schedule-left-v363[data-boss-target]{
+  display:inline-flex!important;
+  width:max-content!important;
+  padding:4px 9px!important;
+  border-radius:999px!important;
+  border:1px solid rgba(245,212,138,.52)!important;
+  color:#ffe7a0!important;
+  background:rgba(192,139,53,.16)!important;
+  font-weight:900!important;
+  font-size:13px!important;
+  font-variant-numeric:tabular-nums!important;
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -5342,61 +5357,94 @@ async function testToastFromSettings(){
 
 
 
-<script>
-/* v41.3 global voice + seconds countdown hardfix */
-(function(){
-  if(window.__v413VoiceSecondsFix) return;
-  window.__v413VoiceSecondsFix = true;
 
-  const firedKey = "v413_boss_fired";
+
+
+
+
+
+<script>
+/* v41.5 FINAL boss voice mute + spawn alert fix */
+(function(){
+  if(window.__v415BossFinalFix) return;
+  window.__v415BossFinalFix = true;
+
+  const firedKey = "v415_boss_fired";
+  const voiceKey = "v415_voice_enabled";
   let fired = {};
   let audioCtx = null;
-  let voiceReady = false;
 
-  function isVoiceEnabled(){
+  try{ fired = JSON.parse(localStorage.getItem(firedKey) || "{}"); }catch(e){ fired = {}; }
+  function saveFired(){ try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){} }
+
+  function readVoiceToggleFromDom(){
     try{
-      const keys = [
-        "voice_enabled","voiceEnabled","sound_enabled","soundEnabled",
-        "alarm_voice_enabled","boss_voice_enabled","v_voice_enabled"
-      ];
-      for(const k of keys){
-        const v = localStorage.getItem(k);
-        if(v !== null){
-          const s = String(v).toLowerCase();
-          if(s === "0" || s === "false" || s === "off" || s === "no") return false;
-          if(s === "1" || s === "true" || s === "on" || s === "yes") return true;
-        }
-      }
-
-      // 설정창 토글/체크박스 DOM 상태 확인
-      const inputs = [...document.querySelectorAll("input[type='checkbox'], input[type='radio']")];
+      const inputs = [...document.querySelectorAll("input[type='checkbox']")];
       for(const el of inputs){
-        const boxText = ((el.closest("label, .setting-card, .panel, div") || {}).innerText || "");
-        if(boxText.includes("음성 알림") || boxText.includes("음성")){
+        const box = el.closest("label, .setting-card, .panel, .modal, div");
+        const text = (box ? box.innerText : "") || "";
+        if(text.includes("음성 알림")){
           return !!el.checked;
         }
       }
 
-      // 버튼형 토글 aria 상태 확인
-      const candidates = [...document.querySelectorAll("[aria-checked], [data-voice-enabled], .voice-toggle, .sound-toggle")];
-      for(const el of candidates){
-        const txt = (el.innerText || "") + " " + (el.getAttribute("aria-label") || "");
-        if(txt.includes("음성") || el.className.toString().includes("voice") || el.className.toString().includes("sound")){
-          const ac = el.getAttribute("aria-checked");
-          if(ac === "false") return false;
-          if(ac === "true") return true;
-          const dv = el.getAttribute("data-voice-enabled");
-          if(dv === "0" || dv === "false") return false;
-          if(dv === "1" || dv === "true") return true;
-          if(el.classList.contains("off") || el.classList.contains("disabled")) return false;
-        }
+      const toggles = [...document.querySelectorAll("[aria-checked], [data-voice-enabled], .voice-toggle, .sound-toggle")];
+      for(const el of toggles){
+        const text = ((el.innerText || "") + " " + (el.getAttribute("aria-label") || "") + " " + el.className).trim();
+        if(!text.includes("음성") && !text.includes("voice") && !text.includes("sound")) continue;
+
+        const ac = el.getAttribute("aria-checked");
+        if(ac === "true") return true;
+        if(ac === "false") return false;
+
+        const dv = el.getAttribute("data-voice-enabled");
+        if(dv === "1" || dv === "true") return true;
+        if(dv === "0" || dv === "false") return false;
+
+        if(el.classList.contains("off") || el.classList.contains("disabled")) return false;
+        if(el.classList.contains("on") || el.classList.contains("active")) return true;
       }
     }catch(e){}
+    return null;
+  }
+
+  function isVoiceEnabled(){
+    const dom = readVoiceToggleFromDom();
+    if(dom !== null){
+      try{ localStorage.setItem(voiceKey, dom ? "1" : "0"); }catch(e){}
+      return dom;
+    }
+
+    try{
+      const v = localStorage.getItem(voiceKey);
+      if(v === "0") return false;
+      if(v === "1") return true;
+    }catch(e){}
+
+    // 기존 저장값도 같이 확인
+    try{
+      const keys = ["voice_enabled","voiceEnabled","sound_enabled","soundEnabled","alarm_voice_enabled","boss_voice_enabled"];
+      for(const k of keys){
+        const v = localStorage.getItem(k);
+        if(v === null) continue;
+        const s = String(v).toLowerCase();
+        if(["0","false","off","no"].includes(s)) return false;
+        if(["1","true","on","yes"].includes(s)) return true;
+      }
+    }catch(e){}
+
     return true;
   }
 
-  try{ fired = JSON.parse(localStorage.getItem(firedKey) || "{}"); }catch(e){ fired = {}; }
-  function saveFired(){ try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){} }
+  function rememberVoiceState(){
+    const dom = readVoiceToggleFromDom();
+    if(dom !== null){
+      try{
+        localStorage.setItem(voiceKey, dom ? "1" : "0");
+        localStorage.setItem("voice_enabled", dom ? "1" : "0");
+      }catch(e){}
+    }
+  }
 
   function getAudioCtx(){
     try{
@@ -5409,26 +5457,27 @@ async function testToastFromSettings(){
   }
 
   function beep(){
+    if(!isVoiceEnabled()) return false;
     try{
       const ctx = getAudioCtx();
       if(!ctx) return false;
 
-      function one(freq, start){
+      function tone(freq, start){
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = "sine";
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
-        gain.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + start + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + 0.32);
+        gain.gain.exponentialRampToValueAtTime(0.20, ctx.currentTime + start + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + 0.30);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(ctx.currentTime + start);
-        osc.stop(ctx.currentTime + start + 0.34);
+        osc.stop(ctx.currentTime + start + 0.32);
       }
 
-      one(880, 0);
-      one(1175, 0.38);
+      tone(880, 0);
+      tone(1175, 0.36);
       return true;
     }catch(e){ return false; }
   }
@@ -5445,17 +5494,18 @@ async function testToastFromSettings(){
     try{
       if("speechSynthesis" in window){
         window.speechSynthesis.getVoices();
-        window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(" ");
         u.lang = "ko-KR";
         u.volume = 0;
+        window.speechSynthesis.cancel();
         window.speechSynthesis.speak(u);
-        voiceReady = true;
       }
     }catch(e){}
   }
 
-  function speak(text){
+  function speak(text, force){
+    if(!force && !isVoiceEnabled()) return false;
+
     try{
       if(!("speechSynthesis" in window)) return false;
 
@@ -5472,17 +5522,8 @@ async function testToastFromSettings(){
 
       window.speechSynthesis.speak(u);
 
-      setTimeout(function(){
-        try{
-          if(window.speechSynthesis.paused) window.speechSynthesis.resume();
-        }catch(e){}
-      }, 250);
-
-      setTimeout(function(){
-        try{
-          if(window.speechSynthesis.paused) window.speechSynthesis.resume();
-        }catch(e){}
-      }, 900);
+      setTimeout(()=>{ try{ if(window.speechSynthesis.paused) window.speechSynthesis.resume(); }catch(e){} }, 250);
+      setTimeout(()=>{ try{ if(window.speechSynthesis.paused) window.speechSynthesis.resume(); }catch(e){} }, 900);
 
       return true;
     }catch(e){
@@ -5490,28 +5531,59 @@ async function testToastFromSettings(){
     }
   }
 
-  // 설정창 음성 테스트 버튼이 이 함수를 사용
-  window.v413VoiceTest = function(){
-    unlockVoice();
-    beep();
-    setTimeout(function(){
-      speak("보스 알림 음성 테스트입니다.");
-    }, 120);
-  };
-
-  window.v413BossNotify = function(name, mark){
-    const msg = String(name || "보스") + " 젠 " + mark + "분 전입니다.";
+  function popup(title, msg){
     try{ if(window.showToast) window.showToast("☠ " + msg); }catch(e){}
     try{
       if("Notification" in window && Notification.permission === "granted"){
-        new Notification("보스 알림", {body:msg});
+        new Notification(title, {body:msg});
       }
     }catch(e){}
+  }
+
+  function notifyBefore(name, mark){
+    const msg = String(name || "보스") + " 젠 " + mark + "분 전입니다.";
+    popup("보스 알림", msg);
+
+    // 음성 OFF면 여기서 음성/삑 완전 차단
     if(isVoiceEnabled()){
       unlockVoice();
       beep();
-      setTimeout(function(){ speak(msg); }, 120);
+      setTimeout(()=>speak(msg, false), 120);
     }
+  }
+
+  function notifySpawn(name){
+    const msg = String(name || "보스") + " 젠되었습니다.";
+    popup("보스 젠", msg);
+
+    // 음성 OFF면 여기서 음성/삑 완전 차단
+    if(isVoiceEnabled()){
+      unlockVoice();
+      beep();
+      setTimeout(()=>speak(msg, false), 120);
+    }
+  }
+
+  // 테스트 버튼은 사용자가 직접 누른 것이므로 OFF여도 테스트 음성은 나옴
+  window.v415VoiceTest = function(){
+    rememberVoiceState();
+    unlockVoice();
+    try{
+      const ctx = getAudioCtx();
+      if(ctx){
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.38);
+      }
+    }catch(e){}
+    setTimeout(()=>speak("보스 알림 음성 테스트입니다.", true), 120);
   };
 
   function parseTarget(raw){
@@ -5521,12 +5593,12 @@ async function testToastFromSettings(){
     return d;
   }
 
-  function formatLeft(totalSec){
-    if(totalSec < 0) return "종료";
-    if(totalSec <= 0) return "곧 젠";
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
+  function formatLeft(sec){
+    if(sec < 0) return "종료";
+    if(sec === 0) return "곧 젠";
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
     if(h > 0) return "젠 " + h + "시간 " + m + "분 " + s + "초 남음";
     if(m > 0) return "젠 " + m + "분 " + s + "초 남음";
     return "젠 " + s + "초 남음";
@@ -5535,36 +5607,74 @@ async function testToastFromSettings(){
   function bossItems(){
     return [...document.querySelectorAll("[data-boss-target]")].map(el=>{
       return {
-        el: el,
+        el,
         name: el.getAttribute("data-boss-name") || "보스",
         target: parseTarget(el.getAttribute("data-boss-target"))
       };
     }).filter(x=>x.target);
   }
 
+  function fireOnce(key, cb){
+    if(fired[key]) return;
+    fired[key] = Date.now();
+    saveFired();
+    cb();
+  }
+
   function tick(){
+    rememberVoiceState();
+
     const now = Date.now();
     bossItems().forEach(item=>{
       const sec = Math.ceil((item.target.getTime() - now) / 1000);
       item.el.textContent = formatLeft(sec);
 
+      // 30/15/5분 전 알림
       [30,15,5].forEach(mark=>{
         const markSec = mark * 60;
-        // 1초 갱신이라 해당 구간 5초 안에 들어오면 한번만 울림
         if(sec <= markSec && sec >= markSec - 5){
-          const key = item.name + "_" + item.target.getTime() + "_" + mark;
-          if(!fired[key]){
-            fired[key] = Date.now();
-            saveFired();
-            window.v413BossNotify(item.name, mark);
-          }
+          const key = item.name + "_" + item.target.getTime() + "_before_" + mark;
+          fireOnce(key, ()=>notifyBefore(item.name, mark));
         }
       });
+
+      // 젠 완료 알림: 0초부터 -5초 사이 1회
+      if(sec <= 0 && sec >= -5){
+        const key = item.name + "_" + item.target.getTime() + "_spawned";
+        fireOnce(key, ()=>notifySpawn(item.name));
+      }
     });
   }
 
-  // 유저 동작으로 브라우저 오디오 잠금 해제
-  ["click","keydown","pointerdown","touchstart"].forEach(ev=>{
+  // 설정 토글 상태 저장
+  document.addEventListener("change", function(e){
+    const el = e.target;
+    if(!el) return;
+    const text = ((el.closest("label, .setting-card, .panel, .modal, div") || {}).innerText || "");
+    if(text.includes("음성 알림") || text.includes("음성")){
+      rememberVoiceState();
+    }
+  }, true);
+
+  document.addEventListener("click", function(e){
+    const el = e.target;
+    if(!el) return;
+    const text = (el.innerText || el.value || "").trim();
+
+    if(text.includes("음성 테스트")){
+      setTimeout(window.v415VoiceTest, 50);
+      return;
+    }
+
+    if(text.includes("음성 알림") || text.includes("음소거")){
+      setTimeout(rememberVoiceState, 80);
+      return;
+    }
+
+    unlockVoice();
+  }, true);
+
+  ["keydown","pointerdown","touchstart"].forEach(ev=>{
     window.addEventListener(ev, unlockVoice, {passive:true});
   });
 
@@ -5572,62 +5682,14 @@ async function testToastFromSettings(){
     try{ window.speechSynthesis.onvoiceschanged = getKoreanVoice; }catch(e){}
   }
 
-  // 설정창의 음성 테스트 버튼을 강제로 연결
-  document.addEventListener("click", function(e){
-    const el = e.target;
-    if(!el) return;
-    const text = (el.innerText || el.value || "").trim();
-    if(text.includes("음성 테스트")){
-      setTimeout(window.v413VoiceTest, 50);
-    }
-  }, true);
-
   try{
     if(location.search.includes("voice_test=1")){
-      setTimeout(window.v413VoiceTest, 800);
+      setTimeout(window.v415VoiceTest, 800);
     }
   }catch(e){}
 
   setInterval(tick, 1000);
   setTimeout(tick, 300);
-})();
-</script>
-
-
-<script>
-/* v41.4 voice mute state watcher */
-(function(){
-  if(window.__v414VoiceMuteWatcher) return;
-  window.__v414VoiceMuteWatcher = true;
-
-  document.addEventListener("change", function(e){
-    const el = e.target;
-    if(!el) return;
-    const text = ((el.closest("label, .setting-card, .panel, div") || {}).innerText || "");
-    if(text.includes("음성 알림") || text.includes("음성")){
-      try{ localStorage.setItem("voice_enabled", el.checked ? "1" : "0"); }catch(err){}
-    }
-  }, true);
-
-  document.addEventListener("click", function(e){
-    const el = e.target;
-    if(!el) return;
-    const text = (el.innerText || el.value || "").trim();
-    if(text.includes("음성 알림") || text.includes("음소거")){
-      setTimeout(function(){
-        try{
-          const inputs = [...document.querySelectorAll("input[type='checkbox']")];
-          for(const input of inputs){
-            const t = ((input.closest("label, .setting-card, .panel, div") || {}).innerText || "");
-            if(t.includes("음성 알림") || t.includes("음성")){
-              localStorage.setItem("voice_enabled", input.checked ? "1" : "0");
-              break;
-            }
-          }
-        }catch(err){}
-      }, 80);
-    }
-  }, true);
 })();
 </script>
 

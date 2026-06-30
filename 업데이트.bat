@@ -2,6 +2,6 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 git add .
-git commit -m "v40.7 boss time voice fix"
+git commit -m "v40.8 voice unlock fix"
 git push
 pause

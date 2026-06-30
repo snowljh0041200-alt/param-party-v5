@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "40.7"
+APP_VERSION = "40.8"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -4194,6 +4194,12 @@ select[name="place"] option[value="도삭산900층빽"]{
   display:none!important;
 }
 
+
+/* v40.8 voice unlock helper */
+.v407-boss-remain{
+  user-select:none;
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -5276,42 +5282,140 @@ async function testToastFromSettings(){
 </script>
 
 
-<script>
-/* v40.7 boss time + voice alert fix */
-(function(){
-  if(window.__v407BossVoiceFix) return;
-  window.__v407BossVoiceFix = true;
 
-  const firedKey = "v407_boss_voice_fired";
+
+
+<script>
+/* v40.8 boss voice unlock + fallback fix */
+(function(){
+  if(window.__v408BossVoiceFix) return;
+  window.__v408BossVoiceFix = true;
+
+  const firedKey = "v408_boss_voice_fired";
+  const unlockKey = "v408_voice_unlocked";
   let fired = {};
+  let audioCtx = null;
+  let voiceUnlocked = localStorage.getItem(unlockKey) === "1";
+
   try{ fired = JSON.parse(localStorage.getItem(firedKey) || "{}"); }catch(e){ fired = {}; }
 
   function saveFired(){
     try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){}
   }
 
-  function speakBoss(msg){
+  function beep(){
     try{
-      if(!("speechSynthesis" in window)) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      if(!audioCtx) audioCtx = new AC();
+      if(audioCtx.state === "suspended") audioCtx.resume();
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.38);
+    }catch(e){}
+  }
+
+  function unlockVoice(){
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(AC && !audioCtx) audioCtx = new AC();
+      if(audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    }catch(e){}
+
+    try{
+      if("speechSynthesis" in window){
+        const u = new SpeechSynthesisUtterance(" ");
+        u.lang = "ko-KR";
+        u.volume = 0;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(u);
+        voiceUnlocked = true;
+        localStorage.setItem(unlockKey, "1");
+      }
+    }catch(e){}
+
+    // 너무 시끄럽지 않게 첫 클릭에서는 삑소리 없음
+  }
+
+  ["click","keydown","touchstart","pointerdown"].forEach(ev=>{
+    window.addEventListener(ev, unlockVoice, {once:false, passive:true});
+  });
+
+  function getKoreanVoice(){
+    try{
+      const voices = window.speechSynthesis.getVoices() || [];
+      return voices.find(v => /ko|Korean|한국/i.test((v.lang || "") + " " + (v.name || ""))) || voices[0] || null;
+    }catch(e){ return null; }
+  }
+
+  if("speechSynthesis" in window){
+    try{ window.speechSynthesis.onvoiceschanged = getKoreanVoice; }catch(e){}
+  }
+
+  function speakBoss(msg){
+    let spoken = false;
+    try{
+      if(!("speechSynthesis" in window)) return false;
+
+      // 오래 켜둔 크롬에서 멈추는 문제 방지
+      window.speechSynthesis.cancel();
+
       const u = new SpeechSynthesisUtterance(msg);
       u.lang = "ko-KR";
-      u.rate = 1.02;
+      u.rate = 1.0;
       u.pitch = 1.0;
-      window.speechSynthesis.cancel();
+      u.volume = 1.0;
+
+      const voice = getKoreanVoice();
+      if(voice) u.voice = voice;
+
+      u.onstart = function(){ spoken = true; };
       window.speechSynthesis.speak(u);
-    }catch(e){}
+
+      setTimeout(function(){
+        if(window.speechSynthesis.paused){
+          try{ window.speechSynthesis.resume(); }catch(e){}
+        }
+      }, 250);
+
+      return true;
+    }catch(e){
+      return false;
+    }
   }
 
   function notifyBoss(title, msg){
     try{
       if(window.showToast) window.showToast("☠ " + msg);
     }catch(e){}
+
     try{
       if("Notification" in window && Notification.permission === "granted"){
         new Notification(title, { body: msg });
       }
     }catch(e){}
-    speakBoss(msg);
+
+    const ok = speakBoss(msg);
+
+    // 음성 자체가 막힌 환경에서도 청각 알림은 남기기
+    setTimeout(function(){
+      try{
+        if(!("speechSynthesis" in window) || !window.speechSynthesis.speaking){
+          beep();
+        }
+      }catch(e){
+        beep();
+      }
+    }, 500);
   }
 
   function parseKoreanTime(text){
@@ -5359,7 +5463,6 @@ async function testToastFromSettings(){
     }
     badge.textContent = text;
 
-    // 기존 잘못 찍힌 종료 텍스트가 단순 span/badge면 숨김 처리
     el.querySelectorAll(".remain, .schedule-left-v363, .tag").forEach(x=>{
       if(x !== badge && (x.textContent || "").trim() === "종료"){
         x.classList.add("v407-hide-wrong-ended");
@@ -5389,6 +5492,7 @@ async function testToastFromSettings(){
       upsertRemainBadge(el, label);
 
       [30,15,5].forEach(mark=>{
+        // 10초 폴링이라 정확한 순간을 놓치지 않게 0~10초 오차 허용
         if(mins === mark){
           const key = name + "_" + dt.getTime() + "_" + mark;
           if(!fired[key]){
@@ -5400,6 +5504,16 @@ async function testToastFromSettings(){
       });
     });
   }
+
+  // 설정창 없이도 테스트 가능: 주소창 뒤에 ?voice_test=1 붙이면 즉시 테스트
+  try{
+    if(location.search.includes("voice_test=1")){
+      setTimeout(function(){
+        unlockVoice();
+        notifyBoss("음성 테스트", "보스 알림 음성 테스트입니다.");
+      }, 800);
+    }
+  }catch(e){}
 
   setInterval(tickBoss, 10000);
   setTimeout(tickBoss, 800);

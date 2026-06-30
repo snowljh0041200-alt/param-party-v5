@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "40.2"
+APP_VERSION = "40.3"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -5150,7 +5150,46 @@ async function testToastFromSettings(){
   });
 })();
 
-</script></body></html>"""
+</script>
+<script>
+/* v40.3 realtime board version refresh */
+(function(){
+  if(window.__v403BoardVersionRefresh) return;
+  window.__v403BoardVersionRefresh = true;
+
+  let first = true;
+  let last = null;
+  let reloading = false;
+
+  async function checkBoardVersion(){
+    try{
+      const r = await fetch("/api/board_version?_=" + Date.now(), {cache:"no-store"});
+      if(!r.ok) return;
+      const d = await r.json();
+      const v = Number(d.version || 0);
+
+      if(first){
+        first = false;
+        last = v;
+        return;
+      }
+
+      if(last !== null && v !== last && !reloading){
+        reloading = true;
+        setTimeout(function(){ location.reload(); }, 250);
+        return;
+      }
+
+      last = v;
+    }catch(e){}
+  }
+
+  setInterval(checkBoardVersion, 2000);
+  setTimeout(checkBoardVersion, 800);
+})();
+</script>
+
+</body></html>"""
 
 def render(page, **kw):
     kw.setdefault("title", APP_TITLE)
@@ -5288,6 +5327,14 @@ T_EDIT_CHAR_SAFE_V372 = """
 </body>
 </html>
 """
+
+
+def mark_board_changed(d):
+    try:
+        d["board_version"] = int(d.get("board_version", 0)) + 1
+        d["board_changed_at"] = now().isoformat(timespec="seconds")
+    except Exception:
+        pass
 
 @app.route("/delete_char/<cid>")
 def delete_char(cid):
@@ -5778,6 +5825,7 @@ def create():
             job=request.form.get(f"slot_job_{i}")
             if job: slots.append({"job":job,"uid":"","label":"","external":""})
     d["posts"].append({"id":nid(),"category":cat,"place":request.form.get(f"place_{cat}",""),"channel":digits(request.form.get("channel"),4),"date":request.form.get("date") or today(),"start_time":to24(request.form.get("start_period"),request.form.get("start_time")),"end_time":to24(request.form.get("end_period"),request.form.get("end_time")),"memo":request.form.get("memo",""),"owner_uid":u["id"],"owner_label":char_label(c),"created":now_text(),"closed":False,"slots":slots,"participants":[],"chat":[]})
+    mark_board_changed(d)
     save(d); return redirect("/")
 
 
@@ -5806,6 +5854,7 @@ def choose_slot(pid, i):
             msg = action_msg(p, f"{char_label(chosen)}님이 {slot.get('job','')} 자리에 참여했습니다.")
             system_notify(d, msg)
             auto_close_full_posts(d)
+            mark_board_changed(d)
             save(d)
         return toast_redirect("/", msg) if msg else redirect("/")
     return render("""
@@ -5845,6 +5894,7 @@ def choose_participant(pid):
                     refresh_post_status_after_member_change(d, p)
                     msg = action_msg(p, f"{char_label(chosen)}님이 참여했습니다.")
                     system_notify(d, msg)
+                    mark_board_changed(d)
                     save(d)
         return toast_redirect("/", msg) if msg else redirect("/")
     return render("""
@@ -5941,6 +5991,7 @@ def join_slot(pid,i):
             msg = action_msg(p, f"{actor_label(u)}님이 {job} 자리에 참여했습니다.")
             system_notify(d, msg)
         auto_close_full_posts(d)
+        mark_board_changed(d)
         save(d)
     return toast_redirect("/", msg) if msg else redirect("/")
 
@@ -5955,6 +6006,7 @@ def leave_slot(pid,i):
         refresh_post_status_after_member_change(d, p)
         msg = action_msg(p, f"{job} 자리의 {old}님이 참여를 취소했습니다.")
         system_notify(d, msg)
+        mark_board_changed(d)
         save(d)
     return toast_redirect("/", msg) if msg else redirect("/")
 
@@ -5983,6 +6035,7 @@ def remove_external_slot(pid, i):
         refresh_post_status_after_member_change(d, p)
         msg = action_msg(p, f"{job} 자리의 {old}님이 제거되었습니다.")
         system_notify(d, msg)
+        mark_board_changed(d)
         save(d)
     return toast_redirect("/", msg) if msg else redirect("/")
 
@@ -6000,6 +6053,7 @@ def manage_clear_slot(pid, i):
         p["slots"][i].update({"uid": "", "label": "", "char_id": "", "external": ""})
         system_notify(d, f"❌ {actor_label(u)}님이 [{post_title(p)}] {job} 자리의 {old}님을 제거했습니다.")
         refresh_post_status_after_member_change(d, p)
+        mark_board_changed(d)
         save(d)
     return redirect(f"/edit/{pid}")
 
@@ -6029,6 +6083,7 @@ def manage_choose_slot(pid, i):
                 slot.update({"uid": c["uid"], "char_id": c["char_id"], "label": c["label"], "external": ""})
                 system_notify(d, f"✅ {actor_label(u)}님이 [{post_title(p)}] {slot.get('job','')} 자리에 {c['label']}님을 추가했습니다.")
                 refresh_post_status_after_member_change(d, p)
+                mark_board_changed(d)
                 save(d)
                 return redirect(f"/edit/{pid}")
     return render("""
@@ -6077,6 +6132,7 @@ def external_slot(pid, i):
             refresh_post_status_after_member_change(d, p)
             msg = action_msg(p, f"{job} 자리에 외부인 {name}님이 추가되었습니다.")
             system_notify(d, msg)
+            mark_board_changed(d)
             save(d)
             return toast_redirect(next_url or "/", msg)
         return redirect(next_url or "/")
@@ -6201,6 +6257,7 @@ def edit_add_job_slot(pid):
         refresh_post_status_after_member_change(d, p)
         msg = action_msg(p, f"{job} 자리가 추가되었습니다.")
         system_notify(d, msg)
+        mark_board_changed(d)
         save(d)
     return toast_redirect(f"/edit/{pid}", msg) if msg else redirect(f"/edit/{pid}")
 
@@ -6220,6 +6277,7 @@ def edit_remove_job_slot(pid, i):
         refresh_post_status_after_member_change(d, p)
         msg = action_msg(p, f"{removed_job} 자리가 제거되었습니다.")
         system_notify(d, msg)
+        mark_board_changed(d)
         save(d)
     return toast_redirect(f"/edit/{pid}", msg) if msg else redirect(f"/edit/{pid}")
 
@@ -6228,6 +6286,7 @@ def edit_remove_job_slot(pid, i):
 def close(pid):
     d = load()
     if normalize_existing_approved_members(d):
+        mark_board_changed(d)
         save(d)
     u = cur_user(d)
     p = find_post(d, pid)
@@ -6242,6 +6301,7 @@ def close(pid):
 def delete(pid):
     d=load(); u=cur_user(d)
     d["posts"]=[p for p in d["posts"] if not (p["id"]==pid and can_manage_post(u, p))]
+    mark_board_changed(d)
     save(d); return redirect("/")
 
 
@@ -6264,6 +6324,7 @@ def farm_result(pid):
     p.setdefault("late_ids", [])
     p.setdefault("early_weight", "1.0")
     p.setdefault("late_weight", "0.88")
+    mark_board_changed(d)
     save(d)
     return redirect("/")
 
@@ -6307,6 +6368,16 @@ def api_alerts():
 
 
 
+
+
+@app.route("/api/board_version")
+def api_board_version():
+    d = load()
+    return {
+        "ok": True,
+        "version": int(d.get("board_version", 0)),
+        "changed_at": d.get("board_changed_at", "")
+    }
 
 @app.route("/api/global_chat", methods=["GET","POST"])
 def api_global_chat():
@@ -6595,6 +6666,7 @@ def admin_delete_post(pid):
     d=load(); u=cur_user(d)
     if is_admin(u):
         d["posts"]=[p for p in d.get("posts", []) if p.get("id") != pid]
+        mark_board_changed(d)
         save(d)
     return redirect("/admin")
 
@@ -6603,6 +6675,7 @@ def admin_clear_posts_category(category):
     d=load(); u=cur_user(d)
     if is_admin(u) and category in ["사냥","파밍","600퀘","승급지원"]:
         d["posts"]=[p for p in d.get("posts", []) if p.get("category") != category]
+        mark_board_changed(d)
         save(d)
     return redirect("/admin")
 
@@ -6611,6 +6684,7 @@ def admin_clear_posts():
     d=load(); u=cur_user(d)
     if is_admin(u):
         d["posts"]=[]
+        mark_board_changed(d)
         save(d)
     return redirect("/admin")
 

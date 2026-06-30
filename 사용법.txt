@@ -1,17 +1,26 @@
-v40.2 RESTORE V40 JUSUL FIRE ONLY
+v40.3 REALTIME BOARD VERSION REFRESH
 
 기준:
-- v40.0 MMORPG UI remaster
+- v40.2 디자인 안정판
 
 수정:
-- v40.1에서 깨진 슬롯 레이아웃 원복
-- v40.0 디자인 그대로 유지
-- 주술사/현자/현인/마신/마성만 🔥 아이콘 적용
-- 도사/진선/진인/명인은 🙏 유지
-- 기능/라우트/DB/API 변경 없음
-- 컴파일 통과
+- 다른 사람이 모집글 삭제/변경 시 내 화면도 자동 갱신
+- /api/alerts는 건드리지 않음
+- 새 API /api/board_version 추가
+- 모집글 변경 시 board_version 증가
+- 브라우저가 2초마다 버전 확인 후 변경 시 새로고침
+- 토스트/크롬알림 중복 문제 방지
+
+적용되는 변경:
+- 모집글 생성
+- 참여/취소
+- 외부참여/외부제거
+- 모집완료
+- 수정
+- 삭제
+- 관리자 삭제/전체삭제
 
 배포:
 git add .
-git commit -m "v40.2 restore v40 jusul fire only"
+git commit -m "v40.3 realtime board version refresh"
 git push

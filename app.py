@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "40.9"
+APP_VERSION = "41.0"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1571,12 +1571,43 @@ def approved_chars(u):
     return [c for c in u.get("chars", []) if c.get("status") == "approved"]
 
 def post_datetime(p):
-    # 파밍은 종료시간을 젠시간으로 봅니다. 예: 08:00~09:00이면 09:00 젠
-    base_time = p.get("end_time") if p.get("category") == "파밍" and p.get("end_time") else p.get("start_time")
+    """
+    파밍/보스 알림 시간 계산.
+    - 파밍은 반드시 종료시간(end_time)을 젠시간으로 사용
+    - 예: 11:53 ~ 12:09 를 사용자가 오전으로 둬도 낮 12:09로 자동 보정
+    - 일반적인 자정 넘김도 보정
+    """
     try:
-        return datetime.fromisoformat(f"{p.get('date') or today()}T{base_time or '00:00'}").replace(tzinfo=KST)
+        date_s = p.get("date") or today()
+        start_s = p.get("start_time") or "00:00"
+        end_s = p.get("end_time") or start_s
+
+        start_dt = datetime.fromisoformat(f"{date_s}T{start_s}").replace(tzinfo=KST)
+
+        if p.get("category") == "파밍":
+            target_dt = datetime.fromisoformat(f"{date_s}T{end_s}").replace(tzinfo=KST)
+
+            # 핵심 보정:
+            # 오전 11:53 ~ 오전 12:09 로 저장된 경우 end_s는 00:09가 되어 과거로 잡힘.
+            # 시작이 오전 10~11시이고 종료가 00시대면 낮 12시대로 보정.
+            if target_dt <= start_dt:
+                try:
+                    sh = int(str(start_s).split(":")[0])
+                    eh = int(str(end_s).split(":")[0])
+                except Exception:
+                    sh, eh = 0, 0
+
+                if sh in (10, 11) and eh == 0:
+                    target_dt = target_dt + timedelta(hours=12)
+                else:
+                    target_dt = target_dt + timedelta(days=1)
+
+            return target_dt
+
+        return start_dt
     except Exception:
         return now()
+
 
 
 
@@ -4177,11 +4208,10 @@ select[name="place"] option[value="도삭산900층빽"]{
 }
 
 
-/* v40.7 boss remain badge fix */
-.v407-boss-remain{
+/* v41.0 boss server target */
+.schedule-left-v363[data-boss-target]{
   display:inline-flex!important;
   width:max-content!important;
-  margin-top:6px!important;
   padding:4px 9px!important;
   border-radius:999px!important;
   border:1px solid rgba(245,212,138,.45)!important;
@@ -4189,15 +4219,6 @@ select[name="place"] option[value="도삭산900층빽"]{
   background:rgba(192,139,53,.12)!important;
   font-weight:900!important;
   font-size:13px!important;
-}
-.v407-hide-wrong-ended{
-  display:none!important;
-}
-
-
-/* v40.8 voice unlock helper */
-.v407-boss-remain{
-  user-select:none;
 }
 
 </style></head><body><div class='wrap'>"""
@@ -5282,49 +5303,42 @@ async function testToastFromSettings(){
 </script>
 
 
-
-
-
-
-
-
 <script>
-/* v40.9 boss end-time voice hardfix */
+/* v41.0 boss voice from server target */
 (function(){
-  if(window.__v409BossVoiceHardfix) return;
-  window.__v409BossVoiceHardfix = true;
+  if(window.__v410BossVoice) return;
+  window.__v410BossVoice = true;
 
-  const firedKey = "v409_boss_voice_fired";
+  const firedKey = "v410_boss_fired";
   let fired = {};
   let audioCtx = null;
-  let voiceReady = false;
 
   try{ fired = JSON.parse(localStorage.getItem(firedKey) || "{}"); }catch(e){ fired = {}; }
   function saveFired(){ try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){} }
 
-  function makeVoiceButton(){
-    if(document.getElementById("v409VoiceBtn")) return;
+  function ensureVoiceButton(){
+    if(document.getElementById("v410VoiceBtn")) return;
     const btn = document.createElement("button");
-    btn.id = "v409VoiceBtn";
+    btn.id = "v410VoiceBtn";
     btn.type = "button";
     btn.textContent = "🔊 음성켜기";
     btn.style.cssText = "position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:999px;border:1px solid rgba(245,212,138,.55);background:linear-gradient(180deg,#4b3215,#15100a);color:#ffe7a0;font-weight:900;box-shadow:0 8px 20px rgba(0,0,0,.35);";
     btn.onclick = function(){
-      unlockAudio(true);
-      testVoice("음성 알림이 켜졌습니다.");
+      unlockAudio();
+      speak("음성 알림이 켜졌습니다.");
+      beep();
       btn.textContent = "🔊 음성 켜짐";
-      setTimeout(()=>{ btn.style.opacity = "0.45"; }, 1200);
+      setTimeout(()=>{ btn.style.opacity = ".45"; }, 1300);
     };
     document.body.appendChild(btn);
   }
 
-  function unlockAudio(withBeep){
+  function unlockAudio(){
     try{
       const AC = window.AudioContext || window.webkitAudioContext;
       if(AC && !audioCtx) audioCtx = new AC();
       if(audioCtx && audioCtx.state === "suspended") audioCtx.resume();
     }catch(e){}
-
     try{
       if("speechSynthesis" in window){
         window.speechSynthesis.getVoices();
@@ -5333,11 +5347,8 @@ async function testToastFromSettings(){
         u.volume = 0;
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(u);
-        voiceReady = true;
       }
     }catch(e){}
-
-    if(withBeep) beep();
   }
 
   function beep(){
@@ -5346,12 +5357,13 @@ async function testToastFromSettings(){
       if(!AC) return;
       if(!audioCtx) audioCtx = new AC();
       if(audioCtx.state === "suspended") audioCtx.resume();
+
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = "sine";
       osc.frequency.value = 880;
+      osc.type = "sine";
       gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.20, audioCtx.currentTime + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.22, audioCtx.currentTime + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.42);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
@@ -5360,29 +5372,28 @@ async function testToastFromSettings(){
     }catch(e){}
   }
 
-  function getKoreanVoice(){
+  function getVoice(){
     try{
       const voices = window.speechSynthesis.getVoices() || [];
       return voices.find(v => /ko|Korean|한국/i.test((v.lang||"") + " " + (v.name||""))) || voices[0] || null;
     }catch(e){ return null; }
   }
 
-  function testVoice(msg){
+  function speak(msg){
     try{
-      if(!("speechSynthesis" in window)){ beep(); return false; }
+      if(!("speechSynthesis" in window)) return false;
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(msg);
       u.lang = "ko-KR";
-      u.volume = 1;
       u.rate = 1;
       u.pitch = 1;
-      const v = getKoreanVoice();
+      u.volume = 1;
+      const v = getVoice();
       if(v) u.voice = v;
       window.speechSynthesis.speak(u);
       setTimeout(()=>{ try{ window.speechSynthesis.resume(); }catch(e){} }, 250);
       return true;
     }catch(e){
-      beep();
       return false;
     }
   }
@@ -5396,99 +5407,57 @@ async function testToastFromSettings(){
       }
     }catch(e){}
     beep();
-    testVoice(msg);
+    speak(msg);
   }
 
-  // 핵심 수정: 카드 안의 시간 중 "마지막 오전/오후 시간"을 젠시간으로 사용
-  // 예: 오전 11:37 ~ 오전 11:43 이면 11:43을 사용
-  function parseBossEndTime(text){
-    const dateMatch = text.match(/(20\d{2}-\d{2}-\d{2})/);
-    if(!dateMatch) return null;
-
-    const timeMatches = [...text.matchAll(/(오전|오후)\s*(\d{1,2})(?::?(\d{2}))?/g)];
-    if(!timeMatches.length) return null;
-
-    const mLast = timeMatches[timeMatches.length - 1];
-    const [y,mo,d] = dateMatch[1].split("-").map(Number);
-    let h = Number(mLast[2]);
-    let mi = Number(mLast[3] || "0");
-
-    if(mLast[1] === "오후" && h < 12) h += 12;
-    if(mLast[1] === "오전" && h === 12) h = 0;
-
-    return new Date(y, mo-1, d, h, mi, 0, 0);
+  function parseTarget(raw){
+    if(!raw) return null;
+    const d = new Date(raw);
+    if(isNaN(d.getTime())) return null;
+    return d;
   }
 
-  function getBossCards(){
-    const cards = [];
-    document.querySelectorAll(".schedule-panel .schedule-item, .schedule-panel .schedule-item-v363, .schedule-item, .schedule-item-v363").forEach(el=>{
-      const t = el.innerText || "";
-      if(t.match(/20\d{2}-\d{2}-\d{2}/) && t.match(/오전|오후/)) cards.push(el);
-    });
-    return cards;
+  function bossItems(){
+    return [...document.querySelectorAll("[data-boss-target]")].map(el=>{
+      return {
+        el,
+        name: el.getAttribute("data-boss-name") || "보스",
+        target: parseTarget(el.getAttribute("data-boss-target"))
+      };
+    }).filter(x=>x.target);
   }
 
-  function bossNameFromCard(el){
-    const lines = (el.innerText || "").split(/\n+/).map(x=>x.trim()).filter(Boolean);
-    for(const line of lines){
-      if(!line.match(/20\d{2}-\d{2}-\d{2}/) && !line.includes("젠") && !line.includes("종료") && !line.includes("분 남음")){
-        return line.replace(/[☠💀🦷⛰️⛰🏔️🏔◆📅⏰⌛]/g, "").trim() || "보스";
-      }
+  function setText(el, mins){
+    if(mins < 0){
+      el.textContent = "종료";
+      return;
     }
-    return "보스";
-  }
-
-  function upsertRemainBadge(el, text){
-    let badge = el.querySelector(".v407-boss-remain");
-    if(!badge){
-      badge = document.createElement("span");
-      badge.className = "v407-boss-remain";
-      el.appendChild(badge);
+    if(mins === 0){
+      el.textContent = "곧 젠";
+      return;
     }
-    badge.textContent = text;
-
-    el.querySelectorAll(".remain, .schedule-left-v363, .tag").forEach(x=>{
-      const tx = (x.textContent || "").trim();
-      if(x !== badge && (tx === "종료" || tx.match(/^젠\s+\d+분/))){
-        x.classList.add("v407-hide-wrong-ended");
-      }
-    });
+    if(mins < 60){
+      el.textContent = "젠 " + mins + "분 남음";
+      return;
+    }
+    el.textContent = "젠 " + Math.floor(mins/60) + "시간 " + (mins%60) + "분 남음";
   }
 
-  function tickBoss(){
-    const now = new Date();
-    getBossCards().forEach(el=>{
-      const end = parseBossEndTime(el.innerText || "");
-      if(!end) return;
+  function tick(){
+    const now = Date.now();
+    bossItems().forEach(item=>{
+      const mins = Math.ceil((item.target.getTime() - now) / 60000);
+      setText(item.el, mins);
 
-      const mins = Math.ceil((end.getTime() - now.getTime()) / 60000);
-      const name = bossNameFromCard(el);
-
-      if(mins < 0){
-        upsertRemainBadge(el, "종료");
-        return;
-      }
-
-      let label = "";
-      if(mins === 0) label = "곧 젠";
-      else if(mins < 60) label = "젠 " + mins + "분 남음";
-      else label = "젠 " + Math.floor(mins/60) + "시간 " + (mins%60) + "분 남음";
-      upsertRemainBadge(el, label);
-
-      // 정확한 순간을 놓쳐도 작동:
-      // 30분: 30 이하가 처음 감지되면 발화
-      // 15분: 15 이하가 처음 감지되면 발화
-      // 5분: 5 이하가 처음 감지되면 발화
       [30,15,5].forEach(mark=>{
         if(mins <= mark && mins >= 0){
-          const key = name + "_" + end.getTime() + "_" + mark;
-          // 단, 30분 알림이 3분에 갑자기 울리는 걸 막기 위해 단계별 범위 제한
           if(mark === 30 && mins < 16) return;
           if(mark === 15 && mins < 6) return;
+          const key = item.name + "_" + item.target.getTime() + "_" + mark;
           if(!fired[key]){
             fired[key] = Date.now();
             saveFired();
-            notifyBoss(name, mark);
+            notifyBoss(item.name, mark);
           }
         }
       });
@@ -5496,26 +5465,27 @@ async function testToastFromSettings(){
   }
 
   ["click","keydown","pointerdown","touchstart"].forEach(ev=>{
-    window.addEventListener(ev, ()=>unlockAudio(false), {passive:true});
+    window.addEventListener(ev, unlockAudio, {passive:true});
   });
 
   if("speechSynthesis" in window){
-    try{ window.speechSynthesis.onvoiceschanged = getKoreanVoice; }catch(e){}
+    try{ window.speechSynthesis.onvoiceschanged = getVoice; }catch(e){}
   }
 
-  makeVoiceButton();
+  ensureVoiceButton();
 
   try{
     if(location.search.includes("voice_test=1")){
-      setTimeout(()=>{
-        unlockAudio(true);
-        testVoice("보스 알림 음성 테스트입니다.");
-      }, 700);
+      setTimeout(function(){
+        unlockAudio();
+        beep();
+        speak("보스 알림 음성 테스트입니다.");
+      }, 800);
     }
   }catch(e){}
 
-  setInterval(tickBoss, 5000);
-  setTimeout(tickBoss, 700);
+  setInterval(tick, 5000);
+  setTimeout(tick, 500);
 })();
 </script>
 
@@ -5668,85 +5638,6 @@ def mark_board_changed(d):
 
 
 EXTRA_HUNT_PLACES_V404 = ["도삭산800층", "도삭산900층빽"]
-
-def parse_ampm_time_v407(date_s, ampm_s, time_s):
-    """보스/파밍 알림용 안전 시간 파서. 오전/오후 + HHMM/HH:MM 모두 처리."""
-    try:
-        ds = str(date_s or "").strip()
-        ap = str(ampm_s or "").strip()
-        ts = str(time_s or "").strip().replace(":", "").replace(" ", "")
-
-        if not ds or not ts:
-            return None
-
-        if len(ts) <= 2:
-            h = int(ts)
-            m = 0
-        else:
-            h = int(ts[:-2])
-            m = int(ts[-2:])
-
-        if ap == "오후" and h < 12:
-            h += 12
-        if ap == "오전" and h == 12:
-            h = 0
-
-        y, mo, d = [int(x) for x in ds.split("-")[:3]]
-        return datetime(y, mo, d, h, m, tzinfo=KST)
-    except Exception:
-        return None
-
-def boss_remain_minutes_v407(p):
-    try:
-        end_dt = None
-
-        # 다양한 저장 구조 대응
-        if isinstance(p, dict):
-            date_s = p.get("date") or p.get("day") or ""
-            end_ampm = p.get("end_ampm") or p.get("end_ap") or p.get("ampm_end") or ""
-            end_time = p.get("end_time") or p.get("time") or p.get("boss_time") or ""
-            start_ampm = p.get("start_ampm") or p.get("start_ap") or p.get("ampm_start") or ""
-            start_time = p.get("start_time") or ""
-
-            end_dt = parse_ampm_time_v407(date_s, end_ampm, end_time)
-
-            # 보스 알림류는 end_time이 없고 start_time만 있는 경우도 있음
-            if end_dt is None:
-                end_dt = parse_ampm_time_v407(date_s, start_ampm, start_time)
-
-            # 이미 ISO 시간이 저장된 경우
-            for key in ("boss_at", "spawn_at", "end_at", "target_at"):
-                if end_dt is None and p.get(key):
-                    try:
-                        raw = str(p.get(key))
-                        end_dt = datetime.fromisoformat(raw)
-                        if end_dt.tzinfo is None:
-                            end_dt = end_dt.replace(tzinfo=KST)
-                    except Exception:
-                        pass
-
-        if end_dt is None:
-            return None
-
-        return int((end_dt - now()).total_seconds() // 60)
-    except Exception:
-        return None
-
-@app.template_filter("boss_remain_text_v407")
-def boss_remain_text_v407(p):
-    mins = boss_remain_minutes_v407(p)
-    if mins is None:
-        return "시간 확인"
-    if mins < 0:
-        return "종료"
-    if mins == 0:
-        return "곧 젠"
-    if mins < 60:
-        return f"젠 {mins}분 남음"
-    h = mins // 60
-    m = mins % 60
-    return f"젠 {h}시간 {m}분 남음"
-
 @app.route("/delete_char/<cid>")
 def delete_char(cid):
     d = load()
@@ -5954,8 +5845,8 @@ T_INDEX = """
       {% for s in sched %}
         <div class='schedule-item schedule-item-v363'>
           <div class='schedule-title-v363'>{{s.place}}</div>
-          <div class='schedule-meta-v363'>📅 {{s.date}} · ⏰ {{show_time(s.start_time)}} 젠</div>
-          <div class='schedule-left-v363'>{{ s|boss_remain_text_v407 }}</div>
+          <div class='schedule-meta-v363'>📅 {{s.date}} · ⏰ {{show_time(s.end_time or s.start_time)}} 젠</div>
+          <div class='schedule-left-v363' data-boss-target='{{ countdown_target(s) }}' data-boss-name='{{s.place}}'>{{ remaining_text(s) }}</div>
         </div>
       {% else %}
         <div class='empty small'>등록된 파밍 일정 없음</div>

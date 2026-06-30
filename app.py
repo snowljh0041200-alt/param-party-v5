@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "41.5"
+APP_VERSION = "41.6"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -4251,6 +4251,50 @@ select[name="place"] option[value="도삭산900층빽"]{
   font-variant-numeric:tabular-nums!important;
 }
 
+
+/* v41.6 voice mute checkbox */
+.v416-mute-box{
+  margin:14px 0!important;
+  padding:14px!important;
+  border:1px solid rgba(90,130,210,.32)!important;
+  border-radius:14px!important;
+  background:rgba(3,10,24,.52)!important;
+}
+.v416-mute-label{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  font-weight:900!important;
+  color:#ffe7a0!important;
+  cursor:pointer!important;
+}
+#bossVoiceMuteV416{
+  width:20px!important;
+  height:20px!important;
+  accent-color:#d94a58!important;
+}
+.v416-mute-title{
+  font-size:16px!important;
+}
+.v416-mute-help{
+  margin-top:7px!important;
+  color:#d8c796!important;
+  font-size:13px!important;
+  line-height:1.45!important;
+}
+.schedule-left-v363[data-boss-target]{
+  display:inline-flex!important;
+  width:max-content!important;
+  padding:4px 9px!important;
+  border-radius:999px!important;
+  border:1px solid rgba(245,212,138,.52)!important;
+  color:#ffe7a0!important;
+  background:rgba(192,139,53,.16)!important;
+  font-weight:900!important;
+  font-size:13px!important;
+  font-variant-numeric:tabular-nums!important;
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -5363,87 +5407,93 @@ async function testToastFromSettings(){
 
 
 
-<script>
-/* v41.5 FINAL boss voice mute + spawn alert fix */
-(function(){
-  if(window.__v415BossFinalFix) return;
-  window.__v415BossFinalFix = true;
 
-  const firedKey = "v415_boss_fired";
-  const voiceKey = "v415_voice_enabled";
+
+
+<script>
+/* v41.6 FINAL voice mute checkbox + boss alert */
+(function(){
+  if(window.__v416VoiceMuteFinal) return;
+  window.__v416VoiceMuteFinal = true;
+
+  const firedKey = "v416_boss_fired";
+  const muteKey = "boss_voice_muted_v416";
   let fired = {};
   let audioCtx = null;
 
   try{ fired = JSON.parse(localStorage.getItem(firedKey) || "{}"); }catch(e){ fired = {}; }
   function saveFired(){ try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){} }
 
-  function readVoiceToggleFromDom(){
+  function isMuted(){
+    try{ return localStorage.getItem(muteKey) === "1"; }catch(e){ return false; }
+  }
+
+  function setMuted(v){
+    try{ localStorage.setItem(muteKey, v ? "1" : "0"); }catch(e){}
+    const cb = document.getElementById("bossVoiceMuteV416");
+    if(cb) cb.checked = !!v;
+    const state = document.getElementById("bossVoiceMuteStateV416");
+    if(state) state.textContent = v ? "현재 음소거 ON · 음성/삑소리 차단" : "현재 음소거 OFF · 음성 안내 사용";
+  }
+
+  function injectMuteCheckbox(){
+    if(document.getElementById("bossVoiceMuteV416")) return;
+
+    const modal = [...document.querySelectorAll(".modal, .settings, .setting-modal, .panel, div")]
+      .find(el => (el.innerText || "").includes("음성 알림") && (el.innerText || "").includes("음성 테스트"));
+    if(!modal) return;
+
+    const box = document.createElement("div");
+    box.className = "v416-mute-box";
+    box.innerHTML = `
+      <label class="v416-mute-label">
+        <input id="bossVoiceMuteV416" type="checkbox">
+        <span class="v416-mute-title">🔇 보스 음성 음소거</span>
+      </label>
+      <div id="bossVoiceMuteStateV416" class="v416-mute-help"></div>
+      <div class="v416-mute-help">체크하면 30분/15분/5분/젠완료 음성 안내와 삑소리가 모두 꺼집니다. 토스트/크롬 팝업은 유지됩니다.</div>
+    `;
+
+    // 크롬 알림 설정 박스 위에 넣거나, 마지막에 넣기
+    const chromeBox = [...modal.querySelectorAll("div")]
+      .find(el => (el.innerText || "").includes("크롬 알림 설정"));
+    if(chromeBox && chromeBox.parentNode){
+      chromeBox.parentNode.insertBefore(box, chromeBox);
+    }else{
+      modal.appendChild(box);
+    }
+
+    const cb = document.getElementById("bossVoiceMuteV416");
+    cb.checked = isMuted();
+    cb.addEventListener("change", function(){
+      setMuted(cb.checked);
+    });
+    setMuted(cb.checked);
+  }
+
+  // 기존 음성 알림 토글도 같이 감지해서 OFF면 음소거 체크박스를 켜줌
+  function syncFromOldToggle(){
     try{
       const inputs = [...document.querySelectorAll("input[type='checkbox']")];
       for(const el of inputs){
-        const box = el.closest("label, .setting-card, .panel, .modal, div");
-        const text = (box ? box.innerText : "") || "";
-        if(text.includes("음성 알림")){
-          return !!el.checked;
+        if(el.id === "bossVoiceMuteV416") continue;
+        const text = ((el.closest("label, .setting-card, .panel, .modal, div") || {}).innerText || "");
+        if(text.includes("음성 알림") && !text.includes("음소거")){
+          if(!el.checked) setMuted(true);
+          return;
         }
       }
 
-      const toggles = [...document.querySelectorAll("[aria-checked], [data-voice-enabled], .voice-toggle, .sound-toggle")];
+      const toggles = [...document.querySelectorAll("[aria-checked], .switch, .toggle, .voice-toggle")];
       for(const el of toggles){
-        const text = ((el.innerText || "") + " " + (el.getAttribute("aria-label") || "") + " " + el.className).trim();
-        if(!text.includes("음성") && !text.includes("voice") && !text.includes("sound")) continue;
-
-        const ac = el.getAttribute("aria-checked");
-        if(ac === "true") return true;
-        if(ac === "false") return false;
-
-        const dv = el.getAttribute("data-voice-enabled");
-        if(dv === "1" || dv === "true") return true;
-        if(dv === "0" || dv === "false") return false;
-
-        if(el.classList.contains("off") || el.classList.contains("disabled")) return false;
-        if(el.classList.contains("on") || el.classList.contains("active")) return true;
+        const text = ((el.closest("label, .setting-card, .panel, .modal, div") || {}).innerText || "") + " " + (el.innerText || "");
+        if(text.includes("음성 알림") && !text.includes("음소거")){
+          const ac = el.getAttribute("aria-checked");
+          if(ac === "false" || el.classList.contains("off")) setMuted(true);
+          return;
+        }
       }
     }catch(e){}
-    return null;
-  }
-
-  function isVoiceEnabled(){
-    const dom = readVoiceToggleFromDom();
-    if(dom !== null){
-      try{ localStorage.setItem(voiceKey, dom ? "1" : "0"); }catch(e){}
-      return dom;
-    }
-
-    try{
-      const v = localStorage.getItem(voiceKey);
-      if(v === "0") return false;
-      if(v === "1") return true;
-    }catch(e){}
-
-    // 기존 저장값도 같이 확인
-    try{
-      const keys = ["voice_enabled","voiceEnabled","sound_enabled","soundEnabled","alarm_voice_enabled","boss_voice_enabled"];
-      for(const k of keys){
-        const v = localStorage.getItem(k);
-        if(v === null) continue;
-        const s = String(v).toLowerCase();
-        if(["0","false","off","no"].includes(s)) return false;
-        if(["1","true","on","yes"].includes(s)) return true;
-      }
-    }catch(e){}
-
-    return true;
-  }
-
-  function rememberVoiceState(){
-    const dom = readVoiceToggleFromDom();
-    if(dom !== null){
-      try{
-        localStorage.setItem(voiceKey, dom ? "1" : "0");
-        localStorage.setItem("voice_enabled", dom ? "1" : "0");
-      }catch(e){}
-    }
   }
 
   function getAudioCtx(){
@@ -5456,8 +5506,8 @@ async function testToastFromSettings(){
     }catch(e){ return null; }
   }
 
-  function beep(){
-    if(!isVoiceEnabled()) return false;
+  function beep(force){
+    if(!force && isMuted()) return false;
     try{
       const ctx = getAudioCtx();
       if(!ctx) return false;
@@ -5504,8 +5554,7 @@ async function testToastFromSettings(){
   }
 
   function speak(text, force){
-    if(!force && !isVoiceEnabled()) return false;
-
+    if(!force && isMuted()) return false;
     try{
       if(!("speechSynthesis" in window)) return false;
 
@@ -5521,14 +5570,10 @@ async function testToastFromSettings(){
       if(v) u.voice = v;
 
       window.speechSynthesis.speak(u);
-
       setTimeout(()=>{ try{ if(window.speechSynthesis.paused) window.speechSynthesis.resume(); }catch(e){} }, 250);
       setTimeout(()=>{ try{ if(window.speechSynthesis.paused) window.speechSynthesis.resume(); }catch(e){} }, 900);
-
       return true;
-    }catch(e){
-      return false;
-    }
+    }catch(e){ return false; }
   }
 
   function popup(title, msg){
@@ -5543,11 +5588,9 @@ async function testToastFromSettings(){
   function notifyBefore(name, mark){
     const msg = String(name || "보스") + " 젠 " + mark + "분 전입니다.";
     popup("보스 알림", msg);
-
-    // 음성 OFF면 여기서 음성/삑 완전 차단
-    if(isVoiceEnabled()){
+    if(!isMuted()){
       unlockVoice();
-      beep();
+      beep(false);
       setTimeout(()=>speak(msg, false), 120);
     }
   }
@@ -5555,34 +5598,18 @@ async function testToastFromSettings(){
   function notifySpawn(name){
     const msg = String(name || "보스") + " 젠되었습니다.";
     popup("보스 젠", msg);
-
-    // 음성 OFF면 여기서 음성/삑 완전 차단
-    if(isVoiceEnabled()){
+    if(!isMuted()){
       unlockVoice();
-      beep();
+      beep(false);
       setTimeout(()=>speak(msg, false), 120);
     }
   }
 
-  // 테스트 버튼은 사용자가 직접 누른 것이므로 OFF여도 테스트 음성은 나옴
-  window.v415VoiceTest = function(){
-    rememberVoiceState();
+  window.v416VoiceTest = function(){
+    injectMuteCheckbox();
     unlockVoice();
-    try{
-      const ctx = getAudioCtx();
-      if(ctx){
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = 880;
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.38);
-      }
-    }catch(e){}
+    // 테스트는 직접 누른 것이므로 음소거 상태와 무관하게 1회 테스트
+    beep(true);
     setTimeout(()=>speak("보스 알림 음성 테스트입니다.", true), 120);
   };
 
@@ -5605,13 +5632,11 @@ async function testToastFromSettings(){
   }
 
   function bossItems(){
-    return [...document.querySelectorAll("[data-boss-target]")].map(el=>{
-      return {
-        el,
-        name: el.getAttribute("data-boss-name") || "보스",
-        target: parseTarget(el.getAttribute("data-boss-target"))
-      };
-    }).filter(x=>x.target);
+    return [...document.querySelectorAll("[data-boss-target]")].map(el=>({
+      el,
+      name: el.getAttribute("data-boss-name") || "보스",
+      target: parseTarget(el.getAttribute("data-boss-target"))
+    })).filter(x=>x.target);
   }
 
   function fireOnce(key, cb){
@@ -5622,56 +5647,58 @@ async function testToastFromSettings(){
   }
 
   function tick(){
-    rememberVoiceState();
-
-    const now = Date.now();
     bossItems().forEach(item=>{
-      const sec = Math.ceil((item.target.getTime() - now) / 1000);
+      const sec = Math.ceil((item.target.getTime() - Date.now()) / 1000);
       item.el.textContent = formatLeft(sec);
 
-      // 30/15/5분 전 알림
       [30,15,5].forEach(mark=>{
         const markSec = mark * 60;
         if(sec <= markSec && sec >= markSec - 5){
-          const key = item.name + "_" + item.target.getTime() + "_before_" + mark;
-          fireOnce(key, ()=>notifyBefore(item.name, mark));
+          fireOnce(item.name + "_" + item.target.getTime() + "_before_" + mark, ()=>notifyBefore(item.name, mark));
         }
       });
 
-      // 젠 완료 알림: 0초부터 -5초 사이 1회
       if(sec <= 0 && sec >= -5){
-        const key = item.name + "_" + item.target.getTime() + "_spawned";
-        fireOnce(key, ()=>notifySpawn(item.name));
+        fireOnce(item.name + "_" + item.target.getTime() + "_spawned", ()=>notifySpawn(item.name));
       }
     });
   }
-
-  // 설정 토글 상태 저장
-  document.addEventListener("change", function(e){
-    const el = e.target;
-    if(!el) return;
-    const text = ((el.closest("label, .setting-card, .panel, .modal, div") || {}).innerText || "");
-    if(text.includes("음성 알림") || text.includes("음성")){
-      rememberVoiceState();
-    }
-  }, true);
 
   document.addEventListener("click", function(e){
     const el = e.target;
     if(!el) return;
     const text = (el.innerText || el.value || "").trim();
 
+    if(text.includes("설정") || text.includes("음성") || text.includes("닫기")){
+      setTimeout(function(){
+        injectMuteCheckbox();
+        syncFromOldToggle();
+      }, 120);
+    }
+
     if(text.includes("음성 테스트")){
-      setTimeout(window.v415VoiceTest, 50);
+      setTimeout(window.v416VoiceTest, 50);
       return;
     }
 
-    if(text.includes("음성 알림") || text.includes("음소거")){
-      setTimeout(rememberVoiceState, 80);
+    if(el.id !== "bossVoiceMuteV416"){
+      unlockVoice();
+    }
+  }, true);
+
+  document.addEventListener("change", function(e){
+    const el = e.target;
+    if(!el) return;
+
+    if(el.id === "bossVoiceMuteV416"){
+      setMuted(el.checked);
       return;
     }
 
-    unlockVoice();
+    const text = ((el.closest("label, .setting-card, .panel, .modal, div") || {}).innerText || "");
+    if(text.includes("음성 알림") && !text.includes("음소거")){
+      setMuted(!el.checked);
+    }
   }, true);
 
   ["keydown","pointerdown","touchstart"].forEach(ev=>{
@@ -5682,14 +5709,16 @@ async function testToastFromSettings(){
     try{ window.speechSynthesis.onvoiceschanged = getKoreanVoice; }catch(e){}
   }
 
+  setInterval(tick, 1000);
+  setInterval(injectMuteCheckbox, 1000);
+  setTimeout(injectMuteCheckbox, 500);
+  setTimeout(tick, 300);
+
   try{
     if(location.search.includes("voice_test=1")){
-      setTimeout(window.v415VoiceTest, 800);
+      setTimeout(window.v416VoiceTest, 800);
     }
   }catch(e){}
-
-  setInterval(tick, 1000);
-  setTimeout(tick, 300);
 })();
 </script>
 

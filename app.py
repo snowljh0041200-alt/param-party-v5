@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "41.3"
+APP_VERSION = "41.4"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -5353,6 +5353,48 @@ async function testToastFromSettings(){
   let audioCtx = null;
   let voiceReady = false;
 
+  function isVoiceEnabled(){
+    try{
+      const keys = [
+        "voice_enabled","voiceEnabled","sound_enabled","soundEnabled",
+        "alarm_voice_enabled","boss_voice_enabled","v_voice_enabled"
+      ];
+      for(const k of keys){
+        const v = localStorage.getItem(k);
+        if(v !== null){
+          const s = String(v).toLowerCase();
+          if(s === "0" || s === "false" || s === "off" || s === "no") return false;
+          if(s === "1" || s === "true" || s === "on" || s === "yes") return true;
+        }
+      }
+
+      // 설정창 토글/체크박스 DOM 상태 확인
+      const inputs = [...document.querySelectorAll("input[type='checkbox'], input[type='radio']")];
+      for(const el of inputs){
+        const boxText = ((el.closest("label, .setting-card, .panel, div") || {}).innerText || "");
+        if(boxText.includes("음성 알림") || boxText.includes("음성")){
+          return !!el.checked;
+        }
+      }
+
+      // 버튼형 토글 aria 상태 확인
+      const candidates = [...document.querySelectorAll("[aria-checked], [data-voice-enabled], .voice-toggle, .sound-toggle")];
+      for(const el of candidates){
+        const txt = (el.innerText || "") + " " + (el.getAttribute("aria-label") || "");
+        if(txt.includes("음성") || el.className.toString().includes("voice") || el.className.toString().includes("sound")){
+          const ac = el.getAttribute("aria-checked");
+          if(ac === "false") return false;
+          if(ac === "true") return true;
+          const dv = el.getAttribute("data-voice-enabled");
+          if(dv === "0" || dv === "false") return false;
+          if(dv === "1" || dv === "true") return true;
+          if(el.classList.contains("off") || el.classList.contains("disabled")) return false;
+        }
+      }
+    }catch(e){}
+    return true;
+  }
+
   try{ fired = JSON.parse(localStorage.getItem(firedKey) || "{}"); }catch(e){ fired = {}; }
   function saveFired(){ try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){} }
 
@@ -5465,9 +5507,11 @@ async function testToastFromSettings(){
         new Notification("보스 알림", {body:msg});
       }
     }catch(e){}
-    unlockVoice();
-    beep();
-    setTimeout(function(){ speak(msg); }, 120);
+    if(isVoiceEnabled()){
+      unlockVoice();
+      beep();
+      setTimeout(function(){ speak(msg); }, 120);
+    }
   };
 
   function parseTarget(raw){
@@ -5546,6 +5590,44 @@ async function testToastFromSettings(){
 
   setInterval(tick, 1000);
   setTimeout(tick, 300);
+})();
+</script>
+
+
+<script>
+/* v41.4 voice mute state watcher */
+(function(){
+  if(window.__v414VoiceMuteWatcher) return;
+  window.__v414VoiceMuteWatcher = true;
+
+  document.addEventListener("change", function(e){
+    const el = e.target;
+    if(!el) return;
+    const text = ((el.closest("label, .setting-card, .panel, div") || {}).innerText || "");
+    if(text.includes("음성 알림") || text.includes("음성")){
+      try{ localStorage.setItem("voice_enabled", el.checked ? "1" : "0"); }catch(err){}
+    }
+  }, true);
+
+  document.addEventListener("click", function(e){
+    const el = e.target;
+    if(!el) return;
+    const text = (el.innerText || el.value || "").trim();
+    if(text.includes("음성 알림") || text.includes("음소거")){
+      setTimeout(function(){
+        try{
+          const inputs = [...document.querySelectorAll("input[type='checkbox']")];
+          for(const input of inputs){
+            const t = ((input.closest("label, .setting-card, .panel, div") || {}).innerText || "");
+            if(t.includes("음성 알림") || t.includes("음성")){
+              localStorage.setItem("voice_enabled", input.checked ? "1" : "0");
+              break;
+            }
+          }
+        }catch(err){}
+      }, 80);
+    }
+  }, true);
 })();
 </script>
 

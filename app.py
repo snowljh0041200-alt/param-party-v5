@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "40.3"
+APP_VERSION = "40.4"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -1245,7 +1245,16 @@ LOGIN_HTML = """
     <label>비밀번호</label>
     <input name='pin' type='password' inputmode='numeric' maxlength='6' placeholder='숫자 6자리'>
     <button class='ok full'>로그인</button>
-  </form>
+  
+<datalist id="hunt_places_v404">
+  <option value="도삭산800층">
+  <option value="도삭산900">
+  <option value="도삭산900층빽">
+  <option value="해골왕">
+  <option value="어금니">
+</datalist>
+
+</form>
   {% if error %}<div class='notice'>{{error}}</div>{% endif %}
   <div class='toolbar auth-bottom'>
     <a class='btn gray' href='/register'>문파원 등록</a>
@@ -4108,6 +4117,60 @@ textarea:focus{
   text-shadow:0 0 8px rgba(255,180,75,.22)!important;
 }
 
+
+/* =========================================================
+   v40.4 hunt places + compact online header
+   ========================================================= */
+
+/* 상단 접속중: 관리자/최고관리자 목록 숨기고 접속중 N명만 */
+.header-online-v365{
+  min-width:auto!important;
+  width:auto!important;
+  max-width:max-content!important;
+  padding:6px 10px!important;
+  gap:4px!important;
+  font-size:13px!important;
+  white-space:nowrap!important;
+  align-self:center!important;
+  border-radius:999px!important;
+}
+
+.header-online-v365 .online-list,
+.header-online-v365 .mini-online-v365,
+.header-online-v365 .online-user,
+.header-online-v365 .online-role,
+.header-online-v365 .role-badge,
+.header-online-v365 .admin-badge,
+.header-online-v365 .online-names,
+.header-online-v365 .online-members,
+.header-online-v365 .online-detail,
+.header-online-v365 ul,
+.header-online-v365 li{
+  display:none!important;
+}
+
+.header-online-v365 .muted,
+.header-online-v365 .meta,
+.header-online-v365 small{
+  display:none!important;
+}
+
+.header-online-v365 strong,
+.header-online-v365 b,
+.header-online-v365 .online-title{
+  font-size:13px!important;
+  line-height:1!important;
+}
+
+.header{
+  gap:10px!important;
+}
+
+input[name="place"],
+select[name="place"]{
+  font-weight:900!important;
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -5336,6 +5399,8 @@ def mark_board_changed(d):
     except Exception:
         pass
 
+
+EXTRA_HUNT_PLACES_V404 = ["도삭산800층", "도삭산900층빽"]
 @app.route("/delete_char/<cid>")
 def delete_char(cid):
     d = load()

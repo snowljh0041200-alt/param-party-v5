@@ -1,26 +1,17 @@
-v40.3 REALTIME BOARD VERSION REFRESH
-
-기준:
-- v40.2 디자인 안정판
+v40.4 HUNT PLACES ONLINE COMPACT
 
 수정:
-- 다른 사람이 모집글 삭제/변경 시 내 화면도 자동 갱신
-- /api/alerts는 건드리지 않음
-- 새 API /api/board_version 추가
-- 모집글 변경 시 board_version 증가
-- 브라우저가 2초마다 버전 확인 후 변경 시 새로고침
-- 토스트/크롬알림 중복 문제 방지
-
-적용되는 변경:
-- 모집글 생성
-- 참여/취소
-- 외부참여/외부제거
-- 모집완료
-- 수정
-- 삭제
-- 관리자 삭제/전체삭제
+- 사냥터 추가:
+  도삭산800층
+  도삭산900층빽
+- 상단 접속중 UI 축소:
+  관리자/최고관리자 목록 숨김
+  접속중 N명만 표시
+- UI 밀림 완화
+- v40.3 실시간 삭제/변경 자동 갱신 유지
+- 주술사 🔥 유지
 
 배포:
 git add .
-git commit -m "v40.3 realtime board version refresh"
+git commit -m "v40.4 hunt places online compact"
 git push

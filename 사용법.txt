@@ -1,13 +1,17 @@
-v41.1 CREATE FORCE MAIN FIX
+v41.2 VOICE SETTINGS UNIFIED
 
 수정:
-- 모집글 등록 후 작성 화면에 남는 문제 수정
-- 등록 완료 후 script + meta refresh로 메인 강제 이동
-- 등록 버튼 중복 클릭 방지
+- 우측 하단 '🔊 음성켜기' 버튼 제거
+- 음성 엔진 활성화 기능을 설정창 '음성 테스트'에 통합
+- 설정창 음성 테스트 클릭 시:
+  1) 브라우저 음성 엔진 활성화
+  2) 삑 소리 fallback
+  3) 테스트 음성 출력
+- v41.1 모집글 등록 후 메인 이동 유지
 - v41.0 보스 끝시간 기준 계산 유지
-- 음성/실시간 갱신/디자인 유지
+- 30/15/5분 보스 음성 알림 유지
 
 배포:
 git add .
-git commit -m "v41.1 create force main fix"
+git commit -m "v41.2 voice settings unified"
 git push

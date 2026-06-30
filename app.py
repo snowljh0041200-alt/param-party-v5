@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "41.1"
+APP_VERSION = "41.2"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -5316,20 +5316,7 @@ async function testToastFromSettings(){
   try{ fired = JSON.parse(localStorage.getItem(firedKey) || "{}"); }catch(e){ fired = {}; }
   function saveFired(){ try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){} }
 
-  function ensureVoiceButton(){
-    if(document.getElementById("v410VoiceBtn")) return;
-    const btn = document.createElement("button");
-    btn.id = "v410VoiceBtn";
-    btn.type = "button";
-    btn.textContent = "🔊 음성켜기";
-    btn.style.cssText = "position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:999px;border:1px solid rgba(245,212,138,.55);background:linear-gradient(180deg,#4b3215,#15100a);color:#ffe7a0;font-weight:900;box-shadow:0 8px 20px rgba(0,0,0,.35);";
-    btn.onclick = function(){
-      unlockAudio();
-      speak("음성 알림이 켜졌습니다.");
-      beep();
-      btn.textContent = "🔊 음성 켜짐";
-      setTimeout(()=>{ btn.style.opacity = ".45"; }, 1300);
-    };
+  function ensureVoiceButton(){ /* v41.2: 하단 음성켜기 버튼 제거, 설정창 음성 테스트로 통합 */ };
     document.body.appendChild(btn);
   }
 
@@ -5471,10 +5458,7 @@ async function testToastFromSettings(){
   if("speechSynthesis" in window){
     try{ window.speechSynthesis.onvoiceschanged = getVoice; }catch(e){}
   }
-
-  ensureVoiceButton();
-
-  try{
+try{
     if(location.search.includes("voice_test=1")){
       setTimeout(function(){
         unlockAudio();
@@ -5502,6 +5486,72 @@ async function testToastFromSettings(){
     if(btn){
       btn.disabled = true;
       btn.textContent = "등록 중...";
+    }
+  }, true);
+})();
+</script>
+
+
+<script>
+/* v41.2 voice settings unified */
+(function(){
+  if(window.__v412VoiceSettingsUnified) return;
+  window.__v412VoiceSettingsUnified = true;
+
+  function tryUnlockAudio(){
+    try{
+      if(typeof unlockAudio === "function") unlockAudio();
+    }catch(e){}
+  }
+
+  function trySpeakTest(){
+    try{
+      if(typeof speak === "function"){
+        speak("보스 알림 음성 테스트입니다.");
+        return true;
+      }
+    }catch(e){}
+
+    try{
+      if("speechSynthesis" in window){
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance("보스 알림 음성 테스트입니다.");
+        u.lang = "ko-KR";
+        u.volume = 1;
+        u.rate = 1;
+        u.pitch = 1;
+        window.speechSynthesis.speak(u);
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+
+  function tryBeep(){
+    try{
+      if(typeof beep === "function"){
+        beep();
+      }
+    }catch(e){}
+  }
+
+  document.addEventListener("click", function(e){
+    const el = e.target;
+    if(!el) return;
+    const text = (el.innerText || el.value || "").trim();
+
+    // 설정창의 음성 테스트 버튼에 통합
+    if(text.includes("음성 테스트")){
+      setTimeout(function(){
+        tryUnlockAudio();
+        tryBeep();
+        trySpeakTest();
+      }, 50);
+    }
+
+    // 크롬 알림 테스트/토스트 테스트 때도 음성 엔진만 조용히 깨워둠
+    if(text.includes("크롬 알림") || text.includes("토스트")){
+      tryUnlockAudio();
     }
   }, true);
 })();

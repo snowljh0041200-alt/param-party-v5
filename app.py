@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "41.6"
+APP_VERSION = "42.0"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -4295,6 +4295,169 @@ select[name="place"] option[value="도삭산900층빽"]{
   font-variant-numeric:tabular-nums!important;
 }
 
+
+/* v42.0 final notification settings */
+.v420-hide-old-setting{
+  display:none!important;
+}
+
+#v420SettingsPanel{
+  margin:14px 0!important;
+}
+
+.v420-setting-card{
+  padding:14px!important;
+  border:1px solid rgba(90,130,210,.36)!important;
+  border-radius:16px!important;
+  background:rgba(3,10,24,.58)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04)!important;
+}
+
+.v420-setting-main-title{
+  font-size:20px!important;
+  font-weight:900!important;
+  color:#ffe7a0!important;
+  margin-bottom:12px!important;
+}
+
+.v420-setting-row{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:14px!important;
+  padding:12px 0!important;
+  border-bottom:1px solid rgba(120,160,230,.16)!important;
+}
+
+.v420-setting-title{
+  font-size:16px!important;
+  font-weight:900!important;
+  color:#f5e7c0!important;
+}
+
+.v420-setting-desc{
+  margin-top:3px!important;
+  color:#d8c796!important;
+  font-size:13px!important;
+  line-height:1.35!important;
+}
+
+.v420-switch{
+  position:relative!important;
+  width:58px!important;
+  height:32px!important;
+  flex:0 0 auto!important;
+}
+
+.v420-switch input{
+  opacity:0!important;
+  width:0!important;
+  height:0!important;
+}
+
+.v420-switch span{
+  position:absolute!important;
+  cursor:pointer!important;
+  inset:0!important;
+  background:linear-gradient(180deg,#3b465b,#171d2b)!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:999px!important;
+  transition:.18s!important;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.35)!important;
+}
+
+.v420-switch span:before{
+  content:""!important;
+  position:absolute!important;
+  height:24px!important;
+  width:24px!important;
+  left:4px!important;
+  top:3px!important;
+  border-radius:50%!important;
+  background:#e9edf6!important;
+  transition:.18s!important;
+  box-shadow:0 3px 8px rgba(0,0,0,.45)!important;
+}
+
+.v420-switch input:checked + span{
+  background:linear-gradient(180deg,#20d277,#0d8b53)!important;
+  border-color:rgba(70,255,160,.36)!important;
+}
+
+.v420-switch input:checked + span:before{
+  transform:translateX(26px)!important;
+}
+
+.v420-volume-row{
+  padding:14px 0 10px!important;
+}
+
+#v420Volume{
+  width:100%!important;
+  margin-top:10px!important;
+}
+
+.v420-test-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+  margin-top:12px!important;
+}
+
+.v420-test-grid button{
+  min-height:40px!important;
+}
+
+.v420-preview-title{
+  margin-top:14px!important;
+  font-weight:900!important;
+  color:#ffe7a0!important;
+}
+
+.v420-preview{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:8px!important;
+  margin-top:8px!important;
+}
+
+.v420-preview span{
+  padding:6px 10px!important;
+  border-radius:999px!important;
+  font-weight:900!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  background:rgba(15,24,42,.86)!important;
+}
+
+.v420-preview span.on{
+  color:#9ff0b7!important;
+  border-color:rgba(80,240,140,.28)!important;
+}
+
+.v420-preview span.off{
+  color:#e2a1a1!important;
+  border-color:rgba(230,80,90,.28)!important;
+}
+
+.schedule-left-v363[data-boss-target]{
+  display:inline-flex!important;
+  width:max-content!important;
+  padding:4px 9px!important;
+  border-radius:999px!important;
+  border:1px solid rgba(245,212,138,.52)!important;
+  color:#ffe7a0!important;
+  background:rgba(192,139,53,.16)!important;
+  font-weight:900!important;
+  font-size:13px!important;
+  font-variant-numeric:tabular-nums!important;
+}
+
+@media(max-width:640px){
+  .v420-test-grid{
+    grid-template-columns:1fr!important;
+  }
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -5410,89 +5573,62 @@ async function testToastFromSettings(){
 
 
 
-<script>
-/* v41.6 FINAL voice mute checkbox + boss alert */
-(function(){
-  if(window.__v416VoiceMuteFinal) return;
-  window.__v416VoiceMuteFinal = true;
 
-  const firedKey = "v416_boss_fired";
-  const muteKey = "boss_voice_muted_v416";
+
+
+<script>
+/* v42.0 FINAL notification settings */
+(function(){
+  if(window.__v420FinalNotificationSettings) return;
+  window.__v420FinalNotificationSettings = true;
+
+  const firedKey = "v420_boss_fired";
+  const keys = {
+    voice: "v420_notify_voice",
+    toast: "v420_notify_toast",
+    chrome: "v420_notify_chrome",
+    volume: "v420_voice_volume"
+  };
+
   let fired = {};
   let audioCtx = null;
 
   try{ fired = JSON.parse(localStorage.getItem(firedKey) || "{}"); }catch(e){ fired = {}; }
   function saveFired(){ try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){} }
 
-  function isMuted(){
-    try{ return localStorage.getItem(muteKey) === "1"; }catch(e){ return false; }
-  }
-
-  function setMuted(v){
-    try{ localStorage.setItem(muteKey, v ? "1" : "0"); }catch(e){}
-    const cb = document.getElementById("bossVoiceMuteV416");
-    if(cb) cb.checked = !!v;
-    const state = document.getElementById("bossVoiceMuteStateV416");
-    if(state) state.textContent = v ? "현재 음소거 ON · 음성/삑소리 차단" : "현재 음소거 OFF · 음성 안내 사용";
-  }
-
-  function injectMuteCheckbox(){
-    if(document.getElementById("bossVoiceMuteV416")) return;
-
-    const modal = [...document.querySelectorAll(".modal, .settings, .setting-modal, .panel, div")]
-      .find(el => (el.innerText || "").includes("음성 알림") && (el.innerText || "").includes("음성 테스트"));
-    if(!modal) return;
-
-    const box = document.createElement("div");
-    box.className = "v416-mute-box";
-    box.innerHTML = `
-      <label class="v416-mute-label">
-        <input id="bossVoiceMuteV416" type="checkbox">
-        <span class="v416-mute-title">🔇 보스 음성 음소거</span>
-      </label>
-      <div id="bossVoiceMuteStateV416" class="v416-mute-help"></div>
-      <div class="v416-mute-help">체크하면 30분/15분/5분/젠완료 음성 안내와 삑소리가 모두 꺼집니다. 토스트/크롬 팝업은 유지됩니다.</div>
-    `;
-
-    // 크롬 알림 설정 박스 위에 넣거나, 마지막에 넣기
-    const chromeBox = [...modal.querySelectorAll("div")]
-      .find(el => (el.innerText || "").includes("크롬 알림 설정"));
-    if(chromeBox && chromeBox.parentNode){
-      chromeBox.parentNode.insertBefore(box, chromeBox);
-    }else{
-      modal.appendChild(box);
-    }
-
-    const cb = document.getElementById("bossVoiceMuteV416");
-    cb.checked = isMuted();
-    cb.addEventListener("change", function(){
-      setMuted(cb.checked);
-    });
-    setMuted(cb.checked);
-  }
-
-  // 기존 음성 알림 토글도 같이 감지해서 OFF면 음소거 체크박스를 켜줌
-  function syncFromOldToggle(){
+  function getBool(key, def){
     try{
-      const inputs = [...document.querySelectorAll("input[type='checkbox']")];
-      for(const el of inputs){
-        if(el.id === "bossVoiceMuteV416") continue;
-        const text = ((el.closest("label, .setting-card, .panel, .modal, div") || {}).innerText || "");
-        if(text.includes("음성 알림") && !text.includes("음소거")){
-          if(!el.checked) setMuted(true);
-          return;
-        }
-      }
+      const v = localStorage.getItem(key);
+      if(v === null) return def;
+      return v === "1";
+    }catch(e){ return def; }
+  }
+  function setBool(key, val){
+    try{ localStorage.setItem(key, val ? "1" : "0"); }catch(e){}
+  }
+  function getVolume(){
+    try{
+      const v = Number(localStorage.getItem(keys.volume));
+      if(Number.isFinite(v)) return Math.max(0, Math.min(1, v));
+    }catch(e){}
+    return 0.76;
+  }
+  function setVolume(v){
+    try{ localStorage.setItem(keys.volume, String(Math.max(0, Math.min(1, Number(v))))); }catch(e){}
+  }
 
-      const toggles = [...document.querySelectorAll("[aria-checked], .switch, .toggle, .voice-toggle")];
-      for(const el of toggles){
-        const text = ((el.closest("label, .setting-card, .panel, .modal, div") || {}).innerText || "") + " " + (el.innerText || "");
-        if(text.includes("음성 알림") && !text.includes("음소거")){
-          const ac = el.getAttribute("aria-checked");
-          if(ac === "false" || el.classList.contains("off")) setMuted(true);
-          return;
-        }
+  function voiceOn(){ return getBool(keys.voice, true); }
+  function toastOn(){ return getBool(keys.toast, true); }
+  function chromeOn(){ return getBool(keys.chrome, true); }
+
+  function migrateOldSettings(){
+    try{
+      if(localStorage.getItem(keys.voice) === null){
+        const muted = localStorage.getItem("boss_voice_muted_v416") === "1";
+        setBool(keys.voice, !muted);
       }
+      if(localStorage.getItem(keys.toast) === null) setBool(keys.toast, true);
+      if(localStorage.getItem(keys.chrome) === null) setBool(keys.chrome, true);
     }catch(e){}
   }
 
@@ -5507,10 +5643,11 @@ async function testToastFromSettings(){
   }
 
   function beep(force){
-    if(!force && isMuted()) return false;
+    if(!force && !voiceOn()) return false;
     try{
       const ctx = getAudioCtx();
       if(!ctx) return false;
+      const vol = getVolume();
 
       function tone(freq, start){
         const osc = ctx.createOscillator();
@@ -5518,7 +5655,7 @@ async function testToastFromSettings(){
         osc.type = "sine";
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
-        gain.gain.exponentialRampToValueAtTime(0.20, ctx.currentTime + start + 0.03);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.01, 0.22 * vol), ctx.currentTime + start + 0.03);
         gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + 0.30);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -5554,7 +5691,7 @@ async function testToastFromSettings(){
   }
 
   function speak(text, force){
-    if(!force && isMuted()) return false;
+    if(!force && !voiceOn()) return false;
     try{
       if(!("speechSynthesis" in window)) return false;
 
@@ -5564,7 +5701,7 @@ async function testToastFromSettings(){
       u.lang = "ko-KR";
       u.rate = 1.0;
       u.pitch = 1.0;
-      u.volume = 1.0;
+      u.volume = getVolume();
 
       const v = getKoreanVoice();
       if(v) u.voice = v;
@@ -5576,8 +5713,15 @@ async function testToastFromSettings(){
     }catch(e){ return false; }
   }
 
-  function popup(title, msg){
-    try{ if(window.showToast) window.showToast("☠ " + msg); }catch(e){}
+  function toast(msg){
+    if(!toastOn()) return;
+    try{
+      if(window.showToast) window.showToast("☠ " + msg);
+    }catch(e){}
+  }
+
+  function chromeNotify(title, msg){
+    if(!chromeOn()) return;
     try{
       if("Notification" in window && Notification.permission === "granted"){
         new Notification(title, {body:msg});
@@ -5585,33 +5729,52 @@ async function testToastFromSettings(){
     }catch(e){}
   }
 
-  function notifyBefore(name, mark){
-    const msg = String(name || "보스") + " 젠 " + mark + "분 전입니다.";
-    popup("보스 알림", msg);
-    if(!isMuted()){
+  function notify(title, msg){
+    toast(msg);
+    chromeNotify(title, msg);
+    if(voiceOn()){
       unlockVoice();
       beep(false);
       setTimeout(()=>speak(msg, false), 120);
     }
+  }
+
+  function notifyBefore(name, mark){
+    notify("보스 알림", String(name || "보스") + " 젠 " + mark + "분 전입니다.");
   }
 
   function notifySpawn(name){
-    const msg = String(name || "보스") + " 젠되었습니다.";
-    popup("보스 젠", msg);
-    if(!isMuted()){
-      unlockVoice();
-      beep(false);
-      setTimeout(()=>speak(msg, false), 120);
-    }
+    notify("보스 젠", String(name || "보스") + " 젠되었습니다.");
   }
 
-  window.v416VoiceTest = function(){
-    injectMuteCheckbox();
+  function voiceTest(){
     unlockVoice();
-    // 테스트는 직접 누른 것이므로 음소거 상태와 무관하게 1회 테스트
     beep(true);
     setTimeout(()=>speak("보스 알림 음성 테스트입니다.", true), 120);
-  };
+  }
+  function toastTest(){
+    const old = toastOn();
+    if(!old) setBool(keys.toast, true);
+    toast("토스트 알림 테스트입니다.");
+    if(!old) setBool(keys.toast, false);
+    updateSettingsUi();
+  }
+  async function chromeTest(){
+    try{
+      if(!("Notification" in window)){
+        alert("이 브라우저는 크롬 알림을 지원하지 않습니다.");
+        return;
+      }
+      if(Notification.permission !== "granted"){
+        await Notification.requestPermission();
+      }
+      const old = chromeOn();
+      if(!old) setBool(keys.chrome, true);
+      chromeNotify("크롬 알림 테스트", "크롬 알림 테스트입니다.");
+      if(!old) setBool(keys.chrome, false);
+      updateSettingsUi();
+    }catch(e){}
+  }
 
   function parseTarget(raw){
     if(!raw) return null;
@@ -5664,41 +5827,156 @@ async function testToastFromSettings(){
     });
   }
 
+  function findSettingsModal(){
+    const candidates = [...document.querySelectorAll(".modal, .settings, .setting-modal, .panel, div")];
+    return candidates.find(el=>{
+      const t = el.innerText || "";
+      return t.includes("설정") && t.includes("음성 테스트") && t.includes("토스트");
+    }) || candidates.find(el=>{
+      const t = el.innerText || "";
+      return t.includes("음성 알림") && t.includes("크롬 알림");
+    });
+  }
+
+  function toggleRow(id, icon, title, desc, checked){
+    return `
+      <div class="v420-setting-row">
+        <div>
+          <div class="v420-setting-title">${icon} ${title}</div>
+          <div class="v420-setting-desc">${desc}</div>
+        </div>
+        <label class="v420-switch">
+          <input id="${id}" type="checkbox" ${checked ? "checked" : ""}>
+          <span></span>
+        </label>
+      </div>
+    `;
+  }
+
+  function updatePreview(){
+    const el = document.getElementById("v420Preview");
+    if(!el) return;
+    el.innerHTML = `
+      <span class="${voiceOn() ? "on" : "off"}">${voiceOn() ? "✅" : "❌"} 음성</span>
+      <span class="${toastOn() ? "on" : "off"}">${toastOn() ? "✅" : "❌"} 토스트</span>
+      <span class="${chromeOn() ? "on" : "off"}">${chromeOn() ? "✅" : "❌"} 크롬</span>
+    `;
+  }
+
+  function updateSettingsUi(){
+    const voice = document.getElementById("v420VoiceToggle");
+    const toastEl = document.getElementById("v420ToastToggle");
+    const chrome = document.getElementById("v420ChromeToggle");
+    const vol = document.getElementById("v420Volume");
+    const volText = document.getElementById("v420VolumeText");
+
+    if(voice) voice.checked = voiceOn();
+    if(toastEl) toastEl.checked = toastOn();
+    if(chrome) chrome.checked = chromeOn();
+    if(vol){
+      vol.value = String(Math.round(getVolume() * 100));
+      if(volText) volText.textContent = vol.value + "%";
+    }
+    updatePreview();
+  }
+
+  function injectSettings(){
+    const modal = findSettingsModal();
+    if(!modal) return;
+
+    if(document.getElementById("v420SettingsPanel")){
+      updateSettingsUi();
+      return;
+    }
+
+    // 기존 음성/토스트/크롬 관련 박스들은 숨김 처리
+    [...modal.children].forEach(child=>{
+      const t = child.innerText || "";
+      if(t.includes("음성 알림") || t.includes("토스트 알림") || t.includes("크롬 알림")){
+        child.classList.add("v420-hide-old-setting");
+      }
+    });
+
+    const panel = document.createElement("div");
+    panel.id = "v420SettingsPanel";
+    panel.innerHTML = `
+      <div class="v420-setting-card">
+        <div class="v420-setting-main-title">🔔 알림 설정</div>
+        ${toggleRow("v420VoiceToggle", "🔊", "보스 음성 알림", "30분 · 15분 · 5분 · 젠완료 음성 안내", voiceOn())}
+        ${toggleRow("v420ToastToggle", "🔔", "토스트 알림", "사이트 안에서 우측 상단 팝업 표시", toastOn())}
+        ${toggleRow("v420ChromeToggle", "🌐", "크롬 알림", "브라우저/윈도우 알림센터 팝업 표시", chromeOn())}
+
+        <div class="v420-volume-row">
+          <div class="v420-setting-title">🔈 음량 <span id="v420VolumeText"></span></div>
+          <input id="v420Volume" type="range" min="0" max="100" step="1">
+        </div>
+
+        <div class="v420-test-grid">
+          <button type="button" id="v420VoiceTest">음성 테스트</button>
+          <button type="button" id="v420ToastTest">토스트 테스트</button>
+          <button type="button" id="v420ChromeTest">크롬 테스트</button>
+        </div>
+
+        <div class="v420-preview-title">현재 알림 방식</div>
+        <div id="v420Preview" class="v420-preview"></div>
+      </div>
+    `;
+
+    const title = [...modal.children].find(x => (x.innerText || "").includes("설정"));
+    if(title && title.nextSibling){
+      modal.insertBefore(panel, title.nextSibling);
+    }else{
+      modal.appendChild(panel);
+    }
+
+    document.getElementById("v420VoiceToggle").addEventListener("change", e=>{
+      setBool(keys.voice, e.target.checked);
+      updatePreview();
+    });
+    document.getElementById("v420ToastToggle").addEventListener("change", e=>{
+      setBool(keys.toast, e.target.checked);
+      updatePreview();
+    });
+    document.getElementById("v420ChromeToggle").addEventListener("change", async e=>{
+      setBool(keys.chrome, e.target.checked);
+      if(e.target.checked && "Notification" in window && Notification.permission !== "granted"){
+        await Notification.requestPermission();
+      }
+      updatePreview();
+    });
+    document.getElementById("v420Volume").addEventListener("input", e=>{
+      setVolume(Number(e.target.value) / 100);
+      updateSettingsUi();
+    });
+    document.getElementById("v420VoiceTest").addEventListener("click", voiceTest);
+    document.getElementById("v420ToastTest").addEventListener("click", toastTest);
+    document.getElementById("v420ChromeTest").addEventListener("click", chromeTest);
+
+    updateSettingsUi();
+  }
+
+  // 기존 테스트 버튼 클릭 시에도 새 기능으로 연결
   document.addEventListener("click", function(e){
     const el = e.target;
     if(!el) return;
     const text = (el.innerText || el.value || "").trim();
 
-    if(text.includes("설정") || text.includes("음성") || text.includes("닫기")){
-      setTimeout(function(){
-        injectMuteCheckbox();
-        syncFromOldToggle();
-      }, 120);
+    if(text.includes("설정") || text.includes("알림") || text.includes("닫기")){
+      setTimeout(injectSettings, 80);
+      setTimeout(injectSettings, 300);
     }
 
-    if(text.includes("음성 테스트")){
-      setTimeout(window.v416VoiceTest, 50);
-      return;
+    if(text === "음성 테스트"){
+      setTimeout(voiceTest, 50);
+    }
+    if(text === "토스트 테스트"){
+      setTimeout(toastTest, 50);
+    }
+    if(text.includes("크롬 알림 테스트") || text === "크롬 테스트"){
+      setTimeout(chromeTest, 50);
     }
 
-    if(el.id !== "bossVoiceMuteV416"){
-      unlockVoice();
-    }
-  }, true);
-
-  document.addEventListener("change", function(e){
-    const el = e.target;
-    if(!el) return;
-
-    if(el.id === "bossVoiceMuteV416"){
-      setMuted(el.checked);
-      return;
-    }
-
-    const text = ((el.closest("label, .setting-card, .panel, .modal, div") || {}).innerText || "");
-    if(text.includes("음성 알림") && !text.includes("음소거")){
-      setMuted(!el.checked);
-    }
+    unlockVoice();
   }, true);
 
   ["keydown","pointerdown","touchstart"].forEach(ev=>{
@@ -5709,14 +5987,15 @@ async function testToastFromSettings(){
     try{ window.speechSynthesis.onvoiceschanged = getKoreanVoice; }catch(e){}
   }
 
+  migrateOldSettings();
   setInterval(tick, 1000);
-  setInterval(injectMuteCheckbox, 1000);
-  setTimeout(injectMuteCheckbox, 500);
+  setInterval(injectSettings, 1000);
   setTimeout(tick, 300);
+  setTimeout(injectSettings, 700);
 
   try{
     if(location.search.includes("voice_test=1")){
-      setTimeout(window.v416VoiceTest, 800);
+      setTimeout(voiceTest, 800);
     }
   }catch(e){}
 })();

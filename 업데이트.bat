@@ -2,6 +2,6 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 git add .
-git commit -m "v41.6 voice mute checkbox final"
+git commit -m "v42.0 final notification settings"
 git push
 pause

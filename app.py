@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "40.8"
+APP_VERSION = "40.9"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -5285,46 +5285,40 @@ async function testToastFromSettings(){
 
 
 
-<script>
-/* v40.8 boss voice unlock + fallback fix */
-(function(){
-  if(window.__v408BossVoiceFix) return;
-  window.__v408BossVoiceFix = true;
 
-  const firedKey = "v408_boss_voice_fired";
-  const unlockKey = "v408_voice_unlocked";
+
+
+<script>
+/* v40.9 boss end-time voice hardfix */
+(function(){
+  if(window.__v409BossVoiceHardfix) return;
+  window.__v409BossVoiceHardfix = true;
+
+  const firedKey = "v409_boss_voice_fired";
   let fired = {};
   let audioCtx = null;
-  let voiceUnlocked = localStorage.getItem(unlockKey) === "1";
+  let voiceReady = false;
 
   try{ fired = JSON.parse(localStorage.getItem(firedKey) || "{}"); }catch(e){ fired = {}; }
+  function saveFired(){ try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){} }
 
-  function saveFired(){
-    try{ localStorage.setItem(firedKey, JSON.stringify(fired)); }catch(e){}
+  function makeVoiceButton(){
+    if(document.getElementById("v409VoiceBtn")) return;
+    const btn = document.createElement("button");
+    btn.id = "v409VoiceBtn";
+    btn.type = "button";
+    btn.textContent = "🔊 음성켜기";
+    btn.style.cssText = "position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:999px;border:1px solid rgba(245,212,138,.55);background:linear-gradient(180deg,#4b3215,#15100a);color:#ffe7a0;font-weight:900;box-shadow:0 8px 20px rgba(0,0,0,.35);";
+    btn.onclick = function(){
+      unlockAudio(true);
+      testVoice("음성 알림이 켜졌습니다.");
+      btn.textContent = "🔊 음성 켜짐";
+      setTimeout(()=>{ btn.style.opacity = "0.45"; }, 1200);
+    };
+    document.body.appendChild(btn);
   }
 
-  function beep(){
-    try{
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if(!AC) return;
-      if(!audioCtx) audioCtx = new AC();
-      if(audioCtx.state === "suspended") audioCtx.resume();
-
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.38);
-    }catch(e){}
-  }
-
-  function unlockVoice(){
+  function unlockAudio(withBeep){
     try{
       const AC = window.AudioContext || window.webkitAudioContext;
       if(AC && !audioCtx) audioCtx = new AC();
@@ -5333,113 +5327,103 @@ async function testToastFromSettings(){
 
     try{
       if("speechSynthesis" in window){
+        window.speechSynthesis.getVoices();
         const u = new SpeechSynthesisUtterance(" ");
         u.lang = "ko-KR";
         u.volume = 0;
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(u);
-        voiceUnlocked = true;
-        localStorage.setItem(unlockKey, "1");
+        voiceReady = true;
       }
     }catch(e){}
 
-    // 너무 시끄럽지 않게 첫 클릭에서는 삑소리 없음
+    if(withBeep) beep();
   }
 
-  ["click","keydown","touchstart","pointerdown"].forEach(ev=>{
-    window.addEventListener(ev, unlockVoice, {once:false, passive:true});
-  });
+  function beep(){
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      if(!audioCtx) audioCtx = new AC();
+      if(audioCtx.state === "suspended") audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.20, audioCtx.currentTime + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.42);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.45);
+    }catch(e){}
+  }
 
   function getKoreanVoice(){
     try{
       const voices = window.speechSynthesis.getVoices() || [];
-      return voices.find(v => /ko|Korean|한국/i.test((v.lang || "") + " " + (v.name || ""))) || voices[0] || null;
+      return voices.find(v => /ko|Korean|한국/i.test((v.lang||"") + " " + (v.name||""))) || voices[0] || null;
     }catch(e){ return null; }
   }
 
-  if("speechSynthesis" in window){
-    try{ window.speechSynthesis.onvoiceschanged = getKoreanVoice; }catch(e){}
-  }
-
-  function speakBoss(msg){
-    let spoken = false;
+  function testVoice(msg){
     try{
-      if(!("speechSynthesis" in window)) return false;
-
-      // 오래 켜둔 크롬에서 멈추는 문제 방지
+      if(!("speechSynthesis" in window)){ beep(); return false; }
       window.speechSynthesis.cancel();
-
       const u = new SpeechSynthesisUtterance(msg);
       u.lang = "ko-KR";
-      u.rate = 1.0;
-      u.pitch = 1.0;
-      u.volume = 1.0;
-
-      const voice = getKoreanVoice();
-      if(voice) u.voice = voice;
-
-      u.onstart = function(){ spoken = true; };
+      u.volume = 1;
+      u.rate = 1;
+      u.pitch = 1;
+      const v = getKoreanVoice();
+      if(v) u.voice = v;
       window.speechSynthesis.speak(u);
-
-      setTimeout(function(){
-        if(window.speechSynthesis.paused){
-          try{ window.speechSynthesis.resume(); }catch(e){}
-        }
-      }, 250);
-
+      setTimeout(()=>{ try{ window.speechSynthesis.resume(); }catch(e){} }, 250);
       return true;
     }catch(e){
+      beep();
       return false;
     }
   }
 
-  function notifyBoss(title, msg){
-    try{
-      if(window.showToast) window.showToast("☠ " + msg);
-    }catch(e){}
-
+  function notifyBoss(name, mark){
+    const msg = name + " 젠 " + mark + "분 전입니다.";
+    try{ if(window.showToast) window.showToast("☠ " + msg); }catch(e){}
     try{
       if("Notification" in window && Notification.permission === "granted"){
-        new Notification(title, { body: msg });
+        new Notification("보스 알림", {body:msg});
       }
     }catch(e){}
-
-    const ok = speakBoss(msg);
-
-    // 음성 자체가 막힌 환경에서도 청각 알림은 남기기
-    setTimeout(function(){
-      try{
-        if(!("speechSynthesis" in window) || !window.speechSynthesis.speaking){
-          beep();
-        }
-      }catch(e){
-        beep();
-      }
-    }, 500);
+    beep();
+    testVoice(msg);
   }
 
-  function parseKoreanTime(text){
+  // 핵심 수정: 카드 안의 시간 중 "마지막 오전/오후 시간"을 젠시간으로 사용
+  // 예: 오전 11:37 ~ 오전 11:43 이면 11:43을 사용
+  function parseBossEndTime(text){
     const dateMatch = text.match(/(20\d{2}-\d{2}-\d{2})/);
-    const ampmMatch = text.match(/(오전|오후)\s*(\d{1,2})(?::?(\d{2}))?/);
-    if(!dateMatch || !ampmMatch) return null;
+    if(!dateMatch) return null;
 
-    const [y,m,d] = dateMatch[1].split("-").map(Number);
-    let hour = Number(ampmMatch[2]);
-    let min = Number(ampmMatch[3] || "0");
+    const timeMatches = [...text.matchAll(/(오전|오후)\s*(\d{1,2})(?::?(\d{2}))?/g)];
+    if(!timeMatches.length) return null;
 
-    if(ampmMatch[1] === "오후" && hour < 12) hour += 12;
-    if(ampmMatch[1] === "오전" && hour === 12) hour = 0;
+    const mLast = timeMatches[timeMatches.length - 1];
+    const [y,mo,d] = dateMatch[1].split("-").map(Number);
+    let h = Number(mLast[2]);
+    let mi = Number(mLast[3] || "0");
 
-    return new Date(y, m-1, d, hour, min, 0, 0);
+    if(mLast[1] === "오후" && h < 12) h += 12;
+    if(mLast[1] === "오전" && h === 12) h = 0;
+
+    return new Date(y, mo-1, d, h, mi, 0, 0);
   }
 
   function getBossCards(){
     const cards = [];
     document.querySelectorAll(".schedule-panel .schedule-item, .schedule-panel .schedule-item-v363, .schedule-item, .schedule-item-v363").forEach(el=>{
-      const text = el.innerText || "";
-      if(!text.match(/20\d{2}-\d{2}-\d{2}/)) return;
-      if(!text.match(/오전|오후/)) return;
-      cards.push(el);
+      const t = el.innerText || "";
+      if(t.match(/20\d{2}-\d{2}-\d{2}/) && t.match(/오전|오후/)) cards.push(el);
     });
     return cards;
   }
@@ -5447,8 +5431,8 @@ async function testToastFromSettings(){
   function bossNameFromCard(el){
     const lines = (el.innerText || "").split(/\n+/).map(x=>x.trim()).filter(Boolean);
     for(const line of lines){
-      if(!line.match(/20\d{2}-\d{2}-\d{2}/) && !line.includes("젠") && !line.includes("종료")){
-        return line.replace(/[☠💀🦷⛰️⛰🏔️🏔◆📅⏰]/g, "").trim() || "보스";
+      if(!line.match(/20\d{2}-\d{2}-\d{2}/) && !line.includes("젠") && !line.includes("종료") && !line.includes("분 남음")){
+        return line.replace(/[☠💀🦷⛰️⛰🏔️🏔◆📅⏰⌛]/g, "").trim() || "보스";
       }
     }
     return "보스";
@@ -5464,7 +5448,8 @@ async function testToastFromSettings(){
     badge.textContent = text;
 
     el.querySelectorAll(".remain, .schedule-left-v363, .tag").forEach(x=>{
-      if(x !== badge && (x.textContent || "").trim() === "종료"){
+      const tx = (x.textContent || "").trim();
+      if(x !== badge && (tx === "종료" || tx.match(/^젠\s+\d+분/))){
         x.classList.add("v407-hide-wrong-ended");
       }
     });
@@ -5473,11 +5458,10 @@ async function testToastFromSettings(){
   function tickBoss(){
     const now = new Date();
     getBossCards().forEach(el=>{
-      const dt = parseKoreanTime(el.innerText || "");
-      if(!dt) return;
+      const end = parseBossEndTime(el.innerText || "");
+      if(!end) return;
 
-      const diffMs = dt.getTime() - now.getTime();
-      const mins = Math.ceil(diffMs / 60000);
+      const mins = Math.ceil((end.getTime() - now.getTime()) / 60000);
       const name = bossNameFromCard(el);
 
       if(mins < 0){
@@ -5491,32 +5475,47 @@ async function testToastFromSettings(){
       else label = "젠 " + Math.floor(mins/60) + "시간 " + (mins%60) + "분 남음";
       upsertRemainBadge(el, label);
 
+      // 정확한 순간을 놓쳐도 작동:
+      // 30분: 30 이하가 처음 감지되면 발화
+      // 15분: 15 이하가 처음 감지되면 발화
+      // 5분: 5 이하가 처음 감지되면 발화
       [30,15,5].forEach(mark=>{
-        // 10초 폴링이라 정확한 순간을 놓치지 않게 0~10초 오차 허용
-        if(mins === mark){
-          const key = name + "_" + dt.getTime() + "_" + mark;
+        if(mins <= mark && mins >= 0){
+          const key = name + "_" + end.getTime() + "_" + mark;
+          // 단, 30분 알림이 3분에 갑자기 울리는 걸 막기 위해 단계별 범위 제한
+          if(mark === 30 && mins < 16) return;
+          if(mark === 15 && mins < 6) return;
           if(!fired[key]){
             fired[key] = Date.now();
             saveFired();
-            notifyBoss("보스 알림", name + " 젠 " + mark + "분 전입니다.");
+            notifyBoss(name, mark);
           }
         }
       });
     });
   }
 
-  // 설정창 없이도 테스트 가능: 주소창 뒤에 ?voice_test=1 붙이면 즉시 테스트
+  ["click","keydown","pointerdown","touchstart"].forEach(ev=>{
+    window.addEventListener(ev, ()=>unlockAudio(false), {passive:true});
+  });
+
+  if("speechSynthesis" in window){
+    try{ window.speechSynthesis.onvoiceschanged = getKoreanVoice; }catch(e){}
+  }
+
+  makeVoiceButton();
+
   try{
     if(location.search.includes("voice_test=1")){
-      setTimeout(function(){
-        unlockVoice();
-        notifyBoss("음성 테스트", "보스 알림 음성 테스트입니다.");
-      }, 800);
+      setTimeout(()=>{
+        unlockAudio(true);
+        testVoice("보스 알림 음성 테스트입니다.");
+      }, 700);
     }
   }catch(e){}
 
-  setInterval(tickBoss, 10000);
-  setTimeout(tickBoss, 800);
+  setInterval(tickBoss, 5000);
+  setTimeout(tickBoss, 700);
 })();
 </script>
 

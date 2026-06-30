@@ -1,20 +1,13 @@
-v41.0 BOSS ENDTIME SERVER FIX
+v41.1 CREATE FORCE MAIN FIX
 
-이번 핵심 수정:
-- 보스/파밍 젠시간을 서버에서 끝시간 기준으로 계산
-- 11:53 ~ 12:09 입력 시 12:09를 낮 12:09로 자동 보정
-- 기존처럼 오전 12:09 = 새벽 00:09로 잘못 계산해서 종료 뜨던 문제 수정
-- 오른쪽 보스 알림도 시작시간이 아니라 끝시간 표시
-- 음성 알림도 서버가 내려준 정확한 target 기준으로 동작
-- 30분/15분/5분 전 알림 유지
-- 우측 하단 🔊 음성켜기 버튼 유지
+수정:
+- 모집글 등록 후 작성 화면에 남는 문제 수정
+- 등록 완료 후 script + meta refresh로 메인 강제 이동
+- 등록 버튼 중복 클릭 방지
+- v41.0 보스 끝시간 기준 계산 유지
+- 음성/실시간 갱신/디자인 유지
 
 배포:
 git add .
-git commit -m "v41.0 boss endtime server fix"
+git commit -m "v41.1 create force main fix"
 git push
-
-배포 후:
-1. Ctrl + F5
-2. 우측 하단 🔊 음성켜기 클릭
-3. 테스트: 사이트주소/?voice_test=1

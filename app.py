@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "41.0"
+APP_VERSION = "41.1"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -5489,6 +5489,24 @@ async function testToastFromSettings(){
 })();
 </script>
 
+
+<script>
+/* v41.1 create submit guard */
+(function(){
+  if(window.__v411CreateSubmitGuard) return;
+  window.__v411CreateSubmitGuard = true;
+  document.addEventListener("submit", function(e){
+    const f = e.target;
+    if(!f || !f.matches || !f.matches("form[action='/create']")) return;
+    const btn = f.querySelector("button[type='submit'], button:not([type])");
+    if(btn){
+      btn.disabled = true;
+      btn.textContent = "등록 중...";
+    }
+  }, true);
+})();
+</script>
+
 </body></html>"""
 
 def render(page, **kw):
@@ -6134,7 +6152,8 @@ def create():
             if job: slots.append({"job":job,"uid":"","label":"","external":""})
     d["posts"].append({"id":nid(),"category":cat,"place":request.form.get(f"place_{cat}",""),"channel":digits(request.form.get("channel"),4),"date":request.form.get("date") or today(),"start_time":to24(request.form.get("start_period"),request.form.get("start_time")),"end_time":to24(request.form.get("end_period"),request.form.get("end_time")),"memo":request.form.get("memo",""),"owner_uid":u["id"],"owner_label":char_label(c),"created":now_text(),"closed":False,"slots":slots,"participants":[],"chat":[]})
     mark_board_changed(d)
-    save(d); return redirect("/")
+    save(d)
+    return """<!doctype html><html><head><meta charset='utf-8'><meta http-equiv='refresh' content='0;url=/'></head><body><script>location.replace('/');</script>등록되었습니다. 메인으로 이동합니다.</body></html>"""
 
 
 @app.route("/choose_slot/<pid>/<int:i>", methods=["GET","POST"])

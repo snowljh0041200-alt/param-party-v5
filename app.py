@@ -14,7 +14,7 @@ import time
 import random
 import string
 
-APP_VERSION = "40.5"
+APP_VERSION = "40.6"
 APP_TITLE = "월하 · 연가 · 연희 파티모집"
 KST = ZoneInfo("Asia/Seoul")
 DATA_PATH = Path(os.environ.get("DATA_PATH", "data.json"))
@@ -4169,6 +4169,13 @@ select[name="place"] option[value="도삭산900층빽"]{
   font-weight:900;
 }
 
+
+/* v40.6 unified job icons */
+.job-icon-v40{
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui!important;
+  text-shadow:0 0 8px rgba(255,210,120,.18)!important;
+}
+
 </style></head><body><div class='wrap'>"""
 BASE_TAIL = """</div><script>
 let slotN=0;
@@ -5536,17 +5543,23 @@ def place_icon_filter(name):
 
 @app.template_filter("job_icon")
 def job_icon_filter(job):
-    s = str(job or "")
+    s = str(job or "").strip()
+
+    warrior = ["전사", "검객", "검제", "검황", "검성"]
+    thief = ["도적", "자객", "진검", "귀검", "태성"]
+    mage = ["주술사", "술사", "현사", "현인", "현자", "마신", "마성"]
+    healer = ["도사", "도인", "진인", "진선", "명인", "신선"]
+
+    if any(x in s for x in mage):
+        return "🔥"
+    if any(x in s for x in healer):
+        return "🙏"
+    if any(x in s for x in thief):
+        return "🗡"
+    if any(x in s for x in warrior):
+        return "🛡"
     if "승급" in s:
         return "👑"
-    if "주술" in s or "술사" in s or "현자" in s or "현인" in s or "마신" in s or "마성" in s:
-        return "🔥"
-    if "도사" in s or "진선" in s or "진인" in s or "명인" in s:
-        return "🙏"
-    if "도적" in s or "자객" in s or "태성" in s:
-        return "🗡"
-    if "전사" in s or "검" in s or "검황" in s or "검성" in s:
-        return "🛡"
     return "⚔"
 
 T_INDEX = """

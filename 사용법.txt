@@ -1,16 +1,27 @@
-v40.5 HUNT PLACE SELECT OPTIONS FIX
+v40.6 UNIFIED JOB ICONS
 
 수정:
-- 모집글 올리기 > 사냥 > 장소 select 목록에 직접 추가:
-  도삭산800층
-  도삭산900층빽
-- 기존 사냥 모집글과 동일한 방식으로 생성 가능
-- v40.4의 datalist 방식 제거
-- 접속중 축소 유지
-- 실시간 삭제 갱신 유지
-- 주술사 🔥 유지
+- 직업/승급 계열별 아이콘 통일
+
+전사계열:
+전사, 검객, 검제, 검황, 검성 = 🛡
+
+도적계열:
+도적, 자객, 진검, 귀검, 태성 = 🗡
+
+주술계열:
+주술사, 술사, 현사, 현인, 현자, 마신, 마성 = 🔥
+
+도사계열:
+도사, 도인, 진인, 진선, 명인, 신선 = 🙏
+
+기타:
+승급 = 👑
+그 외 = ⚔
+
+기능 변경 없음.
 
 배포:
 git add .
-git commit -m "v40.5 hunt place select options fix"
+git commit -m "v40.6 unified job icons"
 git push
